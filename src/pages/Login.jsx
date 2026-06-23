@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
+import { db } from '../lib/cocobase'
 
 const serif = "'DM Serif Display',serif"
 
@@ -21,7 +22,32 @@ export default function Login() {
   const [focus, setFocus] = useState('')
   const [btnHover, setBtnHover] = useState(false)
   const [socialHover, setSocialHover] = useState(false)
+  const [email, setEmail] = useState('')
+  const [pw, setPw] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   useAnim(rootRef)
+
+  async function handleLogin() {
+    setError('')
+    if (!email || !pw) {
+      setError('Enter your email and password.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const result = await db.auth.login({ email, password: pw })
+      if (result?.requires_2fa) {
+        setError('Two-factor authentication is required for this account.')
+        return
+      }
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err?.message || 'Invalid email or password.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div ref={rootRef} data-authgrid style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1.05fr .95fr' }}>
@@ -78,26 +104,31 @@ export default function Login() {
           </div>
 
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3a2f52', marginBottom: 8 }}>Email address</label>
-          <input type="email" placeholder="you@example.com" onFocus={() => setFocus('email')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'email'), marginBottom: 18 }} />
+          <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'email'), marginBottom: 18 }} />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={{ fontSize: 13, fontWeight: 700, color: '#3a2f52' }}>Password</label>
             <a href="#" style={{ fontSize: 13, color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}>Forgot?</a>
           </div>
-          <input type="password" placeholder="••••••••" onFocus={() => setFocus('pw')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'pw'), marginBottom: 20 }} />
+          <input type="password" placeholder="••••••••" value={pw} onChange={(e) => setPw(e.target.value)} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'pw'), marginBottom: 20 }} />
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#5b5172', marginBottom: 26, cursor: 'pointer' }}>
             <input type="checkbox" style={{ width: 17, height: 17, accentColor: '#7c3aed', cursor: 'pointer' }} /> Keep me signed in
           </label>
 
+          {error && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 13, fontWeight: 600, padding: '10px 14px', borderRadius: 12, marginBottom: 16 }}>{error}</div>
+          )}
+
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={handleLogin}
+            disabled={submitting}
             onMouseEnter={() => setBtnHover(true)}
             onMouseLeave={() => setBtnHover(false)}
-            style={{ display: 'block', textAlign: 'center', width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: btnHover ? '0 22px 44px rgba(124,58,237,.4)' : '0 16px 36px rgba(124,58,237,.32)', transform: btnHover ? 'translateY(-2px)' : 'none', transition: 'transform .25s,box-shadow .25s' }}
+            style={{ display: 'block', textAlign: 'center', width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1, boxShadow: btnHover ? '0 22px 44px rgba(124,58,237,.4)' : '0 16px 36px rgba(124,58,237,.32)', transform: btnHover && !submitting ? 'translateY(-2px)' : 'none', transition: 'transform .25s,box-shadow .25s' }}
           >
-            Sign in to your reserve
+            {submitting ? 'Signing in…' : 'Sign in to your reserve'}
           </button>
 
           <p style={{ textAlign: 'center', fontSize: 13, color: '#a89cc4', margin: '24px 0 0' }}>Protected by bank-grade encryption &amp; multi-sig custody.</p>

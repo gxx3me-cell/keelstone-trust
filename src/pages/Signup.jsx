@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
+import { db } from '../lib/cocobase'
 
 const serif = "'DM Serif Display',serif"
 
@@ -33,11 +34,37 @@ export default function Signup() {
   const [focus, setFocus] = useState('')
   const [btnHover, setBtnHover] = useState(false)
   const [socialHover, setSocialHover] = useState(false)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   useAnim(rootRef)
 
   const score = scorePassword(pw)
   const activeColor = barColors[Math.min(score, 4) - 1] || '#ef4444'
+
+  async function handleSignup() {
+    setError('')
+    if (!email || !pw) {
+      setError('Email and password are required.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await db.auth.register({
+        email,
+        password: pw,
+        data: { first_name: firstName, last_name: lastName, full_name: `${firstName} ${lastName}`.trim() },
+      })
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err?.message || 'Could not create your account. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div ref={rootRef} data-authgrid style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '.95fr 1.05fr' }}>
@@ -72,16 +99,16 @@ export default function Signup() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3a2f52', marginBottom: 8 }}>First name</label>
-              <input type="text" placeholder="Jane" onFocus={() => setFocus('first')} onBlur={() => setFocus('')} style={fieldStyle(focus === 'first')} />
+              <input type="text" placeholder="Jane" value={firstName} onChange={(e) => setFirstName(e.target.value)} onFocus={() => setFocus('first')} onBlur={() => setFocus('')} style={fieldStyle(focus === 'first')} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3a2f52', marginBottom: 8 }}>Last name</label>
-              <input type="text" placeholder="Doe" onFocus={() => setFocus('last')} onBlur={() => setFocus('')} style={fieldStyle(focus === 'last')} />
+              <input type="text" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} onFocus={() => setFocus('last')} onBlur={() => setFocus('')} style={fieldStyle(focus === 'last')} />
             </div>
           </div>
 
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3a2f52', marginBottom: 8 }}>Email address</label>
-          <input type="email" placeholder="you@example.com" onFocus={() => setFocus('email')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'email'), marginBottom: 18 }} />
+          <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'email'), marginBottom: 18 }} />
 
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3a2f52', marginBottom: 8 }}>Password</label>
           <input type="password" placeholder="Create a password" value={pw} onChange={(e) => setPw(e.target.value)} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')} style={{ ...fieldStyle(focus === 'pw'), marginBottom: 10 }} />
@@ -98,14 +125,19 @@ export default function Signup() {
             <input type="checkbox" style={{ width: 17, height: 17, accentColor: '#7c3aed', cursor: 'pointer', marginTop: 2, flex: 'none' }} /> I agree to the <a href="#" style={{ color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}>Terms</a> &amp; <a href="#" style={{ color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</a>.
           </label>
 
+          {error && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 13, fontWeight: 600, padding: '10px 14px', borderRadius: 12, marginBottom: 16 }}>{error}</div>
+          )}
+
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={handleSignup}
+            disabled={submitting}
             onMouseEnter={() => setBtnHover(true)}
             onMouseLeave={() => setBtnHover(false)}
-            style={{ display: 'block', textAlign: 'center', width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: btnHover ? '0 22px 44px rgba(124,58,237,.4)' : '0 16px 36px rgba(124,58,237,.32)', transform: btnHover ? 'translateY(-2px)' : 'none', transition: 'transform .25s,box-shadow .25s' }}
+            style={{ display: 'block', textAlign: 'center', width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1, boxShadow: btnHover ? '0 22px 44px rgba(124,58,237,.4)' : '0 16px 36px rgba(124,58,237,.32)', transform: btnHover && !submitting ? 'translateY(-2px)' : 'none', transition: 'transform .25s,box-shadow .25s' }}
           >
-            Create my reserve
+            {submitting ? 'Creating…' : 'Create my reserve'}
           </button>
         </div>
       </div>
