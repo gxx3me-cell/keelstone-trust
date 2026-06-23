@@ -1,8 +1,10 @@
 import { SLOT_IMAGES } from '../slots'
 
+// Hard rule: real images must always have sharp edges (no border radius).
+// `shape="circle"` is still honored for avatar-style placeholders, but actual
+// photographs render with 0 radius regardless of the shape passed in.
 const radiusForShape = (shape, radius) => {
   if (shape === 'circle') return '50%'
-  if (shape === 'rounded') return `${radius || 16}px`
   return '0'
 }
 
@@ -25,8 +27,9 @@ export default function ImageSlot({ id, shape = 'rect', radius, placeholder = ''
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          borderRadius,
           ...style,
+          // sharp edges always win, even over an incoming style override
+          borderRadius: shape === 'circle' ? '50%' : 0,
         }}
       />
     )
