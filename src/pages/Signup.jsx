@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
 import { db } from '../lib/cocobase'
-import { Vault, ArrowRight, GoogleLogo, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
+import { Vault, ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
 const C = {
@@ -56,6 +56,7 @@ export default function Signup() {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [showPw, setShowPw] = useState(false)
+  const [agreed, setAgreed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   useAnim(rootRef)
@@ -63,9 +64,11 @@ export default function Signup() {
   const score = scorePassword(pw)
   const activeColor = barColors[Math.min(score, 4) - 1] || '#ef4444'
 
-  async function handleSignup() {
+  async function handleSignup(e) {
+    e?.preventDefault()
     setError('')
-    if (!email || !pw) { setError('Email and password are required.'); return }
+    if (!firstName || !email || !pw) { setError('First name, email and password are required.'); return }
+    if (!agreed) { setError('Please agree to the Terms & Privacy Policy.'); return }
     setSubmitting(true)
     try {
       await db.auth.register({
@@ -90,7 +93,7 @@ export default function Signup() {
               <Vault size={18} color="#fff" weight="duotone" />
             </div>
             <div>
-              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block' }}>Crestmont Capital</span>
+              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block' }}>Lumen</span>
               <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</span>
             </div>
           </Link>
@@ -99,54 +102,48 @@ export default function Signup() {
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Begin your investment</h2>
           <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px' }}>Already a client? <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Sign in</Link></p>
 
-          <button type="button" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 13, borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', fontSize: 14.5, fontWeight: 600, color: C.ink, cursor: 'pointer', marginBottom: 22 }}>
-            <GoogleLogo size={19} weight="bold" /> Sign up with Google
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-            <div style={{ flex: 1, height: 1, background: C.line }} />
-            <span style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>OR</span>
-            <div style={{ flex: 1, height: 1, background: C.line }} />
-          </div>
+          <form onSubmit={handleSignup}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
+              <Field label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" focused={focus === 'first'} onFocus={() => setFocus('first')} onBlur={() => setFocus('')} />
+              <Field label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" focused={focus === 'last'} onFocus={() => setFocus('last')} onBlur={() => setFocus('')} />
+            </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
-            <Field label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" focused={focus === 'first'} onFocus={() => setFocus('first')} onBlur={() => setFocus('')} />
-            <Field label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" focused={focus === 'last'} onFocus={() => setFocus('last')} onBlur={() => setFocus('')} />
-          </div>
+            <div style={{ marginBottom: 18 }}>
+              <Field label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} />
+            </div>
 
-          <div style={{ marginBottom: 18 }}>
-            <Field label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} />
-          </div>
+            <Field
+              label="Password" type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Create a password"
+              focused={focus === 'pw'} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')}
+              trailing={
+                <button type="button" onClick={() => setShowPw((v) => !v)} aria-label="Toggle password" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: C.muted, display: 'flex' }}>
+                  {showPw ? <EyeSlash size={19} /> : <Eye size={19} />}
+                </button>
+              }
+            />
+            <div style={{ display: 'flex', gap: 5, margin: '10px 0 6px' }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < score ? activeColor : C.line, transition: 'background .3s' }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 18, height: 14, color: pw.length === 0 ? C.muted : activeColor }}>
+              {pw.length === 0 ? 'Use 8+ characters with a mix of letters & numbers' : words[Math.min(score, 4) - 1] || 'Weak'}
+            </div>
 
-          <Field
-            label="Password" type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Create a password"
-            focused={focus === 'pw'} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')}
-            trailing={
-              <button type="button" onClick={() => setShowPw((v) => !v)} aria-label="Toggle password" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: C.muted, display: 'flex' }}>
-                {showPw ? <EyeSlash size={19} /> : <Eye size={19} />}
-              </button>
-            }
-          />
-          <div style={{ display: 'flex', gap: 5, margin: '10px 0 6px' }}>
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < score ? activeColor : C.line, transition: 'background .3s' }} />
-            ))}
-          </div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 18, height: 14, color: pw.length === 0 ? C.muted : activeColor }}>
-            {pw.length === 0 ? 'Use 8+ characters with a mix of letters & numbers' : words[Math.min(score, 4) - 1] || 'Weak'}
-          </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: C.body, lineHeight: 1.5, marginBottom: 22, cursor: 'pointer' }}>
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} />
+              I agree to the <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</a> &amp; <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</a> of Lumen.
+            </label>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: C.body, lineHeight: 1.5, marginBottom: 22, cursor: 'pointer' }}>
-            <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} /> I agree to the <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</a> &amp; <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</a> of Crestmont Capital.
-          </label>
+            {error && (
+              <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: RAD, marginBottom: 16 }}>{error}</div>
+            )}
 
-          {error && (
-            <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: RAD, marginBottom: 16 }}>{error}</div>
-          )}
-
-          <button type="button" onClick={handleSignup} disabled={submitting}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-            {submitting ? 'Creating account…' : <>Open my Crestmont account <ArrowRight size={16} weight="bold" /></>}
-          </button>
+            <button type="submit" disabled={submitting}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              {submitting ? 'Creating account…' : <>Open my Lumen account <ArrowRight size={16} weight="bold" /></>}
+            </button>
+          </form>
         </div>
       </div>
 
@@ -159,7 +156,7 @@ export default function Signup() {
 
         <div data-anim style={{ position: 'relative', zIndex: 2 }}>
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: 440 }}>Join investors who trust professionals to manage their digital wealth.</h1>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Crestmont Capital offers professionally managed digital asset portfolios — built on preservation, growth, and income.</p>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Lumen offers professionally managed digital asset portfolios — built on preservation, growth, and income.</p>
         </div>
 
         <div data-anim data-delay="140" style={{ position: 'relative', zIndex: 2 }}>

@@ -60,11 +60,12 @@ canvas { display: block; }
 }
 
 /* ===== Dashboard responsive ===== */
-[data-bottomnav] { display: none; }
+[data-dash-hamburger] { display: none; }
+[data-dash-overlay] { display: none; }
 @media (max-width: 900px) {
-  [data-sidebar] { display: none !important; }
-  [data-main] { margin-left: 0 !important; padding: 0 14px 90px !important; }
-  [data-bottomnav] { display: flex !important; }
+  [data-sidebar] { transform: translateX(-100%); transition: transform .38s cubic-bezier(.16,1,.3,1) !important; }
+  [data-sidebar][data-open] { transform: translateX(0) !important; }
+  [data-main] { margin-left: 0 !important; padding: 0 14px 24px !important; }
   [data-grid2] { grid-template-columns: 1fr !important; }
   [data-grid3] { grid-template-columns: 1fr !important; }
   [data-grid4] { grid-template-columns: 1fr !important; }
@@ -72,9 +73,11 @@ canvas { display: block; }
   [data-topbar-search] { display: none !important; }
   [data-hidemobile] { display: none !important; }
   [data-pagetitle] { font-size: 28px !important; }
+  [data-dash-hamburger] { display: flex !important; }
+  [data-dash-overlay] { display: block !important; }
 }
 @media (max-width: 600px) {
-  [data-main] { padding: 0 10px 90px !important; }
+  [data-main] { padding: 0 10px 24px !important; }
 }
 @media (max-width: 480px) {
   [data-modal] > div:last-child { width: calc(100vw - 20px) !important; max-width: none !important; }

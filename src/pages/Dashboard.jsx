@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import '../dashboard/dashboard.css'
+import { db } from '../lib/cocobase'
+import { useAuth } from '../hooks/useAuth'
 import { holdings, txns, txIcon, txLabel, chg, reports, insights } from '../dashboard/data'
 import {
   chartData, perfData, drawArea, drawDonut, drawBars, drawSpark, animate,
@@ -31,10 +33,6 @@ const navItems = [
   ['advisor', 'Advisor Support'],
   ['settings', 'Settings'],
 ]
-const bottomNav = [
-  ['overview', 'Home'], ['portfolio', 'Portfolio'], ['strategies', 'Strategies'],
-  ['performance', 'Stats'], ['settings', 'More'],
-]
 
 export default function Dashboard() {
   const rootRef = useRef(null)
@@ -42,13 +40,16 @@ export default function Dashboard() {
   const donutRef = useRef(null)
   const perfRef = useRef(null)
   const barsRef = useRef(null)
+  const navigate = useNavigate()
+  const { user, loading, isAuthenticated } = useAuth()
 
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('crestmont-theme') || 'light' } catch { return 'light' }
+    try { return localStorage.getItem('lumen-theme') || 'light' } catch { return 'light' }
   })
   const [screen, setScreen] = useState(() => {
-    try { return localStorage.getItem('crestmont-screen') || 'overview' } catch { return 'overview' }
+    try { return localStorage.getItem('lumen-screen') || 'overview' } catch { return 'overview' }
   })
+  const [navOpen, setNavOpen] = useState(false)
   const [modal, setModal] = useState(null)
   const [curTf, setCurTf] = useState('1M')
   const [curPerf, setCurPerf] = useState('1Y')
@@ -60,10 +61,26 @@ export default function Dashboard() {
   const [msgText, setMsgText] = useState('')
   const [reportDownloaded, setReportDownloaded] = useState(null)
 
+  // Auth guard — redirect to login if session is not found after loading
+  useEffect(() => {
+    if (!loading && !isAuthenticated) navigate('/login', { replace: true })
+  }, [loading, isAuthenticated, navigate])
+
+  const firstName = user?.data?.first_name || user?.first_name || ''
+  const lastName = user?.data?.last_name || user?.last_name || ''
+  const fullName = user?.data?.full_name || `${firstName} ${lastName}`.trim() || 'Investor'
+  const userEmail = user?.email || ''
+  const initials = (firstName[0] || '') + (lastName[0] || '') || fullName.slice(0, 2).toUpperCase()
+
+  const handleSignOut = async () => {
+    try { await db.auth.logout() } catch {}
+    navigate('/login')
+  }
+
   const title = navItems.find(([k]) => k === screen)?.[1] || ''
 
-  useEffect(() => { try { localStorage.setItem('crestmont-theme', theme) } catch {} }, [theme])
-  useEffect(() => { try { localStorage.setItem('crestmont-screen', screen) } catch {} }, [screen])
+  useEffect(() => { try { localStorage.setItem('lumen-theme', theme) } catch {} }, [theme])
+  useEffect(() => { try { localStorage.setItem('lumen-screen', screen) } catch {} }, [screen])
 
   useEffect(() => {
     const rootEl = rootRef.current
@@ -122,7 +139,7 @@ export default function Dashboard() {
     return () => { document.body.style.overflow = '' }
   }, [modal])
 
-  const goScreen = (name) => { setScreen(name); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const goScreen = (name) => { setScreen(name); setNavOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
   const filteredHoldings = holdings.filter((h) => {
@@ -132,6 +149,14 @@ export default function Dashboard() {
     return true
   })
   const filteredTx = txns.filter((t) => (txfilter === 'all' ? true : t.type === txfilter))
+
+  const [depositSubmitting, setDepositSubmitting] = useState(false)
+  const [depositDone, setDepositDone] = useState(false)
+  const [depositError, setDepositError] = useState('')
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
+  const [withdrawDone, setWithdrawDone] = useState(false)
+  const [withdrawError, setWithdrawError] = useState('')
+  const [withdrawAmt, setWithdrawAmt] = useState('5,000')
 
   const handleSendMessage = () => {
     if (!msgText.trim()) return
@@ -145,19 +170,80 @@ export default function Dashboard() {
     setTimeout(() => setReportDownloaded(null), 2000)
   }
 
+  const handleDepositSubmit = async () => {
+    setDepositError('')
+    setDepositSubmitting(true)
+    try {
+      const res = await db.functions.execute('submit-deposit', {
+        payload: { amount: depositAmt.replace(/,/g, ''), method: 'bank_transfer' },
+        method: 'POST',
+      })
+      if (res?.error) throw new Error(res.error)
+      setDepositDone(true)
+      setTimeout(() => { setDepositDone(false); setModal(null) }, 3000)
+    } catch (err) {
+      setDepositError(err?.message || 'Could not submit deposit. Please try again.')
+    } finally {
+      setDepositSubmitting(false)
+    }
+  }
+
+  const handleWithdrawSubmit = async () => {
+    setWithdrawError('')
+    setWithdrawSubmitting(true)
+    try {
+      const res = await db.functions.execute('submit-withdrawal', {
+        payload: { amount: withdrawAmt.replace(/,/g, ''), bank_details: 'Bank transfer ····4821' },
+        method: 'POST',
+      })
+      if (res?.error) throw new Error(res.error)
+      setWithdrawDone(true)
+      setTimeout(() => { setWithdrawDone(false); setModal(null) }, 3000)
+    } catch (err) {
+      setWithdrawError(err?.message || 'Could not submit withdrawal. Please try again.')
+    } finally {
+      setWithdrawSubmitting(false)
+    }
+  }
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#faf7ff' }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e7e7ec', borderTopColor: '#7c3aed', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  )
+
   return (
     <div ref={rootRef} data-root data-theme={theme} style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', transition: 'background .4s ease,color .4s ease' }}>
 
+      {/* MOBILE OVERLAY */}
+      <div
+        data-dash-overlay
+        onClick={() => setNavOpen(false)}
+        style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 49, background: 'rgba(14,12,22,.5)', backdropFilter: 'blur(4px)', opacity: navOpen ? 1 : 0, pointerEvents: navOpen ? 'auto' : 'none', transition: 'opacity .35s ease' }}
+      />
+
       {/* SIDEBAR */}
-      <aside data-sidebar style={{ width: 270, flex: 'none', position: 'fixed', top: 0, left: 0, height: '100vh', background: 'var(--sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '22px 16px', zIndex: 50, transition: 'background .4s,border-color .4s', overflowY: 'auto' }}>
+      <aside
+        data-sidebar
+        {...(navOpen ? { 'data-open': '' } : {})}
+        style={{ width: 270, flex: 'none', position: 'fixed', top: 0, left: 0, height: '100vh', background: 'var(--sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '22px 16px', zIndex: 50, transition: 'background .4s,border-color .4s,transform .38s cubic-bezier(.16,1,.3,1)', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '0 8px 24px' }}>
           <div style={{ width: 36, height: 36, borderRadius: 11, background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sidebar)" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: serif, fontSize: 16, color: 'var(--text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Crestmont Capital</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontFamily: serif, fontSize: 16, color: 'var(--text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Lumen</div>
             <div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</div>
           </div>
+          <button
+            data-dash-hamburger
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setNavOpen(false)}
+            style={{ width: 32, height: 32, flex: 'none', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
         </div>
 
         <div style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, padding: '0 12px 8px' }}>Dashboard</div>
@@ -193,10 +279,10 @@ export default function Dashboard() {
             <button type="button" onClick={() => setModal('deposit')} style={{ width: '100%', padding: 9, borderRadius: 9, border: 'none', background: '#fff', color: '#7c3aed', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fund Portfolio</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '8px 10px', borderRadius: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flex: 'none' }}>JC</div>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flex: 'none' }}>{initials || '?'}</div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Jordan Cole</div>
-              <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Growth Strategy · Private</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fullName}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
             </div>
           </div>
         </div>
@@ -206,7 +292,16 @@ export default function Dashboard() {
       <main data-main style={{ flex: 1, marginLeft: 270, padding: '0 clamp(18px,3vw,38px) 48px', minWidth: 0 }}>
 
         {/* TOPBAR */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 40, display: 'flex', alignItems: 'center', gap: 18, padding: '18px 0', background: 'var(--bg)', transition: 'background .4s' }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 40, display: 'flex', alignItems: 'center', gap: 14, padding: '18px 0', background: 'var(--bg)', transition: 'background .4s' }}>
+          <button
+            data-dash-hamburger
+            type="button"
+            aria-label="Open menu"
+            onClick={() => setNavOpen(true)}
+            style={{ width: 42, height: 42, flex: 'none', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', gap: 0 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+          </button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 data-pagetitle style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(24px,3vw,32px)', margin: 0, color: 'var(--text)' }}>{title}</h1>
           </div>
@@ -281,6 +376,72 @@ export default function Dashboard() {
                   <div style={{ fontSize: 11.5, color: s.subColor, fontWeight: 700, marginTop: 4 }}>{s.sub}</div>
                 </div>
               ))}
+            </div>
+
+            {/* WHERE YOUR MONEY IS INVESTED */}
+            <div style={{ ...card(24), marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Where your money is invested</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>Your $272,000 is actively managed across 3 strategies</div>
+                </div>
+                <button type="button" onClick={() => goScreen('strategies')} style={linkBtn()}>Full breakdown →</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[
+                  { name: 'Growth Strategy', alloc: '$120,000', pct: '44%', ret: '+22%', retAmt: '+$26,400/yr', color: '#f59e0b', grad: 'linear-gradient(135deg,#f59e0b,#f97316)', detail: 'Bitcoin 70% · Ethereum 30%', icon: '▲' },
+                  { name: 'Balanced Strategy', alloc: '$100,000', pct: '37%', ret: '+15%', retAmt: '+$15,000/yr', color: '#7c3aed', grad: 'linear-gradient(135deg,#7c3aed,#a855f7)', detail: 'Bitcoin 40% · Ethereum 35% · Stablecoins 25%', icon: '◼' },
+                  { name: 'Conservative Strategy', alloc: '$52,000', pct: '19%', ret: '+9%', retAmt: '+$4,680/yr', color: '#2563eb', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)', detail: 'Stablecoin yield 75% · Conservative crypto 25%', icon: '●' },
+                ].map((s) => (
+                  <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 13, background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, flex: 'none' }}>{s.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{s.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{s.detail}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flex: 'none' }}>
+                      <div style={{ fontFamily: serif, fontSize: 18, color: 'var(--text)', fontWeight: 400 }}>{s.alloc}</div>
+                      <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>{s.ret} · {s.retAmt}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', marginTop: 18 }}>
+                <div style={{ width: '44%', background: 'linear-gradient(90deg,#f59e0b,#f97316)' }} title="Growth" />
+                <div style={{ width: '37%', background: 'linear-gradient(90deg,#7c3aed,#a855f7)', marginLeft: 2 }} title="Balanced" />
+                <div style={{ width: '19%', background: 'linear-gradient(90deg,#2563eb,#06b6d4)', marginLeft: 2 }} title="Conservative" />
+              </div>
+              <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>
+                <span style={{ color: '#f59e0b' }}>■</span> Growth 44%
+                <span style={{ color: '#7c3aed' }}>■</span> Balanced 37%
+                <span style={{ color: '#2563eb' }}>■</span> Conservative 19%
+              </div>
+            </div>
+
+            {/* HOW YOU EARN */}
+            <div style={{ ...card(24), marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>How you earn returns</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>Three income streams working for you simultaneously</div>
+                </div>
+                <button type="button" onClick={() => goScreen('performance')} style={linkBtn()}>View performance →</button>
+              </div>
+              <div data-grid3 style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+                {[
+                  { emoji: '📈', label: 'Capital appreciation', detail: 'BTC & ETH price growth', amount: '+$38,400', sub: 'Est. YTD gain', color: '#f59e0b' },
+                  { emoji: '💰', label: 'Staking & lending yield', detail: 'ETH staking + USDC lending', amount: '+$4,820', sub: 'Earned this year', color: '#7c3aed' },
+                  { emoji: '⚖️', label: 'Active rebalancing', detail: 'Profit capture on peaks', amount: '+$7,530', sub: 'Realised gains', color: '#2563eb' },
+                ].map((e) => (
+                  <div key={e.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 16px' }}>
+                    <div style={{ fontSize: 26, marginBottom: 10 }}>{e.emoji}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{e.label}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>{e.detail}</div>
+                    <div style={{ fontFamily: serif, fontSize: 20, color: '#16a34a' }}>{e.amount}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>{e.sub}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div data-grid2 style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20 }}>
@@ -387,7 +548,7 @@ export default function Dashboard() {
 
             <div style={{ ...card(24), marginTop: 20 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Portfolio summary</div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your capital is professionally allocated across Bitcoin, Ethereum, and stablecoin yield products, managed by the Crestmont Capital investment team.</div>
+              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your capital is professionally allocated across Bitcoin, Ethereum, and stablecoin yield products, managed by the Lumen investment team.</div>
               <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
                 <div style={{ width: '45.0%', background: '#f59e0b' }} />
                 <div style={{ width: '28.2%', background: '#6366f1' }} />
@@ -533,7 +694,7 @@ export default function Dashboard() {
           <section data-pane="reports">
             <div style={card(24)}>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Reports Center</div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 24 }}>Download your official Crestmont Capital investment reports, statements, and tax documents.</div>
+              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 24 }}>Download your official Lumen investment reports, statements, and tax documents.</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {reports.map((r, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 6px', borderBottom: '1px solid var(--border)' }}>
@@ -592,7 +753,7 @@ export default function Dashboard() {
 
             <div style={{ ...card(24), marginTop: 16, background: 'linear-gradient(135deg,rgba(14,14,18,.96),rgba(30,20,50,.98))', border: 'none' }}>
               <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Subscribe to updates</div>
-              <div style={{ fontFamily: serif, fontSize: 22, color: '#fff', marginBottom: 8 }}>Receive monthly commentary from the Crestmont investment team.</div>
+              <div style={{ fontFamily: serif, fontSize: 22, color: '#fff', marginBottom: 8 }}>Receive monthly commentary from the Lumen investment team.</div>
               <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.6)', marginBottom: 20, lineHeight: 1.55 }}>Market insights, portfolio updates, and quarterly outlooks — delivered directly to your inbox.</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input type="email" placeholder="you@example.com" style={{ flex: 1, padding: '12px 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
@@ -609,7 +770,7 @@ export default function Dashboard() {
               {[
                 { emoji: '📅', title: 'Schedule Investment Review', desc: 'Book a 30-minute call with your portfolio manager to discuss performance, strategy, and your financial goals.', action: 'Schedule a call', color: '#7c3aed' },
                 { emoji: '📋', title: 'Quarterly Review Call', desc: 'Join a dedicated Q2 2026 review session. We\'ll walk through your portfolio performance and answer any questions.', action: 'Book Q2 review', color: '#ec4899' },
-                { emoji: '🔐', title: 'Secure Messaging', desc: 'Send an encrypted message directly to the Crestmont Capital portfolio management team.', action: null, color: '#6366f1' },
+                { emoji: '🔐', title: 'Secure Messaging', desc: 'Send an encrypted message directly to the Lumen portfolio management team.', action: null, color: '#6366f1' },
                 { emoji: '📥', title: 'Request Documents', desc: 'Need your investment agreement, KYC documents, or a custom report? Request them here and we\'ll deliver within 2 business days.', action: 'Request documents', color: '#f59e0b' },
               ].map((item, i) => (
                 <div key={i} style={card(24)}>
@@ -646,12 +807,12 @@ export default function Dashboard() {
                 <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18, flex: 'none' }}>SM</div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Sarah Mitchell</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)' }}>Senior Portfolio Manager · Crestmont Capital</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)' }}>Senior Portfolio Manager · Lumen</div>
                   <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, marginTop: 3 }}>● Available Mon–Fri, 9am–5pm GMT</div>
                 </div>
               </div>
               <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.65, marginBottom: 18 }}>
-                Sarah manages your Growth Strategy allocation and is your primary point of contact at Crestmont Capital. She conducts your quarterly portfolio reviews and is available for any questions about your investment.
+                Sarah manages your Growth Strategy allocation and is your primary point of contact at Lumen. She conducts your quarterly portfolio reviews and is available for any questions about your investment.
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'var(--text)', color: 'var(--sidebar)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Send secure message</button>
@@ -668,19 +829,19 @@ export default function Dashboard() {
               <div style={card(26)}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>Profile</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 22 }}>JC</div>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 22 }}>{initials || '?'}</div>
                   <div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>Jordan Cole</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-3)' }}>jordan.cole@example.com</div>
-                    <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>Growth Strategy · Private Client</div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{fullName}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{userEmail}</div>
+                    <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>Lumen Investor Account</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {[
-                    ['Full name', 'Jordan Cole'],
-                    ['Account tier', 'Private Client · $250k+ mandate'],
+                    ['Full name', fullName || '—'],
+                    ['Email', userEmail || '—'],
                     ['KYC status', '✓ Verified'],
-                    ['Member since', 'January 2025'],
+                    ['Member since', user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 6 }}>{k}</div>
@@ -695,75 +856,93 @@ export default function Dashboard() {
                   {[
                     { key: '2fa', title: 'Two-factor authentication', sub: 'Extra layer of account security' },
                     { key: 'bio', title: 'Biometric login', sub: 'Face ID / fingerprint on mobile' },
-                    { key: 'email', title: 'Monthly Investor Letter', sub: 'Receive the Crestmont Capital newsletter' },
+                    { key: 'email', title: 'Monthly Investor Letter', sub: 'Receive the Lumen newsletter' },
                   ].map((row, i) => (
                     <SettingRow key={row.key} {...row} on={switches[row.key]} onToggle={() => setSwitches((s) => ({ ...s, [row.key]: !s[row.key] }))} border={i < 3} />
                   ))}
                   <SettingRow title="Dark appearance" sub="Toggle light / dark theme" on={theme === 'dark'} onToggle={toggleTheme} border={false} />
                 </div>
-                <Link to="/login" style={{ textDecoration: 'none', display: 'block', textAlign: 'center', marginTop: 22, padding: 13, borderRadius: 12, border: '1px solid var(--border)', color: '#ef4444', fontSize: 14, fontWeight: 700 }}>Sign out</Link>
+                <button type="button" onClick={handleSignOut} style={{ width: '100%', textDecoration: 'none', display: 'block', textAlign: 'center', marginTop: 22, padding: 13, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: '#ef4444', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
               </div>
             </div>
           </section>
         )}
       </main>
 
-      {/* MOBILE BOTTOM NAV */}
-      <nav data-bottomnav style={{ position: 'fixed', bottom: 0, left: 0, width: '100%', background: 'var(--sidebar)', borderTop: '1px solid var(--border)', padding: '10px 6px calc(10px + env(safe-area-inset-bottom))', justifyContent: 'space-around', zIndex: 60 }}>
-        {bottomNav.map(([key, label]) => (
-          <button key={key} type="button" onClick={() => goScreen(key)} style={{ border: 'none', background: 'transparent', color: screen === key ? '#7c3aed' : 'var(--text-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px' }}>
-            {icons[key]}{label}
-          </button>
-        ))}
-      </nav>
 
       {/* DEPOSIT MODAL */}
       {modal === 'deposit' && (
-        <Modal onClose={() => setModal(null)}>
-          <ModalHeader title="Fund Portfolio" onClose={() => setModal(null)} />
-          <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
-            Your deposit will be allocated to your active investment strategies by the Crestmont Capital team within 1 business day.
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-            <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
-            <input value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-            {[['10,000', '$10k'], ['25,000', '$25k'], ['50,000', '$50k'], ['100,000', '$100k']].map(([v, l]) => (
-              <button key={v} type="button" onClick={() => setDepositAmt(v)} style={{ flex: 1, padding: 9, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{l}</button>
-            ))}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Funding source</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
-            <div style={{ width: 40, height: 28, borderRadius: 6, background: 'linear-gradient(135deg,#7c3aed,#ec4899)' }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Bank transfer ····4821</div>
-              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Settles in 1–2 business days</div>
+        <Modal onClose={() => { setModal(null); setDepositDone(false); setDepositError('') }}>
+          <ModalHeader title="Fund Portfolio" onClose={() => { setModal(null); setDepositDone(false); setDepositError('') }} />
+          {depositDone ? (
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Deposit request submitted</div>
+              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>The Lumen team will review and allocate your funds within 1 business day. You'll receive a confirmation email shortly.</div>
             </div>
-            <span style={{ color: 'var(--text-3)' }}>⌄</span>
-          </div>
-          <button type="button" onClick={() => setModal(null)} style={modalBtn()}>Confirm deposit</button>
+          ) : (
+            <>
+              <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                Your deposit will be reviewed and allocated to your active investment strategies by the Lumen team within 1 business day.
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+                <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
+                <input value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                {[['10,000', '$10k'], ['25,000', '$25k'], ['50,000', '$50k'], ['100,000', '$100k']].map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => setDepositAmt(v)} style={{ flex: 1, padding: 9, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{l}</button>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Funding source</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
+                <div style={{ width: 40, height: 28, borderRadius: 6, background: 'linear-gradient(135deg,#7c3aed,#ec4899)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Bank transfer ····4821</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Settles in 1–2 business days</div>
+                </div>
+                <span style={{ color: 'var(--text-3)' }}>⌄</span>
+              </div>
+              {depositError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 16 }}>{depositError}</div>}
+              <button type="button" onClick={handleDepositSubmit} disabled={depositSubmitting} style={{ ...modalBtn(), opacity: depositSubmitting ? 0.7 : 1, cursor: depositSubmitting ? 'wait' : 'pointer' }}>
+                {depositSubmitting ? 'Submitting…' : 'Submit deposit request'}
+              </button>
+            </>
+          )}
         </Modal>
       )}
 
       {/* WITHDRAW MODAL */}
       {modal === 'withdraw' && (
-        <Modal onClose={() => setModal(null)}>
-          <ModalHeader title="Request Withdrawal" onClose={() => setModal(null)} />
-          <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
-            Withdrawal requests are processed within 2–5 business days. Funds will be returned to your registered bank account.
-          </div>
-          <div style={{ background: 'var(--surface-2)', borderRadius: 14, padding: 16, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Available to withdraw</span>
-            <span style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)' }}>$71,750</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
-            <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
-            <input defaultValue="5,000" style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
-          </div>
-          <button type="button" onClick={() => setModal(null)} style={modalBtn()}>Submit withdrawal request</button>
+        <Modal onClose={() => { setModal(null); setWithdrawDone(false); setWithdrawError('') }}>
+          <ModalHeader title="Request Withdrawal" onClose={() => { setModal(null); setWithdrawDone(false); setWithdrawError('') }} />
+          {withdrawDone ? (
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Withdrawal request submitted</div>
+              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>The Lumen team will process your request within 2–5 business days. Funds will be returned to your registered bank account.</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                Withdrawal requests are processed within 2–5 business days. Funds will be returned to your registered bank account.
+              </div>
+              <div style={{ background: 'var(--surface-2)', borderRadius: 14, padding: 16, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Available to withdraw</span>
+                <span style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)' }}>$71,750</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
+                <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
+                <input value={withdrawAmt} onChange={(e) => setWithdrawAmt(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
+              </div>
+              {withdrawError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 16 }}>{withdrawError}</div>}
+              <button type="button" onClick={handleWithdrawSubmit} disabled={withdrawSubmitting} style={{ ...modalBtn(), opacity: withdrawSubmitting ? 0.7 : 1, cursor: withdrawSubmitting ? 'wait' : 'pointer' }}>
+                {withdrawSubmitting ? 'Submitting…' : 'Submit withdrawal request'}
+              </button>
+            </>
+          )}
         </Modal>
       )}
     </div>

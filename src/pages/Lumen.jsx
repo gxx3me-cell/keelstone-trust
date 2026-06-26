@@ -87,7 +87,7 @@ const navItems = [
   ['Referrals', '#referrals'], ['Performance', '#performance'],
 ]
 
-export default function CrestmontCapital() {
+export default function LumenCapital() {
   const rootRef = useRef(null)
   const navRef = useRef(null)
   const [activeReport, setActiveReport] = useState(null)
@@ -158,7 +158,7 @@ export default function CrestmontCapital() {
           <div style={{ width: 34, height: 34, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Vault size={19} color="#fff" weight="duotone" />
           </div>
-          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink, letterSpacing: '.2px' }}>Crestmont Capital</span>
+          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink, letterSpacing: '.2px' }}>Lumen</span>
         </Link>
         <div data-navlinks style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 14.5, fontWeight: 600, color: C.body }}>
           {navItems.map(([label, href]) => (
@@ -187,7 +187,7 @@ export default function CrestmontCapital() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Vault size={17} color="#fff" weight="duotone" /></div>
-              <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Crestmont Capital</span>
+              <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Lumen</span>
             </div>
             <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" style={{ width: 40, height: 40, borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} color={C.ink} /></button>
           </div>
@@ -217,7 +217,7 @@ export default function CrestmontCapital() {
               Wealth managed with<br /><span style={{ fontStyle: 'italic', color: C.primary }}>discipline and clarity</span>.
             </h1>
             <p data-reveal data-delay="160" style={{ fontSize: 18.5, lineHeight: 1.6, color: C.body, maxWidth: 510, margin: '0 0 34px' }}>
-              Crestmont Capital offers professionally managed digital asset portfolios for investors seeking long-term exposure to the digital economy — without the complexity of managing it independently.
+              Lumen offers professionally managed digital asset portfolios for investors seeking long-term exposure to the digital economy — without the complexity of managing it independently.
             </p>
             <div data-reveal data-delay="240" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 44 }}>
               <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15.5, fontWeight: 700, color: '#fff', padding: '15px 26px', borderRadius: RAD, background: C.ink }}>
@@ -246,7 +246,7 @@ export default function CrestmontCapital() {
 
           <div data-reveal data-delay="200" style={{ position: 'relative' }}>
             <div style={{ position: 'relative', border: `1px solid ${C.line}`, background: C.surface, overflow: 'hidden' }}>
-              <img src={heroImg} alt="Crestmont Capital dashboard" style={{ width: '100%', height: 'auto', display: 'block' }} />
+              <img src={heroImg} alt="Lumen dashboard" style={{ width: '100%', height: 'auto', display: 'block' }} />
             </div>
             <div style={{ position: 'absolute', top: 22, left: -22, zIndex: 3, background: '#fff', border: `1px solid ${C.line}`, borderRadius: RAD, padding: '14px 18px', boxShadow: '0 14px 40px rgba(14,14,18,.08)' }}>
               <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Portfolio Value</div>
@@ -342,7 +342,7 @@ export default function CrestmontCapital() {
             Digital assets have become one of the fastest-growing asset classes in modern finance. But successful investing isn't simply about buying Bitcoin or Ethereum — it requires understanding market cycles, managing risk intelligently, and maintaining a disciplined long-term strategy.
           </p>
           <p data-reveal data-delay="200" style={{ fontSize: 18.5, lineHeight: 1.7, color: C.body, margin: '0 auto', maxWidth: 720 }}>
-            At Crestmont Capital, our experienced investment team continuously monitors market conditions, manages risk, and makes informed adjustments designed to preserve capital while pursuing long-term growth. <strong style={{ color: C.ink }}>You focus on building your wealth. We focus on managing your portfolio.</strong>
+            At Lumen, our experienced investment team continuously monitors market conditions, manages risk, and makes informed adjustments designed to preserve capital while pursuing long-term growth. <strong style={{ color: C.ink }}>You focus on building your wealth. We focus on managing your portfolio.</strong>
           </p>
         </div>
       </section>
@@ -418,7 +418,7 @@ export default function CrestmontCapital() {
             <div>
               <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 800, marginBottom: 14 }}>Partner Program</div>
               <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(30px,4vw,50px)', lineHeight: 1.1, color: '#fff', margin: '0 0 18px' }}>Earn across three tiers of referrals.</h2>
-              <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: '0 0 28px', maxWidth: 450 }}>Introduce investors to Crestmont Capital and earn a recurring commission on their investment capital — and on the capital of everyone they bring in, up to three levels deep.</p>
+              <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: '0 0 28px', maxWidth: 450 }}>Introduce investors to Lumen and earn a recurring commission on their investment capital — and on the capital of everyone they bring in, up to three levels deep.</p>
               <div data-reveal data-delay="200" style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>
                 <div><div style={{ fontFamily: serif, fontSize: 28, color: '#fff' }}>$<span data-count="6.2" data-dec="1">0</span>M</div><div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>Paid to partners</div></div>
                 <div style={{ width: 1, background: 'rgba(255,255,255,.14)' }} />
@@ -447,7 +447,7 @@ export default function CrestmontCapital() {
       <section style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: '#fff' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 48px' }}>
-            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Why Crestmont Capital</div>
+            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Why Lumen</div>
             <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, margin: 0, color: C.ink }}>Built for trust. Engineered for performance.</h2>
           </div>
           <div data-benefits-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0, border: `1px solid ${C.line}`, borderRadius: RAD, overflow: 'hidden', marginBottom: 52 }}>
@@ -532,7 +532,7 @@ export default function CrestmontCapital() {
             </div>
           </div>
           <div data-reveal data-delay="160" style={{ position: 'relative', border: `1px solid ${C.line}`, background: C.surface, overflow: 'hidden' }}>
-            <img src={heroImg} alt="Crestmont Capital investor dashboard" style={{ display: 'block', width: '100%', height: 'auto' }} />
+            <img src={heroImg} alt="Lumen investor dashboard" style={{ display: 'block', width: '100%', height: 'auto' }} />
           </div>
         </div>
       </section>
@@ -540,8 +540,8 @@ export default function CrestmontCapital() {
       {/* FINAL CTA */}
       <section style={{ position: 'relative', padding: 'clamp(84px,12vh,140px) clamp(18px,5vw,72px)', background: C.ink, color: '#fff' }}>
         <div style={{ position: 'relative', zIndex: 2, maxWidth: 780, margin: '0 auto', textAlign: 'center' }}>
-          <h2 data-reveal style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(36px,5vw,64px)', lineHeight: 1.06, margin: '0 0 20px' }}>Begin your journey with Crestmont Capital.</h2>
-          <p data-reveal data-delay="100" style={{ fontSize: 18, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: '0 auto 34px', maxWidth: 540 }}>Join thousands of investors who trust Crestmont Capital to manage their digital asset portfolios with professionalism, transparency, and discipline.</p>
+          <h2 data-reveal style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(36px,5vw,64px)', lineHeight: 1.06, margin: '0 0 20px' }}>Begin your journey with Lumen.</h2>
+          <p data-reveal data-delay="100" style={{ fontSize: 18, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: '0 auto 34px', maxWidth: 540 }}>Join thousands of investors who trust Lumen to manage their digital asset portfolios with professionalism, transparency, and discipline.</p>
           <div data-reveal data-delay="180" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15.5, fontWeight: 700, color: C.ink, padding: '16px 30px', borderRadius: RAD, background: '#fff' }}>Open Your Account <ArrowRight size={17} weight="bold" /></Link>
             <Link to="/login" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 15.5, fontWeight: 700, color: '#fff', padding: '16px 28px', borderRadius: RAD, border: '1px solid rgba(255,255,255,.3)' }}>Client Login</Link>
@@ -553,8 +553,8 @@ export default function CrestmontCapital() {
       <footer style={{ position: 'relative', background: '#fff', color: C.body, padding: 'clamp(56px,8vh,88px) clamp(18px,5vw,72px) 0', borderTop: `1px solid ${C.line}` }}>
         <div data-reveal style={{ maxWidth: 1240, margin: '0 auto 56px', border: `1px solid ${C.line}`, borderRadius: RAD, padding: 'clamp(28px,5vw,48px)', display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 36, alignItems: 'center' }}>
           <div>
-            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.12, color: C.ink, margin: '0 0 10px' }}>The Crestmont Investor Letter</h3>
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: C.body, margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market insights, and portfolio commentary — written by the Crestmont Capital investment team.</p>
+            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.12, color: C.ink, margin: '0 0 10px' }}>The Lumen Investor Letter</h3>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: C.body, margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market insights, and portfolio commentary — written by the Lumen investment team.</p>
           </div>
           <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input type="email" placeholder="you@example.com" style={{ flex: 1, minWidth: 180, padding: '14px 16px', borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontSize: 14.5, outline: 'none' }} />
@@ -566,7 +566,7 @@ export default function CrestmontCapital() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 16 }}>
               <div style={{ width: 34, height: 34, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Vault size={18} color="#fff" weight="duotone" /></div>
-              <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Crestmont Capital</span>
+              <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Lumen</span>
             </div>
             <p style={{ fontSize: 14.5, lineHeight: 1.65, maxWidth: 300, margin: '0 0 22px', color: C.body }}>Professional digital asset wealth management for investors who think in generations, not quarters.</p>
             <div style={{ display: 'flex', gap: 9 }}>
@@ -596,7 +596,7 @@ export default function CrestmontCapital() {
         </div>
 
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '22px 0 34px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12.5, color: C.muted }}>
-          <span>© 2026 Crestmont Capital. All rights reserved.</span>
+          <span>© 2026 Lumen. All rights reserved.</span>
           <span>Digital assets carry risk. Past performance is not indicative of future results. Capital is not guaranteed.</span>
         </div>
       </footer>
@@ -616,7 +616,7 @@ function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, 
           <div>
             <div style={{ display: 'inline-flex', padding: '5px 11px', borderRadius: RAD, border: '1px solid rgba(255,255,255,.2)', fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', marginBottom: 16 }}>PRIVATE CLIENT</div>
             <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: '0 0 10px' }}>Private Mandate</h3>
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0 }}>For portfolios above $250,000, we construct a fully bespoke allocation with a dedicated Crestmont wealth advisor.</p>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0 }}>For portfolios above $250,000, we construct a fully bespoke allocation with a dedicated Lumen wealth advisor.</p>
           </div>
           <div style={{ marginTop: 22, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14.5, fontWeight: 700 }}>Learn more <ArrowUpRight size={17} weight="bold" color={C.primary} /></div>
         </div>
@@ -744,7 +744,7 @@ function Report({ data, shown, onClose }) {
     <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', background: C.ink, opacity: shown ? 1 : 0, transform: shown ? 'none' : 'scale(.96)', transition: 'opacity .5s ease, transform .5s cubic-bezier(.16,1,.3,1)' }}>
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(24px,5vw,64px)', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 36 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: '#fff' }}><span style={{ fontFamily: serif, fontSize: 19 }}>Crestmont Capital</span><span style={{ opacity: .5, fontSize: 12.5 }}>Investment Strategy Report</span></div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: '#fff' }}><span style={{ fontFamily: serif, fontSize: 19 }}>Lumen</span><span style={{ opacity: .5, fontSize: 12.5 }}>Investment Strategy Report</span></div>
           <button type="button" onClick={onClose} aria-label="Close" style={{ width: 44, height: 44, borderRadius: RAD, border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
         </div>
         <div data-reportgrid style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 44, alignItems: 'center', flex: 1 }}>

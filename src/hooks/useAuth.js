@@ -33,8 +33,7 @@ export function useAuth() {
     user,
     loading,
     isAuthenticated: !!user,
-    // hasRole reads from the user populated by initAuth/getCurrentUser
-    isAdmin: !loading && db.auth.hasRole('admin'),
+    isAdmin: !loading && !!user && (() => { try { return db.auth.hasRole('admin') } catch { return false } })(),
   }
 }
 

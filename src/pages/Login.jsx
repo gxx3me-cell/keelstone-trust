@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
 import { db } from '../lib/cocobase'
-import { Vault, ArrowRight, GoogleLogo, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
+import { Vault, ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
 const C = {
@@ -46,14 +46,21 @@ export default function Login() {
   const [error, setError] = useState('')
   useAnim(rootRef)
 
-  async function handleLogin() {
+  async function handleLogin(e) {
+    e?.preventDefault()
     setError('')
     if (!email || !pw) { setError('Enter your email and password.'); return }
     setSubmitting(true)
     try {
       const result = await db.auth.login({ email, password: pw })
       if (result?.requires_2fa) { setError('Two-factor authentication is required for this account.'); return }
-      navigate('/dashboard')
+      // Admin goes to admin dashboard, regular users go to investor dashboard
+      const user = await db.auth.getCurrentUser()
+      if (user?.role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       setError(err?.message || 'Invalid email or password.')
     } finally {
@@ -75,7 +82,7 @@ export default function Login() {
             <Vault size={19} color="#fff" weight="duotone" />
           </div>
           <div>
-            <span style={{ fontFamily: serif, fontSize: 20 }}>Crestmont Capital</span>
+            <span style={{ fontFamily: serif, fontSize: 20 }}>Lumen</span>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 1 }}>Investor Portal</div>
           </div>
         </div>
@@ -100,48 +107,46 @@ export default function Login() {
         <div data-anim data-delay="80" style={{ width: '100%', maxWidth: 408 }}>
           <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Client Login</div>
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Sign in</h2>
-          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>New to Crestmont? <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Open an account</Link></p>
+          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>New to Lumen? <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Open an account</Link></p>
 
-          <button type="button" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 13, borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', fontSize: 14.5, fontWeight: 600, color: C.ink, cursor: 'pointer', marginBottom: 22 }}>
-            <GoogleLogo size={19} weight="bold" /> Continue with Google
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 0 22px' }}>
-            <div style={{ flex: 1, height: 1, background: C.line }} />
-            <span style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>OR</span>
-            <div style={{ flex: 1, height: 1, background: C.line }} />
-          </div>
+          <form onSubmit={handleLogin}>
+            <Field
+              label="Email address" type="email" value={email}
+              onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
+              focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')}
+            />
 
-          <Field label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: -10 }}>
+              <span />
+              <a href="#" style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Forgot password?</a>
+            </div>
+            <Field
+              label="Password" type={showPw ? 'text' : 'password'} value={pw}
+              onChange={(e) => setPw(e.target.value)} placeholder="••••••••"
+              focused={focus === 'pw'} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')}
+              trailing={
+                <button type="button" onClick={() => setShowPw((v) => !v)} aria-label="Toggle password" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: C.muted, display: 'flex' }}>
+                  {showPw ? <EyeSlash size={19} /> : <Eye size={19} />}
+                </button>
+              }
+            />
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: -10 }}>
-            <span />
-            <a href="#" style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Forgot password?</a>
-          </div>
-          <Field
-            label="Password" type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="••••••••"
-            focused={focus === 'pw'} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')}
-            trailing={
-              <button type="button" onClick={() => setShowPw((v) => !v)} aria-label="Toggle password" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: C.muted, display: 'flex' }}>
-                {showPw ? <EyeSlash size={19} /> : <Eye size={19} />}
-              </button>
-            }
-          />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, color: C.body, margin: '6px 0 24px', cursor: 'pointer' }}>
+              <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer' }} /> Keep me signed in
+            </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, color: C.body, margin: '6px 0 24px', cursor: 'pointer' }}>
-            <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer' }} /> Keep me signed in
-          </label>
+            {error && (
+              <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: RAD, marginBottom: 16 }}>{error}</div>
+            )}
 
-          {error && (
-            <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: RAD, marginBottom: 16 }}>{error}</div>
-          )}
-
-          <button type="button" onClick={handleLogin} disabled={submitting}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-            {submitting ? 'Signing in…' : <>Access investor portal <ArrowRight size={16} weight="bold" /></>}
-          </button>
+            <button type="submit" disabled={submitting}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              {submitting ? 'Signing in…' : <>Access investor portal <ArrowRight size={16} weight="bold" /></>}
+            </button>
+          </form>
 
           <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 12.5, color: C.muted, margin: '22px 0 0' }}><ShieldCheck size={15} weight="fill" color={C.primary} /> Protected by institutional-grade encryption &amp; multi-sig custody.</p>
-          <p style={{ textAlign: 'center', fontSize: 13.5, margin: '16px 0 0' }}><Link to="/" style={{ color: C.muted, textDecoration: 'none', fontWeight: 600 }}>← Back to Crestmont Capital</Link></p>
+          <p style={{ textAlign: 'center', fontSize: 13.5, margin: '16px 0 0' }}><Link to="/" style={{ color: C.muted, textDecoration: 'none', fontWeight: 600 }}>← Back to Lumen</Link></p>
         </div>
       </div>
     </div>
