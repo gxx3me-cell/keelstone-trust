@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../dashboard/dashboard.css'
 import { db } from '../lib/cocobase'
+import { createDepositSession, checkPayment } from '../lib/listener'
 import { useAuth } from '../hooks/useAuth'
 import { holdings, txns, txIcon, txLabel, chg, reports, insights } from '../dashboard/data'
 import {
@@ -180,13 +181,24 @@ export default function Dashboard() {
   })
   const filteredTx = txns.filter((t) => (txfilter === 'all' ? true : t.type === txfilter))
 
-  const [depositSubmitting, setDepositSubmitting] = useState(false)
+  // Deposit (USDT BEP-20) flow: step 'form' -> 'pay' -> 'done'
+  const [depositStep, setDepositStep] = useState('form')
+  const [depositAddress, setDepositAddress] = useState('')
+  const [depositGenerating, setDepositGenerating] = useState(false)
+  const [depositChecking, setDepositChecking] = useState(false)
   const [depositDone, setDepositDone] = useState(false)
   const [depositError, setDepositError] = useState('')
+  const [copied, setCopied] = useState(false)
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
   const [withdrawDone, setWithdrawDone] = useState(false)
   const [withdrawError, setWithdrawError] = useState('')
   const [withdrawAmt, setWithdrawAmt] = useState('5,000')
+  const [withdrawAddr, setWithdrawAddr] = useState('')
+
+  const resetDeposit = () => {
+    setDepositStep('form'); setDepositAddress(''); setDepositError('')
+    setDepositDone(false); setCopied(false)
+  }
 
   const handleSendMessage = () => {
     if (!msgText.trim()) return
@@ -200,7 +212,8 @@ export default function Dashboard() {
     setTimeout(() => setReportDownloaded(null), 2000)
   }
 
-  const handleDepositSubmit = async () => {
+  // Step 1: validate + request the investor's unique BEP-20 deposit address
+  const handleGenerateAddress = async () => {
     setDepositError('')
     if (!selectedPlan) { setDepositError('Please select an investment plan.'); return }
     const amt = parseFloat(depositAmt.replace(/,/g, ''))
@@ -211,30 +224,62 @@ export default function Dashboard() {
     if (selectedPlan.max_usd > 0 && amt > selectedPlan.max_usd) {
       setDepositError(`Maximum for ${selectedPlan.name} is $${selectedPlan.max_usd.toLocaleString()}.`); return
     }
-    setDepositSubmitting(true)
+    setDepositGenerating(true)
     try {
-      const res = await db.functions.execute('submit-deposit', {
-        payload: { amount: String(amt), plan_id: selectedPlan.id, method: 'bank_transfer' },
-        method: 'POST',
+      const session = await createDepositSession({
+        userId: user.id, userEmail: userEmail, userName: fullName, plan: selectedPlan,
       })
-      const result = res?.result ?? res
-      if (result?.error) throw new Error(result.error)
-      setDepositDone(true)
-      loadPortfolio()
-      setTimeout(() => { setDepositDone(false); setModal(null) }, 3500)
+      setDepositAddress(session.address)
+      setDepositStep('pay')
     } catch (err) {
-      setDepositError(err?.message || 'Could not submit deposit. Please try again.')
+      setDepositError(err?.message || 'Could not start deposit. The deposit service may be offline.')
     } finally {
-      setDepositSubmitting(false)
+      setDepositGenerating(false)
+    }
+  }
+
+  // Step 2: investor clicks "I've sent the payment" — ask listener to scan now, then poll
+  const handleConfirmPayment = async () => {
+    setDepositError('')
+    setDepositChecking(true)
+    const before = portfolio?.investment_count ?? 0
+    try {
+      await checkPayment(user.id)
+      // Poll get-my-portfolio for up to ~40s for the new investment to appear
+      let found = false
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 5000))
+        const res = await db.functions.execute('get-my-portfolio', { payload: {}, method: 'POST' })
+        const p = res?.result ?? res
+        if (p && p.investment_count > before) { setPortfolio(p); found = true; break }
+        await checkPayment(user.id).catch(() => {})
+      }
+      if (found) {
+        setDepositDone(true)
+        setDepositStep('done')
+        setTimeout(() => { setModal(null); resetDeposit() }, 4000)
+      } else {
+        setDepositError("We haven't seen your transfer yet. It can take a few minutes to confirm on BSC — keep this open or check back shortly.")
+      }
+    } catch (err) {
+      setDepositError(err?.message || 'Could not verify payment. Please try again in a moment.')
+    } finally {
+      setDepositChecking(false)
     }
   }
 
   const handleWithdrawSubmit = async () => {
     setWithdrawError('')
+    const addr = withdrawAddr.trim()
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
+      setWithdrawError('Enter a valid USDT BEP-20 (BSC) wallet address starting with 0x.'); return
+    }
+    const amt = parseFloat(withdrawAmt.replace(/,/g, ''))
+    if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount.'); return }
     setWithdrawSubmitting(true)
     try {
       const res = await db.functions.execute('submit-withdrawal', {
-        payload: { amount: withdrawAmt.replace(/,/g, ''), bank_details: 'Bank transfer ····4821' },
+        payload: { amount: String(amt), bank_details: addr, network: 'USDT BEP-20' },
         method: 'POST',
       })
       const result = res?.result ?? res
@@ -880,20 +925,64 @@ export default function Dashboard() {
       </main>
 
 
-      {/* DEPOSIT MODAL */}
+      {/* DEPOSIT MODAL — USDT BEP-20 */}
       {modal === 'deposit' && (
-        <Modal onClose={() => { setModal(null); setDepositDone(false); setDepositError('') }}>
-          <ModalHeader title="Fund Portfolio" onClose={() => { setModal(null); setDepositDone(false); setDepositError('') }} />
-          {depositDone ? (
+        <Modal onClose={() => { setModal(null); resetDeposit() }}>
+          <ModalHeader title={depositStep === 'pay' ? 'Send USDT (BEP-20)' : 'Fund Portfolio'} onClose={() => { setModal(null); resetDeposit() }} />
+
+          {/* STEP: success */}
+          {depositStep === 'done' ? (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Deposit request submitted</div>
-              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>The Lumen team will review and allocate your funds within 1 business day. You'll receive a confirmation email shortly.</div>
+              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Payment confirmed</div>
+              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>Your USDT was received on-chain and your {selectedPlan?.name} investment is now active and earning returns.</div>
             </div>
+          ) : depositStep === 'pay' ? (
+            /* STEP: pay — show the unique address + QR */
+            <>
+              <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 18, fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                Send <b style={{ color: 'var(--text)' }}>exactly ${money(parseFloat(depositAmt.replace(/,/g, '')) || 0)} in USDT</b> on the <b style={{ color: 'var(--text)' }}>BNB Smart Chain (BEP-20)</b> network to the address below. Your {selectedPlan?.name} investment activates automatically once it confirms.
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <div style={{ background: '#fff', padding: 12, borderRadius: 14, border: '1px solid var(--border)' }}>
+                  <img
+                    alt="Deposit address QR"
+                    width={170} height={170}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(depositAddress)}`}
+                    style={{ display: 'block' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Your USDT BEP-20 deposit address</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'monospace', color: 'var(--text)', wordBreak: 'break-all' }}>{depositAddress}</span>
+                <button type="button" onClick={() => { navigator.clipboard?.writeText(depositAddress); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
+                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 9, border: 'none', background: copied ? '#16a34a' : 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 12, padding: '11px 14px', marginBottom: 18, fontSize: 12, color: '#b45309', lineHeight: 1.5 }}>
+                <span style={{ flex: 'none' }}>⚠️</span>
+                <span>Send <b>USDT on BEP-20 only</b>. Sending any other token or using another network (ERC-20, TRC-20) will result in permanent loss of funds.</span>
+              </div>
+
+              {depositError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 14 }}>{depositError}</div>}
+
+              <button type="button" onClick={handleConfirmPayment} disabled={depositChecking} style={{ ...modalBtn(), opacity: depositChecking ? 0.75 : 1, cursor: depositChecking ? 'wait' : 'pointer' }}>
+                {depositChecking ? 'Checking the blockchain…' : "I've sent the payment"}
+              </button>
+              <button type="button" onClick={resetDeposit} style={{ width: '100%', marginTop: 10, padding: 12, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ← Change plan or amount
+              </button>
+            </>
           ) : (
+            /* STEP: form — choose plan + amount */
             <>
               <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
-                Choose a plan and amount. The Lumen team reviews and activates your investment within 1 business day.
+                Choose a plan and amount, then send USDT (BEP-20). Your investment activates automatically once the transfer confirms on-chain.
               </div>
 
               {/* PLAN PICKER */}
@@ -920,28 +1009,21 @@ export default function Dashboard() {
                 })}
               </div>
 
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USDT)</div>
               <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
                 <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
                 <input value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)' }}>USDT</span>
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 {[['10,000', '$10k'], ['25,000', '$25k'], ['50,000', '$50k'], ['100,000', '$100k']].map(([v, l]) => (
                   <button key={v} type="button" onClick={() => setDepositAmt(v)} style={{ flex: 1, padding: 9, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{l}</button>
                 ))}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Funding source</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
-                <div style={{ width: 40, height: 28, borderRadius: 6, background: 'linear-gradient(135deg,#7c3aed,#ec4899)' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Bank transfer ····4821</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Settles in 1–2 business days</div>
-                </div>
-                <span style={{ color: 'var(--text-3)' }}>⌄</span>
-              </div>
+
               {depositError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 16 }}>{depositError}</div>}
-              <button type="button" onClick={handleDepositSubmit} disabled={depositSubmitting} style={{ ...modalBtn(), opacity: depositSubmitting ? 0.7 : 1, cursor: depositSubmitting ? 'wait' : 'pointer' }}>
-                {depositSubmitting ? 'Submitting…' : 'Submit deposit request'}
+              <button type="button" onClick={handleGenerateAddress} disabled={depositGenerating} style={{ ...modalBtn(), opacity: depositGenerating ? 0.7 : 1, cursor: depositGenerating ? 'wait' : 'pointer' }}>
+                {depositGenerating ? 'Preparing…' : 'Continue to payment →'}
               </button>
             </>
           )}
@@ -956,22 +1038,26 @@ export default function Dashboard() {
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
               <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Withdrawal request submitted</div>
-              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>The Lumen team will process your request within 2–5 business days. Funds will be returned to your registered bank account.</div>
+              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>Once approved, your USDT will be sent on the BNB Smart Chain (BEP-20) to the address you provided, typically within 2–5 business days.</div>
             </div>
           ) : (
             <>
               <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
-                Withdrawal requests are processed within 2–5 business days. Funds will be returned to your registered bank account.
+                Withdrawals are paid in <b style={{ color: 'var(--text)' }}>USDT on the BNB Smart Chain (BEP-20)</b> to your wallet, after team review.
               </div>
               <div style={{ background: 'var(--surface-2)', borderRadius: 14, padding: 16, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Available to withdraw</span>
-                <span style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)' }}>$71,750</span>
+                <span style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)' }}>${money(portfolio?.total_value || 0)}</span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USDT)</div>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
                 <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
                 <input value={withdrawAmt} onChange={(e) => setWithdrawAmt(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)' }}>USDT</span>
               </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Your USDT BEP-20 wallet address</div>
+              <input value={withdrawAddr} onChange={(e) => setWithdrawAddr(e.target.value)} placeholder="0x…"
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '13px 14px', fontSize: 13.5, fontFamily: 'monospace', color: 'var(--text)', outline: 'none', marginBottom: 18, boxSizing: 'border-box' }} />
               {withdrawError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 16 }}>{withdrawError}</div>}
               <button type="button" onClick={handleWithdrawSubmit} disabled={withdrawSubmitting} style={{ ...modalBtn(), opacity: withdrawSubmitting ? 0.7 : 1, cursor: withdrawSubmitting ? 'wait' : 'pointer' }}>
                 {withdrawSubmitting ? 'Submitting…' : 'Submit withdrawal request'}
