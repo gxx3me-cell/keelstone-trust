@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { db } from '../lib/cocobase'
 import ImageSlot from '../components/ImageSlot'
 import { useReveal, useCountUp } from '../hooks/useReveal'
 import {
@@ -93,9 +94,16 @@ export default function LumenCapital() {
   const [activeReport, setActiveReport] = useState(null)
   const [shown, setShown] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [plans, setPlans] = useState([])
 
   useReveal(rootRef)
   useCountUp(rootRef)
+
+  useEffect(() => {
+    db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 10 })
+      .then((res) => { if (res?.data?.length) setPlans(res.data) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const nav = navRef.current
@@ -395,19 +403,15 @@ export default function LumenCapital() {
           <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 48px' }}>
             <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Investment Tiers</div>
             <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, margin: '0 0 14px', color: C.ink }}>Select the investment tier that fits your objectives.</h2>
-            <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.6, color: C.body, margin: 0 }}>Every tier provides full portfolio management, daily performance reporting, and access to your personalized investor dashboard. Scale up or compound returns at any time.</p>
+            <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.6, color: C.body, margin: 0 }}>Every tier provides full portfolio management, quarterly performance reporting, and access to your personalized investor dashboard. Minimum investment $5,000 USD.</p>
           </div>
-          <div data-plans-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-            {[
-              { name: 'Starter', roi: '10%', period: 'return after 30 days', min: '$500', max: '$2,999', featured: false, perks: ['Professional portfolio management', 'Daily yield accrual', 'Investor dashboard access', 'Monthly performance report'] },
-              { name: 'Growth', roi: '25%', period: 'return after 45 days', min: '$3,000', max: '$9,999', featured: true, perks: ['Everything in Starter', 'Priority withdrawals', 'Quarterly rebalancing review', 'Dedicated account manager'] },
-              { name: 'Premium', roi: '50%', period: 'return after 60 days', min: '$10,000', max: '$49,999', featured: false, perks: ['Everything in Growth', 'Reduced management fee', 'Private market access', 'Monthly strategy call'] },
-              { name: 'Private', roi: '70%', period: 'return after 90 days', min: '$50,000', max: 'No limit', featured: false, perks: ['Everything in Premium', 'Bespoke allocation', 'Dedicated wealth advisor', 'Quarterly in-person reviews'] },
-            ].map((p, i) => (
-              <PlanCard key={p.name} {...p} delay={i * 80 || undefined} />
-            ))}
+          <div data-plans-grid style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(plans.length || 4, 4)},1fr)`, gap: 16 }}>
+            {(plans.length ? plans : FALLBACK_PLANS).map((p, i) => {
+              const d = p.data || p
+              return <PlanCard key={d.name} plan={d} delay={i * 80 || undefined} />
+            })}
           </div>
-          <p data-reveal style={{ textAlign: 'center', fontSize: 12.5, color: C.muted, marginTop: 26 }}>Returns shown are target figures based on historical strategy performance. Digital assets carry risk; past performance does not guarantee future results.</p>
+          <p data-reveal style={{ textAlign: 'center', fontSize: 12.5, color: C.muted, marginTop: 26 }}>Returns represent target annual figures based on strategy performance. Digital assets carry risk; past performance does not guarantee future results. All figures in USD.</p>
         </div>
       </section>
 
@@ -644,39 +648,73 @@ function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, 
   )
 }
 
-function PlanCard({ name, roi, period, min, max, featured, perks, delay }) {
+const FALLBACK_PLANS = [
+  { data: { name: 'Conservative', slug: 'conservative', min_usd: 5000, max_usd: 24999, annual_return_pct: 9, risk: 'Low', strategy: 'Stablecoin yield and conservative crypto exposure.', assets: 'USDC Yield · USDT Reserve · Conservative BTC', perks: ['Professional portfolio management', 'Monthly performance report', 'Investor dashboard access', 'Email advisor support', 'Quarterly rebalancing review'], featured: false, active: true } },
+  { data: { name: 'Balanced', slug: 'balanced', min_usd: 25000, max_usd: 99999, annual_return_pct: 15, risk: 'Medium', strategy: 'BTC, ETH and stablecoin yield for balanced growth.', assets: 'Bitcoin 40% · Ethereum 35% · USDC Yield 25%', perks: ['Everything in Conservative', 'Priority advisor support', 'Semi-annual strategy review call', 'Active monthly rebalancing', 'Detailed quarterly reports'], featured: true, active: true } },
+  { data: { name: 'Growth', slug: 'growth', min_usd: 100000, max_usd: 499999, annual_return_pct: 22, risk: 'High', strategy: 'Concentrated Bitcoin and Ethereum for maximum long-term appreciation.', assets: 'Bitcoin 70% · Ethereum 30%', perks: ['Everything in Balanced', 'Dedicated portfolio manager', 'Monthly 1-on-1 review call', 'Priority withdrawals', 'Custom strategy adjustments'], featured: false, active: true } },
+  { data: { name: 'Private Mandate', slug: 'private', min_usd: 500000, max_usd: 0, annual_return_pct: 0, risk: 'Tailored', strategy: 'Fully bespoke portfolio construction for your specific objectives.', assets: 'Custom allocation', perks: ['Everything in Growth', 'Bespoke portfolio construction', 'In-person advisory meetings', 'Family office services', 'Direct investment desk access'], featured: false, active: true } },
+]
+
+function PlanCard({ plan, delay }) {
   const [hover, setHover] = useState(false)
-  const lift = hover ? { transform: 'translateY(-4px)' } : {}
+  const featured = !!plan.featured
+  const isPrivate = plan.slug === 'private' || plan.annual_return_pct === 0
+  const perks = Array.isArray(plan.perks) ? plan.perks : (plan.perks ? JSON.parse(plan.perks) : [])
+  const lift = hover ? { transform: 'translateY(-5px)', boxShadow: '0 30px 60px rgba(14,14,18,.18)' } : {}
+
   return (
     <div data-reveal data-delay={delay} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ position: 'relative', borderRadius: RAD, overflow: 'hidden', background: featured ? C.ink : '#fff', border: featured ? `1px solid ${C.ink}` : `1px solid ${C.line}`, color: featured ? '#fff' : undefined, transition: 'transform .4s cubic-bezier(.16,1,.3,1)', display: 'flex', flexDirection: 'column', ...lift }}>
-      {featured && <div style={{ position: 'absolute', top: 14, right: 14, fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: C.primary }}>Most popular</div>}
-      <div style={{ padding: '30px 26px 22px' }}>
-        <div style={{ fontFamily: serif, fontSize: 21, marginBottom: 16, color: featured ? '#fff' : C.ink }}>{name}</div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontFamily: serif, fontSize: 'clamp(42px,5.5vw,58px)', lineHeight: 1, color: featured ? '#fff' : C.primary }}>{roi}</span>
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: featured ? 'rgba(255,255,255,.7)' : C.muted }}>ROI</span>
-        </div>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: featured ? 'rgba(255,255,255,.7)' : C.muted, marginTop: 4 }}>{period}</div>
+      style={{ position: 'relative', borderRadius: RAD, overflow: 'hidden', background: featured ? C.ink : '#fff', border: featured ? `1px solid ${C.ink}` : `1px solid ${C.line}`, color: featured ? '#fff' : undefined, transition: 'transform .4s cubic-bezier(.16,1,.3,1), box-shadow .4s', display: 'flex', flexDirection: 'column', ...lift }}>
+      {featured && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#7c3aed,#ec4899)' }} />}
+      {featured && <div style={{ position: 'absolute', top: 16, right: 16, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: C.primary, background: 'rgba(124,58,237,.12)', padding: '3px 8px', borderRadius: 999 }}>Most popular</div>}
+
+      <div style={{ padding: '28px 24px 20px' }}>
+        <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: featured ? 'rgba(255,255,255,.5)' : C.muted, marginBottom: 10 }}>{plan.risk} risk</div>
+        <div style={{ fontFamily: serif, fontSize: 24, color: featured ? '#fff' : C.ink, marginBottom: 14 }}>{plan.name}</div>
+
+        {isPrivate ? (
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ fontFamily: serif, fontSize: 36, lineHeight: 1, color: featured ? '#fff' : C.ink }}>Bespoke</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: featured ? 'rgba(255,255,255,.6)' : C.muted, marginTop: 4 }}>Custom return targets</div>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={{ fontFamily: serif, fontSize: 'clamp(38px,4.5vw,52px)', lineHeight: 1, color: featured ? '#fff' : C.primary }}>{plan.annual_return_pct}%</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: featured ? 'rgba(255,255,255,.6)' : C.muted }}>target p.a.</span>
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: featured ? 'rgba(255,255,255,.6)' : C.muted, marginTop: 3 }}>Annual return · {plan.assets}</div>
+          </div>
+        )}
       </div>
-      <div style={{ padding: '0 26px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '14px 0', borderTop: featured ? '1px solid rgba(255,255,255,.18)' : `1px solid ${C.line}`, borderBottom: featured ? '1px solid rgba(255,255,255,.18)' : `1px solid ${C.line}` }}>
-          <div><div style={{ color: featured ? 'rgba(255,255,255,.65)' : C.muted, fontWeight: 600 }}>Minimum</div><div style={{ fontWeight: 800, fontSize: 15.5, marginTop: 2, color: featured ? '#fff' : C.ink }}>{min}</div></div>
-          <div style={{ textAlign: 'right' }}><div style={{ color: featured ? 'rgba(255,255,255,.65)' : C.muted, fontWeight: 600 }}>Maximum</div><div style={{ fontWeight: 800, fontSize: 15.5, marginTop: 2, color: featured ? '#fff' : C.ink }}>{max}</div></div>
+
+      <div style={{ padding: '0 24px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '14px 0', borderTop: featured ? '1px solid rgba(255,255,255,.15)' : `1px solid ${C.line}`, borderBottom: featured ? '1px solid rgba(255,255,255,.15)' : `1px solid ${C.line}` }}>
+          <div>
+            <div style={{ color: featured ? 'rgba(255,255,255,.55)' : C.muted, fontWeight: 600 }}>Minimum</div>
+            <div style={{ fontWeight: 800, fontSize: 16, marginTop: 2, color: featured ? '#fff' : C.ink }}>${(plan.min_usd || 0).toLocaleString()}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ color: featured ? 'rgba(255,255,255,.55)' : C.muted, fontWeight: 600 }}>Maximum</div>
+            <div style={{ fontWeight: 800, fontSize: 16, marginTop: 2, color: featured ? '#fff' : C.ink }}>{plan.max_usd ? `$${plan.max_usd.toLocaleString()}` : 'No limit'}</div>
+          </div>
         </div>
       </div>
-      <div style={{ padding: '0 26px', flex: 1 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      <div style={{ padding: '0 24px', flex: 1 }}>
+        <div style={{ fontSize: 12, color: featured ? 'rgba(255,255,255,.5)' : C.muted, marginBottom: 12, lineHeight: 1.5 }}>{plan.strategy}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {perks.map((p) => (
-            <div key={p} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13.5, color: featured ? 'rgba(255,255,255,.85)' : C.body }}>
-              <ShieldCheck size={16} weight="fill" color={featured ? C.primary : C.ink} style={{ flex: 'none', marginTop: 1 }} /> {p}
+            <div key={p} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13.5, color: featured ? 'rgba(255,255,255,.82)' : C.body }}>
+              <ShieldCheck size={15} weight="fill" color={featured ? C.primary : C.ink} style={{ flex: 'none', marginTop: 2 }} /> {p}
             </div>
           ))}
         </div>
       </div>
-      <div style={{ padding: '22px 26px 26px' }}>
-        <Link to="/signup" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 14.5, fontWeight: 700, padding: '13px 0', borderRadius: RAD, background: featured ? '#fff' : C.ink, color: featured ? C.ink : '#fff' }}>
-          Get Started <ArrowRight size={15} weight="bold" />
+
+      <div style={{ padding: '22px 24px 26px' }}>
+        <Link to="/signup" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 14.5, fontWeight: 700, padding: '13px 0', borderRadius: RAD, background: featured ? C.primary : C.ink, color: '#fff', transition: 'opacity .2s' }}>
+          {isPrivate ? 'Request consultation' : 'Open account'} <ArrowRight size={15} weight="bold" />
         </Link>
       </div>
     </div>

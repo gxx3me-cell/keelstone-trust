@@ -45,6 +45,7 @@ const NAV = [
   ['investors', 'Investors'],
   ['deposits', 'Deposits'],
   ['withdrawals', 'Withdrawals'],
+  ['plans', 'Plans'],
   ['portfolio', 'Portfolio Mgmt'],
 ]
 
@@ -56,10 +57,13 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([])
   const [deposits, setDeposits] = useState([])
   const [withdrawals, setWithdrawals] = useState([])
+  const [plans, setPlans] = useState([])
   const [listLoading, setListLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(null)
   const [actionNote, setActionNote] = useState({})
   const [toast, setToast] = useState('')
+  const [editingPlan, setEditingPlan] = useState(null)
+  const [planSaving, setPlanSaving] = useState(false)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
 
@@ -67,17 +71,34 @@ export default function AdminDashboard() {
     if (!isAdmin) return
     setListLoading(true)
     try {
-      const [usersRes, depRes, wdRes] = await Promise.all([
+      const [usersRes, depRes, wdRes, plansRes] = await Promise.all([
         db.auth.listUsers({ limit: 100 }),
-        db.getDocuments('lumen_deposits', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
-        db.getDocuments('lumen_withdrawals', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_deposits', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_withdrawals', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 20 }).catch(() => ({ data: [] })),
       ])
       setUsers(usersRes?.data ?? [])
       setDeposits(depRes?.data ?? [])
       setWithdrawals(wdRes?.data ?? [])
+      setPlans(plansRes?.data ?? [])
     } catch {}
     setListLoading(false)
   }, [isAdmin])
+
+  const savePlan = async () => {
+    if (!editingPlan) return
+    setPlanSaving(true)
+    try {
+      const { id, ...data } = editingPlan
+      await db.updateDocument('lumen_plans', id, { data })
+      showToast('Plan updated')
+      setEditingPlan(null)
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Failed to save plan')
+    }
+    setPlanSaving(false)
+  }
 
   useEffect(() => {
     if (!loading && isAdmin) loadAll()
@@ -279,6 +300,92 @@ export default function AdminDashboard() {
                 <RequestRows items={withdrawals} type="withdrawal" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} showAll />
               </div>
             )}
+          </section>
+        )}
+
+        {/* ── PLANS ── */}
+        {screen === 'plans' && (
+          <section>
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Investment plans</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>Edit plans shown on the public website. Changes go live immediately.</p>
+            </div>
+
+            {editingPlan && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                <div onClick={() => setEditingPlan(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
+                <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 40px 90px rgba(0,0,0,.25)' }}>
+                  <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>Edit — {editingPlan.name}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {[
+                      { key: 'name', label: 'Plan name', type: 'text' },
+                      { key: 'annual_return_pct', label: 'Target annual return (%)', type: 'number' },
+                      { key: 'min_usd', label: 'Minimum investment (USD)', type: 'number' },
+                      { key: 'max_usd', label: 'Maximum investment (0 = no limit)', type: 'number' },
+                      { key: 'risk', label: 'Risk level', type: 'text' },
+                      { key: 'assets', label: 'Assets / allocation', type: 'text' },
+                      { key: 'strategy', label: 'Strategy description', type: 'text' },
+                    ].map(({ key, label, type }) => (
+                      <label key={key} style={{ display: 'block' }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+                        <input
+                          type={type} value={editingPlan[key] ?? ''}
+                          onChange={(e) => setEditingPlan((p) => ({ ...p, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
+                          style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff' }}
+                        />
+                      </label>
+                    ))}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.body, cursor: 'pointer', marginTop: 4 }}>
+                      <input type="checkbox" checked={!!editingPlan.featured} onChange={(e) => setEditingPlan((p) => ({ ...p, featured: e.target.checked }))}
+                        style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+                      Mark as featured (highlighted on website)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.body, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!editingPlan.active} onChange={(e) => setEditingPlan((p) => ({ ...p, active: e.target.checked }))}
+                        style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+                      Plan is active (shown on website)
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+                    <button type="button" onClick={savePlan} disabled={planSaving}
+                      style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
+                      {planSaving ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button type="button" onClick={() => setEditingPlan(null)}
+                      style={{ padding: '12px 20px', borderRadius: 12, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {listLoading ? <div style={{ ...card(24), textAlign: 'center', color: C.muted }}>Loading…</div> : plans.map((p) => {
+                const d = p.data || {}
+                return (
+                  <div key={p.id} style={{ ...card(20), display: 'flex', alignItems: 'center', gap: 18 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{d.name}</span>
+                        {d.featured && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: 'rgba(124,58,237,.1)', color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em' }}>Featured</span>}
+                        {!d.active && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: '#fef2f2', color: C.red, textTransform: 'uppercase', letterSpacing: '.06em' }}>Hidden</span>}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.muted }}>
+                        Min: <b style={{ color: C.ink }}>${(d.min_usd || 0).toLocaleString()}</b>
+                        {d.max_usd > 0 && <> · Max: <b style={{ color: C.ink }}>${d.max_usd.toLocaleString()}</b></>}
+                        {d.annual_return_pct > 0 && <> · Target return: <b style={{ color: '#16a34a' }}>{d.annual_return_pct}% p.a.</b></>}
+                        {' · '}{d.risk} risk · {d.assets}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setEditingPlan({ id: p.id, ...d })}
+                      style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                      Edit plan →
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           </section>
         )}
 
