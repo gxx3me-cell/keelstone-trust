@@ -61,6 +61,36 @@ export default function Dashboard() {
   const [msgText, setMsgText] = useState('')
   const [reportDownloaded, setReportDownloaded] = useState(null)
 
+  // Real portfolio + plans from CocoBase
+  const [portfolio, setPortfolio] = useState(null)
+  const [portfolioLoading, setPortfolioLoading] = useState(true)
+  const [availablePlans, setAvailablePlans] = useState([])
+  const [selectedPlan, setSelectedPlan] = useState(null)
+
+  const loadPortfolio = async () => {
+    try {
+      const res = await db.functions.execute('get-my-portfolio', { payload: {}, method: 'POST' })
+      // execute() may return the function result directly or wrapped in { result }
+      setPortfolio(res?.result ?? res ?? null)
+    } catch {
+      setPortfolio(null)
+    } finally {
+      setPortfolioLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (loading || !isAuthenticated) return
+    loadPortfolio()
+    db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 10 })
+      .then((res) => {
+        const plans = (res?.data ?? []).map((p) => ({ id: p.id, ...(p.data || {}) })).filter((p) => p.active !== false)
+        setAvailablePlans(plans)
+        if (plans.length && !selectedPlan) setSelectedPlan(plans[0])
+      })
+      .catch(() => {})
+  }, [loading, isAuthenticated])
+
   // Auth guard — redirect to login if session is not found after loading
   useEffect(() => {
     if (!loading && !isAuthenticated) navigate('/login', { replace: true })
@@ -172,15 +202,26 @@ export default function Dashboard() {
 
   const handleDepositSubmit = async () => {
     setDepositError('')
+    if (!selectedPlan) { setDepositError('Please select an investment plan.'); return }
+    const amt = parseFloat(depositAmt.replace(/,/g, ''))
+    if (!amt || amt <= 0) { setDepositError('Enter a valid amount.'); return }
+    if (amt < (selectedPlan.min_usd || 0)) {
+      setDepositError(`Minimum for ${selectedPlan.name} is $${(selectedPlan.min_usd || 0).toLocaleString()}.`); return
+    }
+    if (selectedPlan.max_usd > 0 && amt > selectedPlan.max_usd) {
+      setDepositError(`Maximum for ${selectedPlan.name} is $${selectedPlan.max_usd.toLocaleString()}.`); return
+    }
     setDepositSubmitting(true)
     try {
       const res = await db.functions.execute('submit-deposit', {
-        payload: { amount: depositAmt.replace(/,/g, ''), method: 'bank_transfer' },
+        payload: { amount: String(amt), plan_id: selectedPlan.id, method: 'bank_transfer' },
         method: 'POST',
       })
-      if (res?.error) throw new Error(res.error)
+      const result = res?.result ?? res
+      if (result?.error) throw new Error(result.error)
       setDepositDone(true)
-      setTimeout(() => { setDepositDone(false); setModal(null) }, 3000)
+      loadPortfolio()
+      setTimeout(() => { setDepositDone(false); setModal(null) }, 3500)
     } catch (err) {
       setDepositError(err?.message || 'Could not submit deposit. Please try again.')
     } finally {
@@ -196,8 +237,10 @@ export default function Dashboard() {
         payload: { amount: withdrawAmt.replace(/,/g, ''), bank_details: 'Bank transfer ····4821' },
         method: 'POST',
       })
-      if (res?.error) throw new Error(res.error)
+      const result = res?.result ?? res
+      if (result?.error) throw new Error(result.error)
       setWithdrawDone(true)
+      loadPortfolio()
       setTimeout(() => { setWithdrawDone(false); setModal(null) }, 3000)
     } catch (err) {
       setWithdrawError(err?.message || 'Could not submit withdrawal. Please try again.')
@@ -319,175 +362,142 @@ export default function Dashboard() {
         {/* ── OVERVIEW ── */}
         {screen === 'overview' && (
           <section data-pane="overview">
-            <div data-overviewgrid style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20, marginBottom: 20 }}>
-              <div style={card()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 12.5, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Total portfolio value</div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-                      <div style={{ fontFamily: serif, fontSize: 'clamp(34px,4vw,46px)', color: 'var(--text)', lineHeight: 1 }}>$322,750</div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 999, background: 'rgba(34,197,94,.12)', color: '#16a34a', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>▲ 18.6%</div>
-                    </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 8 }}>+$50,750 total profit · Capital invested: $272,000</div>
-                  </div>
-                  <TabGroup tabs={['1W', '1M', '3M', '1Y', 'ALL']} active={curTf} onChange={setCurTf} />
+            {/* EMPTY STATE — no investments yet */}
+            {!portfolioLoading && (!portfolio || portfolio.investment_count === 0) && (
+              <div style={{ ...card(40), textAlign: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: 46, marginBottom: 14 }}>🌱</div>
+                <div style={{ fontFamily: serif, fontSize: 28, color: 'var(--text)', marginBottom: 8 }}>Start your first investment</div>
+                <div style={{ fontSize: 14.5, color: 'var(--text-3)', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
+                  You don't have any active investments yet. Choose a plan, deposit from $5,000, and the Lumen team will put your capital to work.
                 </div>
-                <canvas ref={areaRef} style={{ width: '100%', height: 230, marginTop: 10 }} />
+                {portfolio?.deposits?.some((d) => d.status === 'pending') ? (
+                  <div style={{ display: 'inline-block', padding: '12px 20px', borderRadius: 12, background: 'rgba(245,158,11,.12)', color: '#b45309', fontSize: 14, fontWeight: 700 }}>
+                    ⏳ You have a deposit pending review — we'll activate it shortly.
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setModal('deposit')} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 12px 28px rgba(124,58,237,.3)' }}>
+                    Choose a plan & invest →
+                  </button>
+                )}
               </div>
+            )}
 
-              <div style={card(24)}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Allocation</div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 14 }}>Across 3 strategies</div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                  <canvas ref={donutRef} style={{ width: 180, height: 180 }} />
-                  <div style={{ position: 'absolute', textAlign: 'center' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>Strategies</div>
-                    <div style={{ fontFamily: serif, fontSize: 26, color: 'var(--text)' }}>3</div>
+            {/* REAL PORTFOLIO — has investments */}
+            {!portfolioLoading && portfolio && portfolio.investment_count > 0 && (
+              <>
+                <div data-overviewgrid style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20, marginBottom: 20 }}>
+                  <div style={card()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 12.5, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Total portfolio value</div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+                          <div style={{ fontFamily: serif, fontSize: 'clamp(34px,4vw,46px)', color: 'var(--text)', lineHeight: 1 }}>${money(portfolio.total_value)}</div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 999, background: 'rgba(34,197,94,.12)', color: '#16a34a', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>▲ {portfolio.return_pct}%</div>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 8 }}>+${money(portfolio.total_earnings)} earnings · Capital invested: ${money(portfolio.total_principal)}</div>
+                      </div>
+                    </div>
+                    <canvas ref={areaRef} style={{ width: '100%', height: 230, marginTop: 10 }} />
+                  </div>
+
+                  <div style={card(24)}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Allocation</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 14 }}>Across {portfolio.investment_count} active {portfolio.investment_count === 1 ? 'plan' : 'plans'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      <canvas ref={donutRef} style={{ width: 180, height: 180 }} />
+                      <div style={{ position: 'absolute', textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>Plans</div>
+                        <div style={{ fontFamily: serif, fontSize: 26, color: 'var(--text)' }}>{portfolio.investment_count}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 18 }}>
+                      {portfolio.investments.map((inv, i) => {
+                        const pctOfTotal = portfolio.total_value > 0 ? ((inv.current_value / portfolio.total_value) * 100).toFixed(1) : '0.0'
+                        return (
+                          <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
+                            <span style={{ width: 9, height: 9, borderRadius: '50%', background: PLAN_COLORS[i % PLAN_COLORS.length], flex: 'none' }} />
+                            <span style={{ color: 'var(--text-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.plan_name}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text)', flex: 'none' }}>{pctOfTotal}%</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 18 }}>
+
+                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
                   {[
-                    ['Growth Strategy', '45.0%', '#f59e0b', 'BTC + ETH'],
-                    ['Balanced Strategy', '28.2%', '#6366f1', 'BTC + ETH + Stable'],
-                    ['Conservative Strategy', '13.2%', '#2563eb', 'Stablecoin yield'],
-                    ['Stablecoin Reserve', '9.0%', '#16a34a', 'USDT / USDC'],
-                    ['Cash & Other', '4.6%', '#8b8b97', 'stETH + USD'],
-                  ].map(([n, p, c, sub]) => (
-                    <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
-                      <span style={{ width: 9, height: 9, borderRadius: '50%', background: c, flex: 'none' }} />
-                      <span style={{ color: 'var(--text-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--text)', flex: 'none' }}>{p}</span>
+                    { label: 'Total return', val: `+${portfolio.return_pct}%`, sub: '▲ Since investment', subColor: '#16a34a' },
+                    { label: 'Earnings to date', val: `$${money(portfolio.total_earnings)}`, sub: '▲ Accruing daily', subColor: '#16a34a' },
+                    { label: 'Capital invested', val: `$${money(portfolio.total_principal)}`, sub: 'Principal', subColor: 'var(--text-3)' },
+                    { label: 'Active plans', val: String(portfolio.investment_count), sub: 'Earning returns', subColor: 'var(--text-3)' },
+                  ].map((s) => (
+                    <div key={s.label} style={card(20, 20)}>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 10 }}>{s.label}</div>
+                      <div style={{ fontFamily: serif, fontSize: 26, color: 'var(--text)' }}>{s.val}</div>
+                      <div style={{ fontSize: 11.5, color: s.subColor, fontWeight: 700, marginTop: 4 }}>{s.sub}</div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            <div data-grid4 style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
-              {[
-                { label: 'Total return', val: '+18.6%', sub: '▲ Since investment', subColor: '#16a34a' },
-                { label: 'Annual return', val: '+22%', sub: 'Growth Strategy', subColor: 'var(--text-3)' },
-                { label: 'Yield earned', sub: '▲ +$312 this month', subColor: '#16a34a', val: '$4,820' },
-                { label: 'Risk profile', val: 'Medium', sub: 'Balanced mandate', subColor: 'var(--text-3)' },
-              ].map((s) => (
-                <div key={s.label} style={card(20, 20)}>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 10 }}>{s.label}</div>
-                  <div style={{ fontFamily: serif, fontSize: 26, color: 'var(--text)' }}>{s.val}</div>
-                  <div style={{ fontSize: 11.5, color: s.subColor, fontWeight: 700, marginTop: 4 }}>{s.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* WHERE YOUR MONEY IS INVESTED */}
-            <div style={{ ...card(24), marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Where your money is invested</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>Your $272,000 is actively managed across 3 strategies</div>
-                </div>
-                <button type="button" onClick={() => goScreen('strategies')} style={linkBtn()}>Full breakdown →</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  { name: 'Growth Strategy', alloc: '$120,000', pct: '44%', ret: '+22%', retAmt: '+$26,400/yr', color: '#f59e0b', grad: 'linear-gradient(135deg,#f59e0b,#f97316)', detail: 'Bitcoin 70% · Ethereum 30%', icon: '▲' },
-                  { name: 'Balanced Strategy', alloc: '$100,000', pct: '37%', ret: '+15%', retAmt: '+$15,000/yr', color: '#7c3aed', grad: 'linear-gradient(135deg,#7c3aed,#a855f7)', detail: 'Bitcoin 40% · Ethereum 35% · Stablecoins 25%', icon: '◼' },
-                  { name: 'Conservative Strategy', alloc: '$52,000', pct: '19%', ret: '+9%', retAmt: '+$4,680/yr', color: '#2563eb', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)', detail: 'Stablecoin yield 75% · Conservative crypto 25%', icon: '●' },
-                ].map((s) => (
-                  <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 13, background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, flex: 'none' }}>{s.icon}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{s.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{s.detail}</div>
+                {/* WHERE YOUR MONEY IS INVESTED — real */}
+                <div style={{ ...card(24), marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Where your money is invested</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>Your ${money(portfolio.total_principal)} across {portfolio.investment_count} {portfolio.investment_count === 1 ? 'plan' : 'plans'}</div>
                     </div>
-                    <div style={{ textAlign: 'right', flex: 'none' }}>
-                      <div style={{ fontFamily: serif, fontSize: 18, color: 'var(--text)', fontWeight: 400 }}>{s.alloc}</div>
-                      <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>{s.ret} · {s.retAmt}</div>
-                    </div>
+                    <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>+ Add investment</button>
                   </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', marginTop: 18 }}>
-                <div style={{ width: '44%', background: 'linear-gradient(90deg,#f59e0b,#f97316)' }} title="Growth" />
-                <div style={{ width: '37%', background: 'linear-gradient(90deg,#7c3aed,#a855f7)', marginLeft: 2 }} title="Balanced" />
-                <div style={{ width: '19%', background: 'linear-gradient(90deg,#2563eb,#06b6d4)', marginLeft: 2 }} title="Conservative" />
-              </div>
-              <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>
-                <span style={{ color: '#f59e0b' }}>■</span> Growth 44%
-                <span style={{ color: '#7c3aed' }}>■</span> Balanced 37%
-                <span style={{ color: '#2563eb' }}>■</span> Conservative 19%
-              </div>
-            </div>
-
-            {/* HOW YOU EARN */}
-            <div style={{ ...card(24), marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>How you earn returns</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>Three income streams working for you simultaneously</div>
-                </div>
-                <button type="button" onClick={() => goScreen('performance')} style={linkBtn()}>View performance →</button>
-              </div>
-              <div data-grid3 style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
-                {[
-                  { emoji: '📈', label: 'Capital appreciation', detail: 'BTC & ETH price growth', amount: '+$38,400', sub: 'Est. YTD gain', color: '#f59e0b' },
-                  { emoji: '💰', label: 'Staking & lending yield', detail: 'ETH staking + USDC lending', amount: '+$4,820', sub: 'Earned this year', color: '#7c3aed' },
-                  { emoji: '⚖️', label: 'Active rebalancing', detail: 'Profit capture on peaks', amount: '+$7,530', sub: 'Realised gains', color: '#2563eb' },
-                ].map((e) => (
-                  <div key={e.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 16px' }}>
-                    <div style={{ fontSize: 26, marginBottom: 10 }}>{e.emoji}</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{e.label}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>{e.detail}</div>
-                    <div style={{ fontFamily: serif, fontSize: 20, color: '#16a34a' }}>{e.amount}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 }}>{e.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div data-grid2 style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 20 }}>
-              <div style={card(24)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Portfolio holdings</div>
-                  <button type="button" onClick={() => goScreen('portfolio')} style={linkBtn()}>View all →</button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {holdings.slice(0, 5).map((h) => {
-                    const c = chg(h.chg)
-                    return (
-                      <div key={h.name} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 6px', borderRadius: 12 }}>
-                        <div style={iconChip(h.color, 38)}>{h.sym.slice(0, 3)}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {portfolio.investments.map((inv, i) => (
+                      <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 13, background: PLAN_GRADS[i % PLAN_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, flex: 'none' }}>◈</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{h.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{h.amt}</div>
+                          <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{inv.plan_name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Invested {new Date(inv.start_date).toLocaleDateString()} · {inv.annual_return_pct}% p.a.</div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{h.val}</div>
-                          <div style={{ fontSize: 12, color: c.col, fontWeight: 700 }}>{c.text}</div>
+                        <div style={{ textAlign: 'right', flex: 'none' }}>
+                          <div style={{ fontFamily: serif, fontSize: 18, color: 'var(--text)', fontWeight: 400 }}>${money(inv.current_value)}</div>
+                          <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>+${money(inv.earnings)} earned</div>
                         </div>
                       </div>
-                    )
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div style={card(24)}>
+              </>
+            )}
+
+            {/* RECENT ACTIVITY — real deposits/withdrawals */}
+            {!portfolioLoading && portfolio && (portfolio.deposits?.length > 0 || portfolio.withdrawals?.length > 0) && (
+              <div style={{ ...card(24), marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Recent activity</div>
-                  <button type="button" onClick={() => goScreen('activity')} style={linkBtn()}>View all →</button>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {txns.slice(0, 5).map((t, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 10, background: `${txIcon[t.type]}1e`, color: txIcon[t.type], display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 13, fontWeight: 800 }}>{txLabel[t.type] || '·'}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t.when}</div>
-                      </div>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: t.sign > 0 ? '#16a34a' : t.sign < 0 ? '#ef4444' : 'var(--text-3)', textAlign: 'right', flex: 'none', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.amt}</div>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {[
+                    ...(portfolio.deposits || []).map((d) => ({ ...d, kind: 'deposit' })),
+                    ...(portfolio.withdrawals || []).map((w) => ({ ...w, kind: 'withdrawal' })),
+                  ]
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                    .slice(0, 6)
+                    .map((t) => {
+                      const isDep = t.kind === 'deposit'
+                      const col = t.status === 'approved' ? '#16a34a' : t.status === 'rejected' ? '#ef4444' : '#f59e0b'
+                      return (
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 10, background: `${col}1e`, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 14, fontWeight: 800 }}>{isDep ? '↓' : '↑'}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>{isDep ? `Deposit · ${t.plan_name || 'Plan'}` : 'Withdrawal'}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : ''} · <span style={{ color: col, fontWeight: 700, textTransform: 'capitalize' }}>{t.status}</span></div>
+                          </div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: isDep ? '#16a34a' : 'var(--text)', textAlign: 'right', flex: 'none' }}>{isDep ? '+' : '−'}${money(t.amount || 0)}</div>
+                        </div>
+                      )
+                    })}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Latest insight teaser */}
             <div style={{ ...card(24), marginTop: 20 }}>
@@ -883,8 +893,33 @@ export default function Dashboard() {
           ) : (
             <>
               <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
-                Your deposit will be reviewed and allocated to your active investment strategies by the Lumen team within 1 business day.
+                Choose a plan and amount. The Lumen team reviews and activates your investment within 1 business day.
               </div>
+
+              {/* PLAN PICKER */}
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Choose your plan</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                {availablePlans.map((p) => {
+                  const active = selectedPlan?.id === p.id
+                  const isPrivate = p.slug === 'private' || p.annual_return_pct === 0
+                  return (
+                    <button key={p.id} type="button" onClick={() => { setSelectedPlan(p); setDepositAmt((p.min_usd || 0).toLocaleString()) }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${active ? '#7c3aed' : 'var(--border)'}`, background: active ? 'rgba(124,58,237,.06)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : 'var(--border)'}`, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {active && <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#7c3aed' }} />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.name}</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Min ${(p.min_usd || 0).toLocaleString()} · {p.risk} risk</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flex: 'none' }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>{isPrivate ? 'Bespoke' : `${p.annual_return_pct}% p.a.`}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
               <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
               <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
                 <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
@@ -950,6 +985,15 @@ export default function Dashboard() {
 }
 
 /* ─── helpers ─── */
+const money = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const PLAN_COLORS = ['#7c3aed', '#f59e0b', '#2563eb', '#16a34a', '#ec4899']
+const PLAN_GRADS = [
+  'linear-gradient(135deg,#7c3aed,#a855f7)',
+  'linear-gradient(135deg,#f59e0b,#f97316)',
+  'linear-gradient(135deg,#2563eb,#06b6d4)',
+  'linear-gradient(135deg,#16a34a,#22c55e)',
+  'linear-gradient(135deg,#ec4899,#f43f5e)',
+]
 const card = (pad = 26, padTop) => ({
   background: 'var(--surface)', border: '1px solid var(--border)',
   borderRadius: pad >= 24 ? 24 : 20, padding: padTop ? `${padTop}px` : pad === 26 ? '26px 26px 8px' : pad,

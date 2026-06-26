@@ -30,6 +30,29 @@ function displayName(u) {
   return u?.data?.full_name || [u?.data?.first_name, u?.data?.last_name].filter(Boolean).join(' ') || u?.email || 'Unknown'
 }
 
+function accrued(principal, annualPct, startIso) {
+  const start = new Date(startIso)
+  if (isNaN(start)) return 0
+  const days = Math.max((Date.now() - start.getTime()) / 86400000, 0)
+  return principal * (annualPct / 100) * (days / 365)
+}
+
+// Sum a single investor's active investments → { principal, earnings, value, count }
+function investorTotals(userId, investments) {
+  let principal = 0, earnings = 0, count = 0
+  for (const inv of investments) {
+    const d = inv.data || {}
+    if (d.user_id !== userId || d.status !== 'active') continue
+    const p = Number(d.principal || 0)
+    principal += p
+    earnings += accrued(p, Number(d.annual_return_pct || 0), d.start_date)
+    count++
+  }
+  return { principal, earnings, value: principal + earnings, count }
+}
+
+const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })
+
 function StatusBadge({ status }) {
   const map = { pending: [C.amber, '#fffbeb', '⏳'], approved: [C.green, '#f0fdf4', '✓'], rejected: [C.red, '#fef2f2', '✕'] }
   const [color, bg, icon] = map[status] || [C.muted, C.bg, '·']
@@ -58,6 +81,7 @@ export default function AdminDashboard() {
   const [deposits, setDeposits] = useState([])
   const [withdrawals, setWithdrawals] = useState([])
   const [plans, setPlans] = useState([])
+  const [investments, setInvestments] = useState([])
   const [listLoading, setListLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(null)
   const [actionNote, setActionNote] = useState({})
@@ -71,16 +95,18 @@ export default function AdminDashboard() {
     if (!isAdmin) return
     setListLoading(true)
     try {
-      const [usersRes, depRes, wdRes, plansRes] = await Promise.all([
+      const [usersRes, depRes, wdRes, plansRes, invRes] = await Promise.all([
         db.auth.listUsers({ limit: 100 }),
-        db.listDocuments('lumen_deposits', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
-        db.listDocuments('lumen_withdrawals', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_deposits', { sort: 'createdAt', order: 'desc', limit: 100 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_withdrawals', { sort: 'createdAt', order: 'desc', limit: 100 }).catch(() => ({ data: [] })),
         db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 20 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_investments', { limit: 200 }).catch(() => ({ data: [] })),
       ])
       setUsers(usersRes?.data ?? [])
       setDeposits(depRes?.data ?? [])
       setWithdrawals(wdRes?.data ?? [])
       setPlans(plansRes?.data ?? [])
+      setInvestments(invRes?.data ?? [])
     } catch {}
     setListLoading(false)
   }, [isAdmin])
@@ -136,7 +162,9 @@ export default function AdminDashboard() {
   )
 
   const pending = { deposits: deposits.filter(d => d.data?.status === 'pending'), withdrawals: withdrawals.filter(w => w.data?.status === 'pending') }
-  const totalAUM = deposits.filter(d => d.data?.status === 'approved').reduce((s, d) => s + (d.data?.amount || 0), 0)
+  const activeInvestments = investments.filter(i => i.data?.status === 'active')
+  const totalAUM = activeInvestments.reduce((s, i) => s + Number(i.data?.principal || 0), 0)
+  const totalEarnings = activeInvestments.reduce((s, i) => s + accrued(Number(i.data?.principal || 0), Number(i.data?.annual_return_pct || 0), i.data?.start_date), 0)
   const adminCount = users.filter(u => (u.roles || []).includes('admin')).length
 
   return (
@@ -188,10 +216,10 @@ export default function AdminDashboard() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16, marginBottom: 26 }}>
               {[
-                { label: 'Total investors', val: listLoading ? '—' : (users.length - adminCount), sub: 'Active accounts', color: C.primary },
+                { label: 'Assets under management', val: listLoading ? '—' : `$${fmt(totalAUM)}`, sub: `${activeInvestments.length} active investments`, color: C.green },
+                { label: 'Investor earnings accrued', val: listLoading ? '—' : `$${fmt(totalEarnings)}`, sub: 'Paid out over time', color: C.primary },
                 { label: 'Pending deposits', val: listLoading ? '—' : pending.deposits.length, sub: 'Awaiting approval', color: C.amber },
                 { label: 'Pending withdrawals', val: listLoading ? '—' : pending.withdrawals.length, sub: 'Awaiting processing', color: C.pink },
-                { label: 'Approved capital in', val: listLoading ? '—' : `$${totalAUM.toLocaleString()}`, sub: 'Total deposited', color: C.green },
               ].map((s) => (
                 <div key={s.label} style={card(22)}>
                   <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 10 }}>{s.label}</div>
@@ -240,25 +268,28 @@ export default function AdminDashboard() {
               <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${users.length} total accounts`}</p>
             </div>
             <div style={card(0)}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.2fr 1fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
-                <div>Investor</div><div>Email</div><div>Role</div><div>Joined</div><div style={{ textAlign: 'right' }}>Status</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.8fr 1fr 1.1fr 1.1fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
+                <div>Investor</div><div>Email</div><div>Plans</div><div style={{ textAlign: 'right' }}>Invested</div><div style={{ textAlign: 'right' }}>Earnings</div>
               </div>
-              {listLoading ? <LoadingRow /> : users.map((u) => (
-                <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.2fr 1fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: `1px solid #f6f1fe` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-                    <Avatar u={u} />
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(u)}</div>
+              {listLoading ? <LoadingRow /> : users.map((u) => {
+                const t = investorTotals(u.id, investments)
+                const isAdminUser = (u.roles || []).includes('admin')
+                return (
+                  <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.8fr 1fr 1.1fr 1.1fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: `1px solid #f6f1fe` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                      <Avatar u={u} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(u)}</div>
+                        {isAdminUser && <span style={{ fontSize: 10.5, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em' }}>Admin</span>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: C.body, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: t.count ? C.ink : C.muted }}>{t.count || '—'}</div>
+                    <div style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: C.ink }}>{t.principal ? `$${fmt(t.principal)}` : '—'}</div>
+                    <div style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: t.earnings ? C.green : C.muted }}>{t.earnings ? `+$${fmt(t.earnings)}` : '—'}</div>
                   </div>
-                  <div style={{ fontSize: 13, color: C.body, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
-                  <div>{(u.roles?.length ? u.roles : ['user']).map((r) => (
-                    <span key={r} style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: r === 'admin' ? 'rgba(124,58,237,.12)' : 'rgba(138,127,163,.1)', color: r === 'admin' ? C.primary : C.muted }}>{r}</span>
-                  ))}</div>
-                  <div style={{ fontSize: 12.5, color: C.muted }}>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#f0fdf4', color: C.green }}>✓ Active</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}
@@ -425,12 +456,12 @@ export default function AdminDashboard() {
               <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>Platform performance summary</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 16 }}>
                 {[
-                  ['Total AUM', `$${(272000).toLocaleString()}`],
-                  ['Portfolio value', `$${(322750).toLocaleString()}`],
-                  ['Total return', '+18.6%'],
-                  ['ETH staking yield', '4.2% APY'],
-                  ['USDC lending yield', '5.1% APY'],
-                  ['Active strategies', '3'],
+                  ['Total AUM', `$${fmt(totalAUM)}`],
+                  ['Portfolio value', `$${fmt(totalAUM + totalEarnings)}`],
+                  ['Earnings accrued', `$${fmt(totalEarnings)}`],
+                  ['Active investments', String(activeInvestments.length)],
+                  ['Active investors', String(new Set(activeInvestments.map(i => i.data?.user_id)).size)],
+                  ['Plans offered', String(plans.length)],
                 ].map(([k, v]) => (
                   <div key={k} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px' }}>
                     <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>{k}</div>
