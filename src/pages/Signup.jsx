@@ -12,7 +12,6 @@ const C = {
 }
 const RAD = 8
 
-// Same distinct field as the login page: filled surface + ink underline on focus.
 function Field({ label, type = 'text', value, onChange, placeholder, focused, onFocus, onBlur, trailing }) {
   return (
     <label style={{ display: 'block' }}>
@@ -90,11 +89,14 @@ export default function Signup() {
             <div style={{ width: 34, height: 34, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Vault size={18} color="#fff" weight="duotone" />
             </div>
-            <span style={{ fontFamily: serif, fontSize: 21, color: C.ink }}>Lumen</span>
+            <div>
+              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block' }}>Crestmont Capital</span>
+              <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</span>
+            </div>
           </Link>
 
           <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Open your account</div>
-          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Begin your reserve</h2>
+          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Begin your investment</h2>
           <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px' }}>Already a client? <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Sign in</Link></p>
 
           <button type="button" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 13, borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', fontSize: 14.5, fontWeight: 600, color: C.ink, cursor: 'pointer', marginBottom: 22 }}>
@@ -134,7 +136,7 @@ export default function Signup() {
           </div>
 
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: C.body, lineHeight: 1.5, marginBottom: 22, cursor: 'pointer' }}>
-            <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} /> I agree to the <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</a> &amp; <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</a>.
+            <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} /> I agree to the <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</a> &amp; <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</a> of Crestmont Capital.
           </label>
 
           {error && (
@@ -143,7 +145,7 @@ export default function Signup() {
 
           <button type="button" onClick={handleSignup} disabled={submitting}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-            {submitting ? 'Creating…' : <>Create my reserve <ArrowRight size={16} weight="bold" /></>}
+            {submitting ? 'Creating account…' : <>Open my Crestmont account <ArrowRight size={16} weight="bold" /></>}
           </button>
         </div>
       </div>
@@ -156,21 +158,32 @@ export default function Signup() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(14,14,18,.6),rgba(14,14,18,.92))', zIndex: 1 }} />
 
         <div data-anim style={{ position: 'relative', zIndex: 2 }}>
-          <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: 440 }}>Join investors who think in generations.</h1>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Institutional-grade digital asset strategies built on preservation, growth, and income.</p>
+          <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: 440 }}>Join investors who trust professionals to manage their digital wealth.</h1>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Crestmont Capital offers professionally managed digital asset portfolios — built on preservation, growth, and income.</p>
         </div>
 
         <div data-anim data-delay="140" style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)', marginBottom: 24 }}>
-            <ImageSlot id="signup-art" shape="rect" placeholder="App preview" style={{ width: '100%', height: 220 }} />
+            <ImageSlot id="signup-art" shape="rect" placeholder="Portfolio dashboard" style={{ width: '100%', height: 220 }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-            {['No minimums to begin your reserve', 'Bank-grade security & multi-sig custody', 'A dedicated advisor for larger mandates'].map((t) => (
+            {[
+              'Professional portfolio management from day one',
+              'Institutional-grade security & multi-sig custody',
+              'Full transparency into performance and allocation',
+              'Dedicated advisor for Private tier investors',
+            ].map((t) => (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 11, fontSize: 14.5 }}>
                 <ShieldCheck size={20} weight="fill" color={C.primary} style={{ flex: 'none' }} /> {t}
               </div>
             ))}
           </div>
+        </div>
+
+        <div data-anim data-delay="240" style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+          {[['$1.4B', 'Under management'], ['48k+', 'Investors'], ['38', 'Countries']].map(([v, l]) => (
+            <div key={l}><div style={{ fontFamily: serif, fontSize: 24 }}>{v}</div><div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.6)' }}>{l}</div></div>
+          ))}
         </div>
       </div>
     </div>

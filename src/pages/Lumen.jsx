@@ -10,73 +10,71 @@ import {
 
 const heroImg = '/uploads/pasted-1782018213315-0.png'
 
-// ── Design tokens ──────────────────────────────────────────────
-// White is the default surface. One primary accent, used sparingly.
 const C = {
-  ink: '#0e0e12',        // near-black, does most of the heavy lifting with white
-  body: '#4a4a55',       // body text
-  muted: '#8b8b97',      // captions
-  line: '#e7e7ec',       // hairline borders
-  surface: '#f6f6f8',    // subtle off-white panels
-  primary: '#7c3aed',    // the one accent
-  secondary: '#ec4899',  // used very rarely
+  ink: '#0e0e12',
+  body: '#4a4a55',
+  muted: '#8b8b97',
+  line: '#e7e7ec',
+  surface: '#f6f6f8',
+  primary: '#7c3aed',
+  secondary: '#ec4899',
   white: '#ffffff',
 }
-const RAD = 8 // subtle UI radius; images stay at 0 (enforced in ImageSlot)
+const RAD = 8
 const serif = "'DM Serif Display',serif"
 
 const reportData = {
   'report-1': {
-    tag: 'CORE RESERVE',
-    title: 'The Preservation Portfolio',
-    desc: 'A conservative allocation across the most liquid, institutionally-adopted digital assets. Engineered to protect capital and weather volatility while generating a steady base yield.',
-    stats: [['4.1%', 'Target yield'], ['Low', 'Risk profile'], ['12+', 'Core assets']],
+    tag: 'GROWTH STRATEGY',
+    title: 'Growth Portfolio',
+    desc: 'Concentrated exposure to Bitcoin and Ethereum — the two most adopted, most liquid digital assets on the planet. Designed for investors seeking maximum long-term capital appreciation through full market cycles.',
+    stats: [['BTC + ETH', 'Core assets'], ['High', 'Growth potential'], ['5yr+', 'Ideal horizon']],
     bullets: [
-      'Capital protection through deep-liquidity assets',
-      'Quarterly risk-managed rebalancing',
-      'Institutional multi-signature custody',
+      'Conviction-weighted toward Bitcoin and Ethereum',
+      'Quarterly rebalancing to maintain target allocation',
+      'Institutional multi-signature custody on all holdings',
     ],
-    cta: 'Invest in this strategy',
+    cta: 'Invest in Growth',
     slot: 'lumen-r1',
     imageLeft: false,
   },
   'report-2': {
-    tag: 'GROWTH',
-    title: 'The Appreciation Mandate',
-    desc: 'Long-term exposure to assets positioned for structural adoption. Designed to compound through market cycles rather than chase short-term momentum.',
-    stats: [['11.6%', 'Target yield'], ['Med', 'Risk profile'], ['5yr+', 'Horizon']],
+    tag: 'BALANCED STRATEGY',
+    title: 'Balanced Portfolio',
+    desc: 'A diversified mandate combining Bitcoin, Ethereum, and stablecoin yield positions. Engineered to participate in digital asset growth while reducing overall portfolio volatility through income-generating components.',
+    stats: [['15%', 'Annual return'], ['Medium', 'Risk profile'], ['Daily', 'Yield accrual']],
     bullets: [
-      'Conviction-weighted toward structural winners',
-      'Built to compound across full cycles',
-      'Disciplined entry, never trend-chasing',
+      'Growth exposure through Bitcoin and Ethereum',
+      'Stablecoin positions provide downside cushion',
+      'Continuous rebalancing to preserve target mix',
     ],
-    cta: 'Invest in this strategy',
+    cta: 'Invest in Balanced',
     slot: 'lumen-r2',
     imageLeft: true,
   },
   'report-3': {
-    tag: 'INCOME',
-    title: 'The Yield Engine',
-    desc: 'Passive returns generated through curated staking networks and yield-producing blockchain infrastructure — income without compromising on security.',
-    stats: [['7.2%', 'Target yield'], ['Low–Med', 'Risk profile'], ['Daily', 'Accrual']],
+    tag: 'CONSERVATIVE STRATEGY',
+    title: 'Conservative Portfolio',
+    desc: 'Capital preservation through stablecoin yield opportunities and conservative digital asset exposure. For investors who prioritize consistency and low volatility over aggressive growth.',
+    stats: [['9%', 'Annual return'], ['Low', 'Risk profile'], ['Stable', 'Capital base']],
     bullets: [
-      'Diversified across vetted staking networks',
-      'Yield auto-compounded into your reserve',
-      'Validator risk continuously monitored',
+      'Stablecoin yield positions form the core allocation',
+      'Conservative digital asset exposure managed tightly',
+      'Capital protection is the primary mandate',
     ],
-    cta: 'Invest in this strategy',
+    cta: 'Invest in Conservative',
     slot: 'lumen-r3',
     imageLeft: false,
   },
   'report-4': {
-    tag: 'BESPOKE',
-    title: 'The Private Mandate',
-    desc: 'For reserves above $1M, we construct a fully bespoke allocation around your goals — paired with a dedicated wealth advisor and private reporting.',
+    tag: 'PRIVATE CLIENT',
+    title: 'Private Mandate',
+    desc: 'For portfolios above $250,000, we construct a fully bespoke allocation around your specific objectives — paired with a dedicated wealth advisor, private reporting, and quarterly in-person reviews.',
     stats: null,
     bullets: [
-      'A dedicated advisor and private line',
-      'Custom allocation across all three pillars',
-      'Quarterly in-person strategy reviews',
+      'A dedicated advisor and direct private line',
+      'Custom allocation across all three strategies',
+      'Quarterly strategy reviews and private reports',
     ],
     cta: 'Speak with an advisor',
     slot: 'lumen-r4',
@@ -89,7 +87,7 @@ const navItems = [
   ['Referrals', '#referrals'], ['Performance', '#performance'],
 ]
 
-export default function Lumen() {
+export default function CrestmontCapital() {
   const rootRef = useRef(null)
   const navRef = useRef(null)
   const [activeReport, setActiveReport] = useState(null)
@@ -99,7 +97,6 @@ export default function Lumen() {
   useReveal(rootRef)
   useCountUp(rootRef)
 
-  // nav: solid white + hairline once scrolled
   useEffect(() => {
     const nav = navRef.current
     const onScroll = () => {
@@ -144,7 +141,8 @@ export default function Lumen() {
 
   return (
     <div ref={rootRef} style={{ position: 'relative', width: '100%', overflow: 'hidden', background: C.white, color: C.ink }}>
-      {/* NAV — bordered top bar, logomark + wordmark, single primary CTA */}
+
+      {/* NAV */}
       <nav
         ref={navRef}
         style={{
@@ -160,7 +158,7 @@ export default function Lumen() {
           <div style={{ width: 34, height: 34, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Vault size={19} color="#fff" weight="duotone" />
           </div>
-          <span style={{ fontFamily: serif, fontSize: 22, color: C.ink, letterSpacing: '.2px' }}>Lumen</span>
+          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink, letterSpacing: '.2px' }}>Crestmont Capital</span>
         </Link>
         <div data-navlinks style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 14.5, fontWeight: 600, color: C.body }}>
           {navItems.map(([label, href]) => (
@@ -168,9 +166,9 @@ export default function Lumen() {
           ))}
         </div>
         <div data-navactions style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to="/login" style={{ textDecoration: 'none', fontSize: 14.5, fontWeight: 600, color: C.ink, padding: '10px 16px' }}>Sign in</Link>
+          <Link to="/login" style={{ textDecoration: 'none', fontSize: 14.5, fontWeight: 600, color: C.ink, padding: '10px 16px' }}>Client Login</Link>
           <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 700, color: '#fff', padding: '11px 20px', borderRadius: RAD, background: C.ink }}>
-            Open account <ArrowRight size={15} weight="bold" />
+            Open Account <ArrowRight size={15} weight="bold" />
           </Link>
         </div>
         <button
@@ -189,7 +187,7 @@ export default function Lumen() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Vault size={17} color="#fff" weight="duotone" /></div>
-              <span style={{ fontFamily: serif, fontSize: 21, color: C.ink }}>Lumen</span>
+              <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Crestmont Capital</span>
             </div>
             <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" style={{ width: 40, height: 40, borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} color={C.ink} /></button>
           </div>
@@ -202,36 +200,36 @@ export default function Lumen() {
             ))}
           </nav>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 22 }}>
-            <Link to="/login" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', textAlign: 'center', fontSize: 15, fontWeight: 700, color: C.ink, padding: '14px 0', borderRadius: RAD, border: `1px solid ${C.line}` }}>Sign in</Link>
-            <Link to="/signup" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 0', borderRadius: RAD, background: C.ink }}>Open account</Link>
+            <Link to="/login" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', textAlign: 'center', fontSize: 15, fontWeight: 700, color: C.ink, padding: '14px 0', borderRadius: RAD, border: `1px solid ${C.line}` }}>Client Login</Link>
+            <Link to="/signup" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 0', borderRadius: RAD, background: C.ink }}>Open Account</Link>
           </div>
         </div>
       </div>
 
-      {/* HERO — white, restrained, no colored tagline pill */}
+      {/* HERO */}
       <section style={{ position: 'relative', minHeight: '92vh', padding: '140px clamp(18px,5vw,72px) 70px', display: 'flex', alignItems: 'center', background: C.white, borderBottom: `1px solid ${C.line}` }}>
         <div data-herogrid style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 1320, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.02fr 1.18fr', gap: 48, alignItems: 'center' }}>
           <div>
             <div data-reveal style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 13px', borderRadius: RAD, border: `1px solid ${C.line}`, fontSize: 12.5, fontWeight: 700, letterSpacing: '.04em', color: C.body, marginBottom: 26 }}>
-              <ShieldCheck size={15} color={C.primary} weight="fill" /> Regulated digital asset management
+              <ShieldCheck size={15} color={C.primary} weight="fill" /> Professional Digital Asset Wealth Management
             </div>
             <h1 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(44px,5.6vw,80px)', lineHeight: 1.02, letterSpacing: '-.5px', margin: '0 0 22px', color: C.ink }}>
-              Wealth, preserved<br />for the <span style={{ fontStyle: 'italic', color: C.primary }}>digital age</span>.
+              Wealth managed with<br /><span style={{ fontStyle: 'italic', color: C.primary }}>discipline and clarity</span>.
             </h1>
             <p data-reveal data-delay="160" style={{ fontSize: 18.5, lineHeight: 1.6, color: C.body, maxWidth: 510, margin: '0 0 34px' }}>
-              For investors who treat wealth as something to be managed with discipline — not gambled. Institutional-grade digital asset strategies built on preservation, growth, and income.
+              Crestmont Capital offers professionally managed digital asset portfolios for investors seeking long-term exposure to the digital economy — without the complexity of managing it independently.
             </p>
             <div data-reveal data-delay="240" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 44 }}>
               <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15.5, fontWeight: 700, color: '#fff', padding: '15px 26px', borderRadius: RAD, background: C.ink }}>
-                Begin your reserve <ArrowRight size={17} weight="bold" />
+                Open Your Account <ArrowRight size={17} weight="bold" />
               </Link>
               <a href="#strategies" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15.5, fontWeight: 700, color: C.ink, padding: '15px 24px', borderRadius: RAD, border: `1px solid ${C.line}` }}>
-                Explore strategies
+                View Strategies
               </a>
             </div>
             <div data-reveal data-delay="320" style={{ display: 'flex', gap: 30, flexWrap: 'wrap' }}>
               {[
-                [<>$<span data-count="1.4" data-dec="1">0</span>B</>, 'Assets under guidance'],
+                [<>$<span data-count="1.4" data-dec="1">0</span>B</>, 'Assets under management'],
                 [<><span data-count="48000">0</span>+</>, 'Investors served'],
                 [<><span data-count="38">0</span></>, 'Countries'],
               ].map(([v, l], i) => (
@@ -248,25 +246,25 @@ export default function Lumen() {
 
           <div data-reveal data-delay="200" style={{ position: 'relative' }}>
             <div style={{ position: 'relative', border: `1px solid ${C.line}`, background: C.surface, overflow: 'hidden' }}>
-              <img src={heroImg} alt="Lumen app" style={{ width: '100%', height: 'auto', display: 'block' }} />
+              <img src={heroImg} alt="Crestmont Capital dashboard" style={{ width: '100%', height: 'auto', display: 'block' }} />
             </div>
             <div style={{ position: 'absolute', top: 22, left: -22, zIndex: 3, background: '#fff', border: `1px solid ${C.line}`, borderRadius: RAD, padding: '14px 18px', boxShadow: '0 14px 40px rgba(14,14,18,.08)' }}>
-              <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Portfolio value</div>
-              <div style={{ fontFamily: serif, fontSize: 25, color: C.ink }}>$527,639</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}><TrendUp size={13} weight="bold" /> 18.4% this quarter</div>
+              <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Portfolio Value</div>
+              <div style={{ fontFamily: serif, fontSize: 25, color: C.ink }}>$248,750</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}><TrendUp size={13} weight="bold" /> +18.6% total return</div>
             </div>
             <div style={{ position: 'absolute', bottom: 24, right: -18, zIndex: 3, background: C.ink, borderRadius: RAD, padding: '14px 18px', color: '#fff' }}>
-              <div style={{ fontSize: 11.5, opacity: .7, fontWeight: 600 }}>Annual yield</div>
-              <div style={{ fontFamily: serif, fontSize: 25 }}>7.2%</div>
-              <div style={{ fontSize: 11.5, opacity: .75 }}>Staking + infrastructure</div>
+              <div style={{ fontSize: 11.5, opacity: .7, fontWeight: 600 }}>Annual return</div>
+              <div style={{ fontFamily: serif, fontSize: 25 }}>+22%</div>
+              <div style={{ fontSize: 11.5, opacity: .75 }}>Growth Strategy · BTC + ETH</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* TRUSTED BY — monochrome wordmarks */}
+      {/* TRUSTED BY */}
       <section style={{ padding: '34px 0', borderBottom: `1px solid ${C.line}`, background: '#fff', overflow: 'hidden' }}>
-        <p style={{ textAlign: 'center', fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, margin: '0 0 24px' }}>Trusted by institutions &amp; their advisors</p>
+        <p style={{ textAlign: 'center', fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, margin: '0 0 24px' }}>Trusted by institutional investors &amp; family offices</p>
         <div style={{ display: 'flex', width: 'max-content', animation: 'marquee 30s linear infinite', gap: 70, alignItems: 'center', opacity: .5 }}>
           {[0, 1].map((rep) => (
             <span key={rep} style={{ display: 'contents' }}>
@@ -281,7 +279,7 @@ export default function Lumen() {
         </div>
       </section>
 
-      {/* LIVE STATS + PAYOUT TICKER */}
+      {/* LIVE STATS */}
       <section style={{ position: 'relative', padding: 'clamp(54px,7vh,82px) clamp(18px,5vw,72px) 0', background: '#fff' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div data-reveal style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 28 }}>
@@ -290,10 +288,10 @@ export default function Lumen() {
           </div>
           <div data-livestats style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: `1px solid ${C.line}`, borderRadius: RAD, overflow: 'hidden' }}>
             {[
-              [<>$<span data-count="312.4" data-dec="1">0</span>M</>, 'Total deposits processed'],
-              [<>$<span data-count="248.9" data-dec="1">0</span>M</>, 'Total withdrawals paid'],
+              [<>$<span data-count="312.4" data-dec="1">0</span>M</>, 'Total capital deployed'],
+              [<>$<span data-count="248.9" data-dec="1">0</span>M</>, 'Total returns distributed'],
               [<><span data-count="48217">0</span></>, 'Registered investors'],
-              [<><span data-count="2184">0</span></>, 'Days online'],
+              [<><span data-count="2184">0</span></>, 'Days in operation'],
             ].map(([v, l], i) => (
               <div key={i} data-reveal data-delay={i * 80 || undefined} style={{ textAlign: 'center', padding: '30px 16px', borderLeft: i > 0 ? `1px solid ${C.line}` : 'none' }}>
                 <div style={{ fontFamily: serif, fontSize: 'clamp(28px,3.4vw,40px)', color: C.ink, lineHeight: 1 }}>{v}</div>
@@ -333,18 +331,18 @@ export default function Lumen() {
         </div>
       </section>
 
-      {/* STORY */}
+      {/* PHILOSOPHY */}
       <section id="story" style={{ position: 'relative', padding: 'clamp(84px,12vh,140px) clamp(18px,5vw,72px)', background: '#fff' }}>
         <div style={{ maxWidth: 880, margin: '0 auto', textAlign: 'center' }}>
-          <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 18 }}>The Lumen Reserve</div>
+          <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 18 }}>Our Investment Philosophy</div>
           <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.4vw,58px)', lineHeight: 1.1, letterSpacing: '-.5px', margin: '0 0 26px', color: C.ink }}>
-            For generations, wealth was preserved through scarce assets.<br /><span style={{ fontStyle: 'italic', color: C.primary }}>Today, a new asset class has emerged.</span>
+            Wealth is built through discipline.<br /><span style={{ fontStyle: 'italic', color: C.primary }}>Not speculation.</span>
           </h2>
           <p data-reveal data-delay="140" style={{ fontSize: 18.5, lineHeight: 1.7, color: C.body, margin: '0 auto 20px', maxWidth: 720 }}>
-            Digital assets have become one of the fastest-growing stores of value in modern history — attracting institutions, public companies, hedge funds, and some of the world's most successful investors. Yet most individuals remain locked out. Not for lack of capital, but for lack of access.
+            Digital assets have become one of the fastest-growing asset classes in modern finance. But successful investing isn't simply about buying Bitcoin or Ethereum — it requires understanding market cycles, managing risk intelligently, and maintaining a disciplined long-term strategy.
           </p>
           <p data-reveal data-delay="200" style={{ fontSize: 18.5, lineHeight: 1.7, color: C.body, margin: '0 auto', maxWidth: 720 }}>
-            Navigating this economy requires specialized knowledge, advanced security, and constant monitoring. <strong style={{ color: C.ink }}>Lumen was created to bridge that gap.</strong>
+            At Crestmont Capital, our experienced investment team continuously monitors market conditions, manages risk, and makes informed adjustments designed to preserve capital while pursuing long-term growth. <strong style={{ color: C.ink }}>You focus on building your wealth. We focus on managing your portfolio.</strong>
           </p>
         </div>
       </section>
@@ -353,9 +351,9 @@ export default function Lumen() {
       <section style={{ padding: '0 clamp(18px,5vw,72px) clamp(74px,10vh,120px)', background: '#fff' }}>
         <div data-principles style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0, border: `1px solid ${C.line}`, borderRadius: RAD, overflow: 'hidden' }}>
           {[
-            { num: '01', Icon: ShieldCheck, title: 'Capital Preservation', text: 'Protect wealth through disciplined allocation and risk-managed exposure to assets with proven liquidity.' },
-            { num: '02', Icon: ChartLineUp, title: 'Sustainable Growth', text: 'Participate in long-term digital asset appreciation rather than short-term speculation or chasing trends.' },
-            { num: '03', Icon: Coins, title: 'Income Generation', text: 'Unlock passive returns through staking networks, blockchain infrastructure, and yield-producing assets.' },
+            { num: '01', Icon: ShieldCheck, title: 'Portfolio Management', text: 'Professional allocation, continuous monitoring, and quarterly reviews — all managed on your behalf by our experienced investment team.' },
+            { num: '02', Icon: ChartLineUp, title: 'Risk Management', text: 'Disciplined exposure across growth, balanced, and conservative mandates. Your capital is protected through intelligent diversification and active oversight.' },
+            { num: '03', Icon: Coins, title: 'Transparent Reporting', text: 'Complete visibility into how your portfolio is performing. Monthly reports, real-time dashboard access, and quarterly investment reviews — always.' },
           ].map((p, i) => (
             <div key={p.num} data-reveal data-delay={i * 120 || undefined} style={{ background: '#fff', padding: '38px 32px', borderLeft: i > 0 ? `1px solid ${C.line}` : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
@@ -375,14 +373,14 @@ export default function Lumen() {
       <section id="strategies" style={{ padding: 'clamp(84px,12vh,130px) clamp(18px,5vw,72px)', background: C.surface, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ maxWidth: 680, marginBottom: 50 }}>
-            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Investment strategies</div>
-            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.08, letterSpacing: '-.5px', margin: 0, color: C.ink }}>Premium strategies, structured like private reports.</h2>
+            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Investment Strategies</div>
+            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.08, letterSpacing: '-.5px', margin: 0, color: C.ink }}>Three professionally managed strategies. One trusted firm.</h2>
           </div>
           <div data-strategy-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 20 }}>
             {[
-              { id: 'report-1', slot: 'lumen-s1', tag: 'CORE RESERVE', title: 'The Preservation Portfolio', text: 'A conservative allocation across the most liquid, institutionally-adopted digital assets. Built to weather volatility.', yield: '4.1%', risk: 'Low' },
-              { id: 'report-2', slot: 'lumen-s2', tag: 'GROWTH', title: 'The Appreciation Mandate', text: 'Long-term exposure to assets positioned for structural adoption. Designed for compounding over market cycles.', yield: '11.6%', risk: 'Medium' },
-              { id: 'report-3', slot: 'lumen-s3', tag: 'INCOME', title: 'The Yield Engine', text: 'Passive returns generated through staking networks and yield-producing blockchain infrastructure.', yield: '7.2%', risk: 'Low–Med' },
+              { id: 'report-1', slot: 'lumen-s1', tag: 'GROWTH', title: 'Growth Strategy', text: 'Maximum long-term capital appreciation through concentrated Bitcoin and Ethereum exposure. Designed for investors with a long investment horizon.', yieldVal: '+22%', risk: 'Higher' },
+              { id: 'report-2', slot: 'lumen-s2', tag: 'BALANCED', title: 'Balanced Strategy', text: 'Growth potential with reduced volatility. Bitcoin, Ethereum, and stablecoin yield products work together to provide balanced digital asset exposure.', yieldVal: '+15%', risk: 'Medium' },
+              { id: 'report-3', slot: 'lumen-s3', tag: 'CONSERVATIVE', title: 'Conservative Strategy', text: 'Capital preservation and consistent returns. Stablecoin yield opportunities and conservative digital asset exposure for risk-conscious investors.', yieldVal: '+9%', risk: 'Lower' },
             ].map((s, i) => (
               <StrategyCard key={s.id} {...s} delay={i * 90 || undefined} onOpen={() => openReport(s.id)} />
             ))}
@@ -395,21 +393,21 @@ export default function Lumen() {
       <section id="plans" style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: '#fff' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 48px' }}>
-            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Investment plans</div>
-            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, margin: '0 0 14px', color: C.ink }}>Choose the reserve tier that fits your capital.</h2>
-            <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.6, color: C.body, margin: 0 }}>Every tier is fully insured, multi-signature secured, and accrues yield daily. Upgrade or compound at any time.</p>
+            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Investment Tiers</div>
+            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, margin: '0 0 14px', color: C.ink }}>Select the investment tier that fits your objectives.</h2>
+            <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.6, color: C.body, margin: 0 }}>Every tier provides full portfolio management, daily performance reporting, and access to your personalized investor dashboard. Scale up or compound returns at any time.</p>
           </div>
           <div data-plans-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
             {[
-              { name: 'Starter', roi: '10%', period: 'after 30 days', min: '$500', max: '$2,999', featured: false, perks: ['Daily yield accrual', 'Capital returned at term', 'Standard email support', 'Mobile portfolio access'] },
-              { name: 'Pro', roi: '25%', period: 'after 45 days', min: '$3,000', max: '$9,999', featured: true, perks: ['Everything in Starter', 'Priority withdrawals', 'Quarterly rebalancing', 'Dedicated account manager'] },
-              { name: 'Shares', roi: '50%', period: 'after 60 days', min: '$10,000', max: '$49,999', featured: false, perks: ['Everything in Pro', 'Reduced performance fee', 'Private market access', 'Monthly strategy call'] },
-              { name: 'Silver', roi: '70%', period: 'after 90 days', min: '$50,000', max: 'No limit', featured: false, perks: ['Everything in Shares', 'Bespoke allocation', 'Dedicated wealth advisor', 'In-person reviews'] },
+              { name: 'Starter', roi: '10%', period: 'return after 30 days', min: '$500', max: '$2,999', featured: false, perks: ['Professional portfolio management', 'Daily yield accrual', 'Investor dashboard access', 'Monthly performance report'] },
+              { name: 'Growth', roi: '25%', period: 'return after 45 days', min: '$3,000', max: '$9,999', featured: true, perks: ['Everything in Starter', 'Priority withdrawals', 'Quarterly rebalancing review', 'Dedicated account manager'] },
+              { name: 'Premium', roi: '50%', period: 'return after 60 days', min: '$10,000', max: '$49,999', featured: false, perks: ['Everything in Growth', 'Reduced management fee', 'Private market access', 'Monthly strategy call'] },
+              { name: 'Private', roi: '70%', period: 'return after 90 days', min: '$50,000', max: 'No limit', featured: false, perks: ['Everything in Premium', 'Bespoke allocation', 'Dedicated wealth advisor', 'Quarterly in-person reviews'] },
             ].map((p, i) => (
               <PlanCard key={p.name} {...p} delay={i * 80 || undefined} />
             ))}
           </div>
-          <p data-reveal style={{ textAlign: 'center', fontSize: 12.5, color: C.muted, marginTop: 26 }}>Returns shown are target figures based on historical strategy performance. Digital assets carry risk; capital is not guaranteed.</p>
+          <p data-reveal style={{ textAlign: 'center', fontSize: 12.5, color: C.muted, marginTop: 26 }}>Returns shown are target figures based on historical strategy performance. Digital assets carry risk; past performance does not guarantee future results.</p>
         </div>
       </section>
 
@@ -418,9 +416,9 @@ export default function Lumen() {
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div data-appgrid style={{ display: 'grid', gridTemplateColumns: '.9fr 1.1fr', gap: 52, alignItems: 'center' }}>
             <div>
-              <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 800, marginBottom: 14 }}>Partner program</div>
+              <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 800, marginBottom: 14 }}>Partner Program</div>
               <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(30px,4vw,50px)', lineHeight: 1.1, color: '#fff', margin: '0 0 18px' }}>Earn across three tiers of referrals.</h2>
-              <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: '0 0 28px', maxWidth: 450 }}>Invite investors to Lumen and earn a recurring commission on their deposits — and on the deposits of everyone they bring in, up to three levels deep.</p>
+              <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: '0 0 28px', maxWidth: 450 }}>Introduce investors to Crestmont Capital and earn a recurring commission on their investment capital — and on the capital of everyone they bring in, up to three levels deep.</p>
               <div data-reveal data-delay="200" style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>
                 <div><div style={{ fontFamily: serif, fontSize: 28, color: '#fff' }}>$<span data-count="6.2" data-dec="1">0</span>M</div><div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>Paid to partners</div></div>
                 <div style={{ width: 1, background: 'rgba(255,255,255,.14)' }} />
@@ -445,21 +443,21 @@ export default function Lumen() {
         </div>
       </section>
 
-      {/* BENEFITS + TRUST */}
+      {/* WHY CRESTMONT */}
       <section style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: '#fff' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 48px' }}>
-            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Why Lumen</div>
-            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, margin: 0, color: C.ink }}>Built for trust, engineered for returns.</h2>
+            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Why Crestmont Capital</div>
+            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, margin: 0, color: C.ink }}>Built for trust. Engineered for performance.</h2>
           </div>
           <div data-benefits-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0, border: `1px solid ${C.line}`, borderRadius: RAD, overflow: 'hidden', marginBottom: 52 }}>
             {[
-              { Icon: TrendUp, title: 'High, stable income', text: 'Target returns from 10% to 70% across tiers, backed by disciplined, risk-managed strategies.' },
-              { Icon: Globe, title: 'Worldwide operations', text: 'Serving investors in 38 countries with full multi-currency deposit and withdrawal support.' },
-              { Icon: Lightning, title: '24/7 instant payouts', text: 'Withdraw any time — automated settlement processes requests around the clock, every day.' },
-              { Icon: Headset, title: 'Dedicated support', text: 'A real human team and dedicated account managers for Pro tier and above.' },
-              { Icon: Lock, title: 'SSL & DDoS protected', text: 'Bank-grade encryption, multi-signature custody, and enterprise DDoS mitigation on every layer.' },
-              { Icon: CreditCard, title: 'Multiple payment rails', text: 'Fund and withdraw via bank transfer, card, and major digital assets — your choice.' },
+              { Icon: TrendUp, title: 'Professional Portfolio Management', text: 'Our investment team continuously monitors market conditions and actively manages your allocation — so you never have to.' },
+              { Icon: Globe, title: 'Worldwide Operations', text: 'Serving investors in 38 countries with full multi-currency deposit and withdrawal support across all major rails.' },
+              { Icon: Lightning, title: 'Real-Time Performance Reporting', text: 'Access your personalized investor dashboard at any time. Full transparency into performance, allocation, and activity.' },
+              { Icon: Headset, title: 'Dedicated Advisor Support', text: 'Every client has access to our support team. Growth tier and above includes a dedicated account manager.' },
+              { Icon: Lock, title: 'Institutional-Grade Security', text: 'Multi-signature custody, bank-grade encryption, and enterprise-level DDoS protection on every layer of our infrastructure.' },
+              { Icon: CreditCard, title: 'Flexible Funding Options', text: 'Fund and withdraw via bank transfer, card, and major digital assets. Fast processing, transparent timelines.' },
             ].map((b, i) => (
               <div key={b.title} data-reveal data-delay={(i % 3) * 80 || undefined} style={{ padding: '30px 28px', borderLeft: i % 3 !== 0 ? `1px solid ${C.line}` : 'none', borderTop: i >= 3 ? `1px solid ${C.line}` : 'none' }}>
                 <div style={{ width: 48, height: 48, borderRadius: RAD, background: C.surface, border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -472,9 +470,9 @@ export default function Lumen() {
           </div>
           <div data-trust-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 26, maxWidth: 980, margin: '0 auto' }}>
             {[
-              { label: 'UK & US registered company', pct: 100 },
-              { label: 'Reliability & profitability', pct: 99 },
-              { label: 'Professional, dedicated team', pct: 100 },
+              { label: 'Registered & compliant firm', pct: 100 },
+              { label: 'Client satisfaction rate', pct: 99 },
+              { label: 'Portfolio uptime & availability', pct: 100 },
             ].map((t, i) => (
               <TrustMeter key={t.label} {...t} delay={i * 120 || undefined} />
             ))}
@@ -494,13 +492,13 @@ export default function Lumen() {
       <section id="performance" style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: C.surface, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 48px' }}>
-            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>By the numbers</div>
+            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>Track Record</div>
             <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, color: C.ink, margin: 0 }}>Performance built on discipline.</h2>
           </div>
           <div data-stats style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: `1px solid ${C.line}`, borderRadius: RAD, overflow: 'hidden', background: '#fff' }}>
             {[
-              [<>$<span data-count="1.4" data-dec="1">0</span>B</>, 'Assets under guidance'],
-              [<><span data-count="99.9" data-dec="1">0</span>%</>, 'Custody uptime'],
+              [<>$<span data-count="1.4" data-dec="1">0</span>B</>, 'Assets under management'],
+              [<><span data-count="99.9" data-dec="1">0</span>%</>, 'Portfolio uptime'],
               [<><span data-count="48000">0</span>+</>, 'Investors served'],
               [<><span data-count="38">0</span></>, 'Countries served'],
             ].map(([v, l], i) => (
@@ -513,28 +511,28 @@ export default function Lumen() {
         </div>
       </section>
 
-      {/* APP SHOWCASE */}
+      {/* HOW IT WORKS */}
       <section style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: '#fff' }}>
         <div data-appgrid style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'center' }}>
           <div>
-            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>In your pocket</div>
-            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, letterSpacing: '-.5px', margin: '0 0 20px', color: C.ink }}>Your entire reserve,<br />beautifully in view.</h2>
-            <p data-reveal data-delay="160" style={{ fontSize: 16.5, lineHeight: 1.65, color: C.body, margin: '0 0 28px', maxWidth: 470 }}>Monitor performance, track yield, and adjust your allocation from an interface designed with the same care as your portfolio.</p>
-            <div data-reveal data-delay="220" style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 440 }}>
+            <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 14 }}>How It Works</div>
+            <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,54px)', lineHeight: 1.1, letterSpacing: '-.5px', margin: '0 0 20px', color: C.ink }}>Four steps to a professionally managed portfolio.</h2>
+            <div data-reveal data-delay="220" style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 440 }}>
               {[
-                { Icon: ChartLineUp, title: 'Real-time portfolio tracking', sub: 'Live valuations across every holding.' },
-                { Icon: Coins, title: 'Automated yield reinvestment', sub: 'Compounding handled for you.' },
-                { Icon: ShieldCheck, title: 'Bank-grade security', sub: 'Biometric access & multi-sig custody.' },
+                { step: '01', title: 'Apply & Verify', sub: 'Create your account and complete our secure identity verification process.' },
+                { step: '02', title: 'Fund Your Portfolio', sub: 'Transfer your investment capital securely through our funding portal.' },
+                { step: '03', title: 'Portfolio Allocation', sub: 'Our team allocates your capital according to your chosen investment strategy.' },
+                { step: '04', title: 'Monitor & Grow', sub: 'Access your investor dashboard anytime to monitor performance and review reports.' },
               ].map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: 13, alignItems: 'flex-start' }}>
-                  <div style={{ flex: 'none', width: 38, height: 38, borderRadius: RAD, background: C.surface, border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><f.Icon size={19} color={C.ink} weight="duotone" /></div>
-                  <div><div style={{ fontWeight: 700, fontSize: 15.5, color: C.ink }}>{f.title}</div><div style={{ fontSize: 13.5, color: C.muted }}>{f.sub}</div></div>
+                <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 'none', width: 38, height: 38, borderRadius: RAD, background: i === 0 ? C.ink : C.surface, border: `1px solid ${i === 0 ? C.ink : C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: serif, fontSize: 14, color: i === 0 ? '#fff' : C.ink }}>{f.step}</div>
+                  <div><div style={{ fontWeight: 700, fontSize: 15.5, color: C.ink }}>{f.title}</div><div style={{ fontSize: 13.5, color: C.muted, marginTop: 2 }}>{f.sub}</div></div>
                 </div>
               ))}
             </div>
           </div>
           <div data-reveal data-delay="160" style={{ position: 'relative', border: `1px solid ${C.line}`, background: C.surface, overflow: 'hidden' }}>
-            <img src={heroImg} alt="Lumen app screens" style={{ display: 'block', width: '100%', height: 'auto' }} />
+            <img src={heroImg} alt="Crestmont Capital investor dashboard" style={{ display: 'block', width: '100%', height: 'auto' }} />
           </div>
         </div>
       </section>
@@ -542,11 +540,11 @@ export default function Lumen() {
       {/* FINAL CTA */}
       <section style={{ position: 'relative', padding: 'clamp(84px,12vh,140px) clamp(18px,5vw,72px)', background: C.ink, color: '#fff' }}>
         <div style={{ position: 'relative', zIndex: 2, maxWidth: 780, margin: '0 auto', textAlign: 'center' }}>
-          <h2 data-reveal style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(36px,5vw,64px)', lineHeight: 1.06, margin: '0 0 20px' }}>Begin building the reserve of your future.</h2>
-          <p data-reveal data-delay="100" style={{ fontSize: 18, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: '0 auto 34px', maxWidth: 540 }}>Join 48,000 investors preserving and growing wealth with confidence, security, and clarity.</p>
+          <h2 data-reveal style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(36px,5vw,64px)', lineHeight: 1.06, margin: '0 0 20px' }}>Begin your journey with Crestmont Capital.</h2>
+          <p data-reveal data-delay="100" style={{ fontSize: 18, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: '0 auto 34px', maxWidth: 540 }}>Join thousands of investors who trust Crestmont Capital to manage their digital asset portfolios with professionalism, transparency, and discipline.</p>
           <div data-reveal data-delay="180" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15.5, fontWeight: 700, color: C.ink, padding: '16px 30px', borderRadius: RAD, background: '#fff' }}>Open your account <ArrowRight size={17} weight="bold" /></Link>
-            <Link to="/login" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 15.5, fontWeight: 700, color: '#fff', padding: '16px 28px', borderRadius: RAD, border: '1px solid rgba(255,255,255,.3)' }}>Sign in</Link>
+            <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15.5, fontWeight: 700, color: C.ink, padding: '16px 30px', borderRadius: RAD, background: '#fff' }}>Open Your Account <ArrowRight size={17} weight="bold" /></Link>
+            <Link to="/login" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 15.5, fontWeight: 700, color: '#fff', padding: '16px 28px', borderRadius: RAD, border: '1px solid rgba(255,255,255,.3)' }}>Client Login</Link>
           </div>
         </div>
       </section>
@@ -555,8 +553,8 @@ export default function Lumen() {
       <footer style={{ position: 'relative', background: '#fff', color: C.body, padding: 'clamp(56px,8vh,88px) clamp(18px,5vw,72px) 0', borderTop: `1px solid ${C.line}` }}>
         <div data-reveal style={{ maxWidth: 1240, margin: '0 auto 56px', border: `1px solid ${C.line}`, borderRadius: RAD, padding: 'clamp(28px,5vw,48px)', display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 36, alignItems: 'center' }}>
           <div>
-            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.12, color: C.ink, margin: '0 0 10px' }}>The Reserve Letter</h3>
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: C.body, margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market structure, and wealth preservation — written for serious investors.</p>
+            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.12, color: C.ink, margin: '0 0 10px' }}>The Crestmont Investor Letter</h3>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: C.body, margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market insights, and portfolio commentary — written by the Crestmont Capital investment team.</p>
           </div>
           <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input type="email" placeholder="you@example.com" style={{ flex: 1, minWidth: 180, padding: '14px 16px', borderRadius: RAD, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontSize: 14.5, outline: 'none' }} />
@@ -568,9 +566,9 @@ export default function Lumen() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 16 }}>
               <div style={{ width: 34, height: 34, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Vault size={18} color="#fff" weight="duotone" /></div>
-              <span style={{ fontFamily: serif, fontSize: 21, color: C.ink }}>Lumen</span>
+              <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Crestmont Capital</span>
             </div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.65, maxWidth: 300, margin: '0 0 22px', color: C.body }}>Digital wealth management for investors who think in generations, not quarters.</p>
+            <p style={{ fontSize: 14.5, lineHeight: 1.65, maxWidth: 300, margin: '0 0 22px', color: C.body }}>Professional digital asset wealth management for investors who think in generations, not quarters.</p>
             <div style={{ display: 'flex', gap: 9 }}>
               {[Globe, Cube, ShieldCheck].map((Ic, i) => (
                 <a key={i} href="#" style={{ width: 38, height: 38, borderRadius: RAD, border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}><Ic size={17} color={C.ink} weight="duotone" /></a>
@@ -578,9 +576,9 @@ export default function Lumen() {
             </div>
           </div>
           {[
-            { title: 'Strategies', links: [['Preservation', '#strategies'], ['Growth', '#strategies'], ['Income', '#strategies'], ['Bespoke mandates', '#strategies']] },
-            { title: 'Company', links: [['Philosophy', '#story'], ['Performance', '#performance'], ['Plans', '#plans'], ['Client login', '/login']] },
-            { title: 'Get started', links: [['Open an account', '/signup'], ['Speak with an advisor', '/signup'], ['Help & support', '#']] },
+            { title: 'Strategies', links: [['Growth Strategy', '#strategies'], ['Balanced Strategy', '#strategies'], ['Conservative Strategy', '#strategies'], ['Private Mandate', '#strategies']] },
+            { title: 'Company', links: [['Our Philosophy', '#story'], ['Performance', '#performance'], ['Investment Plans', '#plans'], ['Client Login', '/login']] },
+            { title: 'Get Started', links: [['Open an Account', '/signup'], ['Speak with an Advisor', '/signup'], ['Help & Support', '#']] },
           ].map((col) => (
             <div key={col.title}>
               <div style={{ fontWeight: 700, color: C.ink, fontSize: 13.5, marginBottom: 16 }}>{col.title}</div>
@@ -598,15 +596,15 @@ export default function Lumen() {
         </div>
 
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '22px 0 34px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12.5, color: C.muted }}>
-          <span>© 2026 Lumen Reserve. All rights reserved.</span>
-          <span>Digital assets carry risk. Past performance is not indicative of future results.</span>
+          <span>© 2026 Crestmont Capital. All rights reserved.</span>
+          <span>Digital assets carry risk. Past performance is not indicative of future results. Capital is not guaranteed.</span>
         </div>
       </footer>
     </div>
   )
 }
 
-function StrategyCard({ slot, tag, title, text, yield: yld, risk, bespoke, delay, onOpen }) {
+function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, onOpen }) {
   const [hover, setHover] = useState(false)
   const lift = hover ? { transform: 'translateY(-4px)', boxShadow: '0 24px 50px rgba(14,14,18,.1)' } : {}
 
@@ -616,11 +614,11 @@ function StrategyCard({ slot, tag, title, text, yield: yld, risk, bespoke, delay
         style={{ position: 'relative', borderRadius: RAD, overflow: 'hidden', cursor: 'pointer', background: C.ink, color: '#fff', transition: 'transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s ease', ...lift }}>
         <div style={{ padding: '38px 32px', minHeight: 230, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ display: 'inline-flex', padding: '5px 11px', borderRadius: RAD, border: '1px solid rgba(255,255,255,.2)', fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', marginBottom: 16 }}>BESPOKE</div>
-            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: '0 0 10px' }}>The Private Mandate</h3>
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0 }}>For reserves above $1M, we construct fully bespoke allocations with a dedicated wealth advisor.</p>
+            <div style={{ display: 'inline-flex', padding: '5px 11px', borderRadius: RAD, border: '1px solid rgba(255,255,255,.2)', fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', marginBottom: 16 }}>PRIVATE CLIENT</div>
+            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: '0 0 10px' }}>Private Mandate</h3>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0 }}>For portfolios above $250,000, we construct a fully bespoke allocation with a dedicated Crestmont wealth advisor.</p>
           </div>
-          <div style={{ marginTop: 22, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14.5, fontWeight: 700 }}>View full report <ArrowUpRight size={17} weight="bold" color={C.primary} /></div>
+          <div style={{ marginTop: 22, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14.5, fontWeight: 700 }}>Learn more <ArrowUpRight size={17} weight="bold" color={C.primary} /></div>
         </div>
       </div>
     )
@@ -637,9 +635,9 @@ function StrategyCard({ slot, tag, title, text, yield: yld, risk, bespoke, delay
         <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: '0 0 8px', color: C.ink }}>{title}</h3>
         <p style={{ fontSize: 15, lineHeight: 1.6, color: C.body, margin: '0 0 18px' }}>{text}</p>
         <div style={{ display: 'flex', gap: 26, borderTop: `1px solid ${C.line}`, paddingTop: 16, alignItems: 'center' }}>
-          <div><div style={{ fontFamily: serif, fontSize: 23, color: C.primary }}>{yld}</div><div style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Target yield</div></div>
+          <div><div style={{ fontFamily: serif, fontSize: 23, color: C.primary }}>{yieldVal}</div><div style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Annual return</div></div>
           <div><div style={{ fontFamily: serif, fontSize: 23, color: C.ink }}>{risk}</div><div style={{ fontSize: 11.5, color: C.muted, fontWeight: 600 }}>Risk profile</div></div>
-          <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: C.ink }}>View report <ArrowUpRight size={15} weight="bold" /></div>
+          <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: C.ink }}>View details <ArrowUpRight size={15} weight="bold" /></div>
         </div>
       </div>
     </div>
@@ -678,7 +676,7 @@ function PlanCard({ name, roi, period, min, max, featured, perks, delay }) {
       </div>
       <div style={{ padding: '22px 26px 26px' }}>
         <Link to="/signup" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 14.5, fontWeight: 700, padding: '13px 0', borderRadius: RAD, background: featured ? '#fff' : C.ink, color: featured ? C.ink : '#fff' }}>
-          Choose {name} <ArrowRight size={15} weight="bold" />
+          Get Started <ArrowRight size={15} weight="bold" />
         </Link>
       </div>
     </div>
@@ -746,7 +744,7 @@ function Report({ data, shown, onClose }) {
     <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', background: C.ink, opacity: shown ? 1 : 0, transform: shown ? 'none' : 'scale(.96)', transition: 'opacity .5s ease, transform .5s cubic-bezier(.16,1,.3,1)' }}>
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(24px,5vw,64px)', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 36 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: '#fff' }}><span style={{ fontFamily: serif, fontSize: 19 }}>Lumen</span><span style={{ opacity: .5, fontSize: 12.5 }}>Private Investment Report</span></div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: '#fff' }}><span style={{ fontFamily: serif, fontSize: 19 }}>Crestmont Capital</span><span style={{ opacity: .5, fontSize: 12.5 }}>Investment Strategy Report</span></div>
           <button type="button" onClick={onClose} aria-label="Close" style={{ width: 44, height: 44, borderRadius: RAD, border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.06)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
         </div>
         <div data-reportgrid style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 44, alignItems: 'center', flex: 1 }}>
