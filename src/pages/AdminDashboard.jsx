@@ -1,213 +1,411 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { db } from '../lib/cocobase'
 import { useAuth } from '../hooks/useAuth'
 
 const serif = "'DM Serif Display',serif"
+const C = {
+  bg: '#faf7ff', surface: '#fff', border: '#ece4fb',
+  ink: '#221a33', body: '#5b5172', muted: '#a89cc4',
+  primary: '#7c3aed', pink: '#ec4899',
+  green: '#16a34a', red: '#ef4444', amber: '#f59e0b',
+}
 
-const card = (pad = 26) => ({
-  background: '#fff',
-  border: '1px solid #ece4fb',
-  borderRadius: 22,
-  padding: pad,
-  boxShadow: '0 18px 40px rgba(124,58,237,.08)',
+const card = (pad = 24) => ({
+  background: C.surface, border: `1px solid ${C.border}`,
+  borderRadius: 20, padding: pad,
+  boxShadow: '0 12px 32px rgba(124,58,237,.07)',
 })
 
-function initials(user) {
-  const name = user?.data?.full_name || user?.data?.first_name || user?.email || '?'
-  return name.trim().slice(0, 2).toUpperCase()
-}
-
-function displayName(user) {
+function Avatar({ u, size = 38 }) {
+  const name = u?.data?.full_name || u?.data?.first_name || u?.email || '?'
   return (
-    user?.data?.full_name ||
-    [user?.data?.first_name, user?.data?.last_name].filter(Boolean).join(' ') ||
-    user?.email ||
-    'Unknown'
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', color: '#fff', fontWeight: 700, fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+      {name.trim().slice(0, 2).toUpperCase()}
+    </div>
   )
 }
+
+function displayName(u) {
+  return u?.data?.full_name || [u?.data?.first_name, u?.data?.last_name].filter(Boolean).join(' ') || u?.email || 'Unknown'
+}
+
+function StatusBadge({ status }) {
+  const map = { pending: [C.amber, '#fffbeb', '⏳'], approved: [C.green, '#f0fdf4', '✓'], rejected: [C.red, '#fef2f2', '✕'] }
+  const [color, bg, icon] = map[status] || [C.muted, C.bg, '·']
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: bg, color }}>
+      {icon} {status}
+    </span>
+  )
+}
+
+const NAV = [
+  ['overview', 'Overview'],
+  ['investors', 'Investors'],
+  ['deposits', 'Deposits'],
+  ['withdrawals', 'Withdrawals'],
+  ['portfolio', 'Portfolio Mgmt'],
+]
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const { user, loading, isAuthenticated, isAdmin } = useAuth()
 
+  const [screen, setScreen] = useState('overview')
   const [users, setUsers] = useState([])
-  const [total, setTotal] = useState(0)
+  const [deposits, setDeposits] = useState([])
+  const [withdrawals, setWithdrawals] = useState([])
   const [listLoading, setListLoading] = useState(false)
-  const [listError, setListError] = useState('')
+  const [actionLoading, setActionLoading] = useState(null)
+  const [actionNote, setActionNote] = useState({})
+  const [toast, setToast] = useState('')
 
-  // Load the user list once we've confirmed the viewer is an admin.
-  useEffect(() => {
-    if (loading || !isAdmin) return
-    let active = true
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
+
+  const loadAll = useCallback(async () => {
+    if (!isAdmin) return
     setListLoading(true)
-    db.auth
-      .listUsers({ limit: 50 })
-      .then((res) => {
-        if (!active) return
-        setUsers(res?.data ?? [])
-        setTotal(res?.total ?? res?.data?.length ?? 0)
+    try {
+      const [usersRes, depRes, wdRes] = await Promise.all([
+        db.auth.listUsers({ limit: 100 }),
+        db.getDocuments('lumen_deposits', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
+        db.getDocuments('lumen_withdrawals', { sort: 'createdAt', order: 'desc', limit: 50 }).catch(() => ({ data: [] })),
+      ])
+      setUsers(usersRes?.data ?? [])
+      setDeposits(depRes?.data ?? [])
+      setWithdrawals(wdRes?.data ?? [])
+    } catch {}
+    setListLoading(false)
+  }, [isAdmin])
+
+  useEffect(() => {
+    if (!loading && isAdmin) loadAll()
+  }, [loading, isAdmin, loadAll])
+
+  const handleAction = async (type, recordId, action, note = '') => {
+    setActionLoading(recordId)
+    try {
+      await db.functions.execute('admin-action', {
+        payload: { type, record_id: recordId, action, note },
+        method: 'POST',
       })
-      .catch((err) => {
-        if (active) setListError(err?.message || 'Failed to load users.')
-      })
-      .finally(() => {
-        if (active) setListLoading(false)
-      })
-    return () => {
-      active = false
+      showToast(`Request ${action}d successfully`)
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Action failed')
     }
-  }, [loading, isAdmin])
-
-  const handleSignOut = async () => {
-    db.auth.logout()
-    navigate('/login')
+    setActionLoading(null)
   }
 
-  // ── Resolving session ──────────────────────────────────────────
-  if (loading) {
-    return (
-      <Centered>
-        <div style={{ fontFamily: serif, fontSize: 22, color: '#221a33' }}>Verifying access…</div>
-      </Centered>
-    )
-  }
+  const handleSignOut = async () => { try { await db.auth.logout() } catch {} navigate('/login') }
 
-  // ── Not signed in ──────────────────────────────────────────────
-  if (!isAuthenticated) {
-    return (
-      <Centered>
-        <div style={card(34)}>
-          <div style={{ fontFamily: serif, fontSize: 28, color: '#221a33', marginBottom: 8 }}>Sign in required</div>
-          <p style={{ color: '#8a7fa3', fontSize: 15, margin: '0 0 22px', maxWidth: 360 }}>
-            You need to be signed in to view the admin console.
-          </p>
-          <Link to="/login" style={primaryLink}>Go to sign in</Link>
-        </div>
-      </Centered>
-    )
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: C.bg }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e7e7ec', borderTopColor: C.primary, animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  )
 
-  // ── Signed in but not an admin ─────────────────────────────────
-  if (!isAdmin) {
-    return (
-      <Centered>
-        <div style={card(34)}>
-          <div style={{ fontSize: 13, letterSpacing: '.14em', textTransform: 'uppercase', color: '#ef4444', fontWeight: 800, marginBottom: 12 }}>403 · Restricted</div>
-          <div style={{ fontFamily: serif, fontSize: 28, color: '#221a33', marginBottom: 8 }}>Admins only</div>
-          <p style={{ color: '#8a7fa3', fontSize: 15, margin: '0 0 22px', maxWidth: 380 }}>
-            Your account ({user?.email}) doesn’t have the <strong>admin</strong> role. Contact a platform
-            owner if you believe this is a mistake.
-          </p>
-          <Link to="/dashboard" style={primaryLink}>Back to my dashboard</Link>
-        </div>
-      </Centered>
-    )
-  }
+  if (!isAuthenticated) return (
+    <Centered><AuthBlock title="Sign in required" sub="You need to be signed in to access the admin console." action={<Link to="/login" style={btnStyle()}>Go to sign in</Link>} /></Centered>
+  )
 
-  // ── Admin view ─────────────────────────────────────────────────
-  const adminCount = users.filter((u) => (u.roles || []).includes('admin')).length
+  if (!isAdmin) return (
+    <Centered><AuthBlock title="Admins only" sub={`Your account (${user?.email}) does not have the admin role.`} action={<Link to="/dashboard" style={btnStyle()}>Back to my dashboard</Link>} /></Centered>
+  )
 
-  const stats = [
-    { label: 'Total users', val: total || users.length },
-    { label: 'Administrators', val: adminCount },
-    { label: 'Standard accounts', val: Math.max((total || users.length) - adminCount, 0) },
-  ]
+  const pending = { deposits: deposits.filter(d => d.data?.status === 'pending'), withdrawals: withdrawals.filter(w => w.data?.status === 'pending') }
+  const totalAUM = deposits.filter(d => d.data?.status === 'approved').reduce((s, d) => s + (d.data?.amount || 0), 0)
+  const adminCount = users.filter(u => (u.roles || []).includes('admin')).length
 
   return (
-    <div style={{ minHeight: '100vh', background: '#faf7ff', padding: '0 0 60px' }}>
-      {/* Top bar */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px clamp(20px,4vw,52px)', borderBottom: '1px solid #ece4fb', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 11, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(124,58,237,.36)' }}>
-            <div style={{ width: 13, height: 13, border: '2.5px solid #fff', borderRadius: 4, transform: 'rotate(45deg)' }} />
+    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column' }}>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: C.ink, color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: '0 20px 50px rgba(0,0,0,.3)', animation: 'paneIn .25s ease' }}>{toast}</div>
+      )}
+
+      {/* HEADER */}
+      <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px clamp(18px,4vw,52px)', borderBottom: `1px solid ${C.border}`, background: C.surface, position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 12, height: 12, border: '2.5px solid #fff', borderRadius: 3, transform: 'rotate(45deg)' }} />
           </div>
-          <span style={{ fontFamily: serif, fontSize: 22, color: '#221a33' }}>Lumen</span>
-          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c3aed', background: 'rgba(124,58,237,.1)', padding: '4px 9px', borderRadius: 999, marginLeft: 4 }}>Admin</span>
+          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>Lumen</span>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: C.primary, background: 'rgba(124,58,237,.1)', padding: '3px 8px', borderRadius: 999 }}>Admin</span>
         </div>
+
+        {/* NAV */}
+        <nav style={{ display: 'flex', gap: 2, marginLeft: 16, background: '#f6f1fe', padding: 4, borderRadius: 12 }}>
+          {NAV.map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setScreen(k)}
+              style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: screen === k ? C.surface : 'transparent', color: screen === k ? C.primary : C.body, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: screen === k ? '0 2px 8px rgba(124,58,237,.1)' : 'none', transition: 'all .2s', whiteSpace: 'nowrap' }}>
+              {l}{k === 'deposits' && pending.deposits.length > 0 ? ` (${pending.deposits.length})` : ''}{k === 'withdrawals' && pending.withdrawals.length > 0 ? ` (${pending.withdrawals.length})` : ''}
+            </button>
+          ))}
+        </nav>
+
         <div style={{ flex: 1 }} />
-        <Link to="/dashboard" style={{ fontSize: 14, fontWeight: 700, color: '#8a7fa3', textDecoration: 'none' }}>Client view →</Link>
-        <button type="button" onClick={handleSignOut} style={{ padding: '10px 16px', borderRadius: 11, border: '1px solid #ece4fb', background: '#fff', color: '#ef4444', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar u={user} size={34} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.body }}>{displayName(user)}</span>
+        </div>
+        <Link to="/dashboard" style={{ fontSize: 13, fontWeight: 700, color: C.muted, textDecoration: 'none', padding: '8px 14px', borderRadius: 10, border: `1px solid ${C.border}` }}>Client view</Link>
+        <button type="button" onClick={handleSignOut} style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.red, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
       </header>
 
-      <main style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,4vw,52px)' }}>
-        <div style={{ padding: '34px 0 26px' }}>
-          <div style={{ fontSize: 13, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c3aed', fontWeight: 800, marginBottom: 10 }}>Admin console</div>
-          <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(28px,3.4vw,40px)', margin: 0, color: '#221a33' }}>Platform overview</h1>
-          <p style={{ fontSize: 15, color: '#8a7fa3', margin: '8px 0 0' }}>Signed in as {user?.email}</p>
-        </div>
+      <main style={{ flex: 1, maxWidth: 1160, margin: '0 auto', width: '100%', padding: '32px clamp(18px,4vw,52px) 60px' }}>
 
-        {/* Stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 18, marginBottom: 26 }}>
-          {stats.map((s) => (
-            <div key={s.label} style={card(22)}>
-              <div style={{ fontSize: 12.5, color: '#8a7fa3', fontWeight: 600, marginBottom: 10 }}>{s.label}</div>
-              <div style={{ fontFamily: serif, fontSize: 34, color: '#221a33' }}>{listLoading ? '—' : s.val}</div>
+        {/* ── OVERVIEW ── */}
+        {screen === 'overview' && (
+          <section>
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 8 }}>Admin console</div>
+              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, margin: '0 0 6px', color: C.ink }}>Platform overview</h1>
+              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>Real-time snapshot of the Lumen investment platform.</p>
             </div>
-          ))}
-        </div>
 
-        {/* User table */}
-        <div style={card(0)}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 24px', borderBottom: '1px solid #ece4fb' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#221a33' }}>Users</div>
-            {!listLoading && <div style={{ fontSize: 13, color: '#8a7fa3', fontWeight: 600 }}>{users.length} shown</div>}
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16, marginBottom: 26 }}>
+              {[
+                { label: 'Total investors', val: listLoading ? '—' : (users.length - adminCount), sub: 'Active accounts', color: C.primary },
+                { label: 'Pending deposits', val: listLoading ? '—' : pending.deposits.length, sub: 'Awaiting approval', color: C.amber },
+                { label: 'Pending withdrawals', val: listLoading ? '—' : pending.withdrawals.length, sub: 'Awaiting processing', color: C.pink },
+                { label: 'Approved capital in', val: listLoading ? '—' : `$${totalAUM.toLocaleString()}`, sub: 'Total deposited', color: C.green },
+              ].map((s) => (
+                <div key={s.label} style={card(22)}>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 10 }}>{s.label}</div>
+                  <div style={{ fontFamily: serif, fontSize: 32, color: s.color, marginBottom: 4 }}>{s.val}</div>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{s.sub}</div>
+                </div>
+              ))}
+            </div>
 
-          {listError && (
-            <div style={{ margin: 24, background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 14, fontWeight: 600, padding: '12px 16px', borderRadius: 12 }}>{listError}</div>
-          )}
-
-          {listLoading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#8a7fa3', fontSize: 14 }}>Loading users…</div>
-          ) : users.length === 0 && !listError ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#8a7fa3', fontSize: 14 }}>No users found.</div>
-          ) : (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 2fr 1.4fr 1fr', gap: 14, padding: '14px 24px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: '#a89cc4', fontWeight: 700, borderBottom: '1px solid #f1ebfb' }}>
-                <div>User</div><div>Email</div><div>Roles</div><div style={{ textAlign: 'right' }}>Joined</div>
+            {/* Quick action tables */}
+            {pending.deposits.length > 0 && (
+              <div style={{ ...card(0), marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Pending deposits</div>
+                  <button type="button" onClick={() => setScreen('deposits')} style={{ border: 'none', background: 'transparent', color: C.primary, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>
+                </div>
+                <RequestRows items={pending.deposits} type="deposit" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} />
               </div>
-              {users.map((u) => (
-                <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2.2fr 2fr 1.4fr 1fr', gap: 14, alignItems: 'center', padding: '15px 24px', borderBottom: '1px solid #f6f1fe' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>{initials(u)}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#221a33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(u)}</div>
+            )}
+
+            {pending.withdrawals.length > 0 && (
+              <div style={card(0)}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Pending withdrawals</div>
+                  <button type="button" onClick={() => setScreen('withdrawals')} style={{ border: 'none', background: 'transparent', color: C.primary, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>
+                </div>
+                <RequestRows items={pending.withdrawals} type="withdrawal" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} />
+              </div>
+            )}
+
+            {pending.deposits.length === 0 && pending.withdrawals.length === 0 && !listLoading && (
+              <div style={{ ...card(32), textAlign: 'center' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+                <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 6 }}>All clear</div>
+                <div style={{ fontSize: 14, color: C.muted }}>No pending deposits or withdrawals. Check back later.</div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── INVESTORS ── */}
+        {screen === 'investors' && (
+          <section>
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Investor management</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${users.length} total accounts`}</p>
+            </div>
+            <div style={card(0)}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.2fr 1fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
+                <div>Investor</div><div>Email</div><div>Role</div><div>Joined</div><div style={{ textAlign: 'right' }}>Status</div>
+              </div>
+              {listLoading ? <LoadingRow /> : users.map((u) => (
+                <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.2fr 1fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: `1px solid #f6f1fe` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                    <Avatar u={u} />
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(u)}</div>
                   </div>
-                  <div style={{ fontSize: 13.5, color: '#5b5172', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(u.roles && u.roles.length ? u.roles : ['user']).map((r) => (
-                      <span key={r} style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: r === 'admin' ? 'rgba(124,58,237,.12)' : 'rgba(138,127,163,.12)', color: r === 'admin' ? '#7c3aed' : '#8a7fa3' }}>{r}</span>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 12.5, color: '#a89cc4', textAlign: 'right' }}>
-                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
+                  <div style={{ fontSize: 13, color: C.body, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                  <div>{(u.roles?.length ? u.roles : ['user']).map((r) => (
+                    <span key={r} style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: r === 'admin' ? 'rgba(124,58,237,.12)' : 'rgba(138,127,163,.1)', color: r === 'admin' ? C.primary : C.muted }}>{r}</span>
+                  ))}</div>
+                  <div style={{ fontSize: 12.5, color: C.muted }}>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#f0fdf4', color: C.green }}>✓ Active</span>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </section>
+        )}
+
+        {/* ── DEPOSITS ── */}
+        {screen === 'deposits' && (
+          <section>
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Deposit requests</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${deposits.length} total · ${pending.deposits.length} pending`}</p>
+            </div>
+            {listLoading ? <div style={card(32)}><LoadingRow /></div> : deposits.length === 0 ? (
+              <div style={{ ...card(32), textAlign: 'center', color: C.muted }}>No deposit requests yet.</div>
+            ) : (
+              <div style={card(0)}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1.2fr 1fr 1.6fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
+                  <div>Investor</div><div>Amount</div><div>Method</div><div>Status</div><div>Actions</div>
+                </div>
+                <RequestRows items={deposits} type="deposit" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} showAll />
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── WITHDRAWALS ── */}
+        {screen === 'withdrawals' && (
+          <section>
+            <div style={{ marginBottom: 24 }}>
+              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Withdrawal requests</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${withdrawals.length} total · ${pending.withdrawals.length} pending`}</p>
+            </div>
+            {listLoading ? <div style={card(32)}><LoadingRow /></div> : withdrawals.length === 0 ? (
+              <div style={{ ...card(32), textAlign: 'center', color: C.muted }}>No withdrawal requests yet.</div>
+            ) : (
+              <div style={card(0)}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1.2fr 1fr 1.6fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
+                  <div>Investor</div><div>Amount</div><div>Bank ref</div><div>Status</div><div>Actions</div>
+                </div>
+                <RequestRows items={withdrawals} type="withdrawal" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} showAll />
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── PORTFOLIO MGMT ── */}
+        {screen === 'portfolio' && (
+          <section>
+            <div style={{ marginBottom: 28 }}>
+              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Portfolio management</h1>
+              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>Strategy allocations, rebalancing and performance overview.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, marginBottom: 24 }}>
+              {[
+                { name: 'Growth Strategy', alloc: '$120,000', ret: '+22%', risk: 'High', assets: 'BTC 70% · ETH 30%', color: '#f59e0b', grad: 'linear-gradient(135deg,#f59e0b,#f97316)' },
+                { name: 'Balanced Strategy', alloc: '$100,000', ret: '+15%', risk: 'Medium', assets: 'BTC 40% · ETH 35% · Stable 25%', color: C.primary, grad: 'linear-gradient(135deg,#7c3aed,#a855f7)' },
+                { name: 'Conservative Strategy', alloc: '$52,000', ret: '+9%', risk: 'Low', assets: 'Stable yield 75% · Crypto 25%', color: '#2563eb', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)' },
+              ].map((s) => (
+                <div key={s.name} style={card(22)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, flex: 'none' }}>▲</div>
+                    <div style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>{s.name}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[['Allocated', s.alloc], ['Annual return', s.ret], ['Risk level', s.risk], ['Assets', s.assets]].map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                        <span style={{ color: C.muted, fontWeight: 600 }}>{k}</span>
+                        <span style={{ color: k === 'Annual return' ? C.green : C.ink, fontWeight: 700 }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" style={{ marginTop: 18, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: s.color, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Manage strategy →</button>
+                </div>
+              ))}
+            </div>
+
+            <div style={card(24)}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>Platform performance summary</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 16 }}>
+                {[
+                  ['Total AUM', `$${(272000).toLocaleString()}`],
+                  ['Portfolio value', `$${(322750).toLocaleString()}`],
+                  ['Total return', '+18.6%'],
+                  ['ETH staking yield', '4.2% APY'],
+                  ['USDC lending yield', '5.1% APY'],
+                  ['Active strategies', '3'],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>{k}</div>
+                    <div style={{ fontFamily: serif, fontSize: 22, color: C.ink }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
       </main>
     </div>
   )
 }
 
-function Centered({ children }) {
+function RequestRows({ items, type, actionLoading, onAction, actionNote, setActionNote, showAll }) {
+  const display = showAll ? items : items.slice(0, 5)
   return (
-    <div style={{ minHeight: '100vh', background: '#faf7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-      {children}
+    <div>
+      {display.map((item) => {
+        const d = item.data || {}
+        const isPending = d.status === 'pending'
+        const isProcessing = actionLoading === item.id
+        return (
+          <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1.2fr 1fr 1.6fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid #f6f1fe' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#221a33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user_name || d.user_email || '—'}</div>
+              <div style={{ fontSize: 12, color: '#a89cc4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user_email}</div>
+            </div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#221a33' }}>${parseFloat(d.amount || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 12.5, color: '#5b5172' }}>{d.method || d.bank_details || '—'}</div>
+            <div><StatusBadge status={d.status || 'pending'} /></div>
+            <div>
+              {isPending ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input
+                    placeholder="Note (optional)"
+                    value={actionNote[item.id] || ''}
+                    onChange={(e) => setActionNote((n) => ({ ...n, [item.id]: e.target.value }))}
+                    style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ece4fb', fontSize: 12, fontFamily: 'inherit', outline: 'none', background: '#faf7ff', color: '#221a33' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" disabled={isProcessing} onClick={() => onAction(type, item.id, 'approve', actionNote[item.id] || '')}
+                      style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', background: isProcessing ? '#d1fae5' : '#16a34a', color: '#fff', fontSize: 12, fontWeight: 700, cursor: isProcessing ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                      {isProcessing ? '…' : '✓ Approve'}
+                    </button>
+                    <button type="button" disabled={isProcessing} onClick={() => onAction(type, item.id, 'reject', actionNote[item.id] || '')}
+                      style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, cursor: isProcessing ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                      ✕ Reject
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <span style={{ fontSize: 12, color: '#a89cc4' }}>{d.admin_note || 'No note'}</span>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-const primaryLink = {
-  display: 'inline-block',
-  padding: '13px 22px',
-  borderRadius: 13,
-  background: 'linear-gradient(135deg,#7c3aed,#ec4899)',
-  color: '#fff',
-  fontSize: 15,
-  fontWeight: 700,
-  textDecoration: 'none',
-  boxShadow: '0 14px 30px rgba(124,58,237,.32)',
+function LoadingRow() {
+  return <div style={{ padding: '32px 22px', textAlign: 'center', color: '#a89cc4', fontSize: 14 }}>Loading…</div>
+}
+
+function AuthBlock({ title, sub, action }) {
+  return (
+    <div style={{ background: '#fff', border: '1px solid #ece4fb', borderRadius: 22, padding: 36, maxWidth: 420, textAlign: 'center' }}>
+      <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: '#221a33', marginBottom: 10 }}>{title}</div>
+      <p style={{ color: '#a89cc4', fontSize: 14.5, margin: '0 0 24px', lineHeight: 1.6 }}>{sub}</p>
+      {action}
+    </div>
+  )
+}
+
+function Centered({ children }) {
+  return <div style={{ minHeight: '100vh', background: '#faf7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>{children}</div>
+}
+
+function btnStyle() {
+  return { display: 'inline-block', padding: '13px 24px', borderRadius: 13, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', boxShadow: '0 14px 30px rgba(124,58,237,.3)' }
 }

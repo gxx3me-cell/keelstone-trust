@@ -7,11 +7,13 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import ForgotPassword from './pages/ForgotPassword'
 
 const router = createBrowserRouter([
   { path: '/', element: <Lumen /> },
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
   { path: '/dashboard', element: <Dashboard /> },
   { path: '/admin', element: <AdminDashboard /> },
 ])

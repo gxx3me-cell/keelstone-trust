@@ -54,13 +54,8 @@ export default function Login() {
     try {
       const result = await db.auth.login({ email, password: pw })
       if (result?.requires_2fa) { setError('Two-factor authentication is required for this account.'); return }
-      // Admin goes to admin dashboard, regular users go to investor dashboard
-      const user = await db.auth.getCurrentUser()
-      if (user?.role === 'admin') {
-        navigate('/admin')
-      } else {
-        navigate('/dashboard')
-      }
+      const isAdmin = (result?.user?.roles || []).includes('admin')
+      navigate(isAdmin ? '/admin' : '/dashboard')
     } catch (err) {
       setError(err?.message || 'Invalid email or password.')
     } finally {
@@ -118,7 +113,7 @@ export default function Login() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: -10 }}>
               <span />
-              <a href="#" style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Forgot password?</a>
+              <Link to="/forgot-password" style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Forgot password?</Link>
             </div>
             <Field
               label="Password" type={showPw ? 'text' : 'password'} value={pw}
