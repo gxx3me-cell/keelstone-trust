@@ -8,7 +8,10 @@
 //   VITE_LISTENER_URL=https://your-listener-host
 //   VITE_LISTENER_SECRET=<same API_SECRET as the listener .env>
 
-const LISTENER_URL = import.meta.env.VITE_LISTENER_URL || 'http://localhost:3001'
+// When the listener also serves the UI (single-VPS deploy), leave VITE_LISTENER_URL
+// empty so requests go to the same origin. Set it only if the listener is on a
+// different host than the UI.
+const LISTENER_URL = import.meta.env.VITE_LISTENER_URL ?? ''
 const LISTENER_SECRET = import.meta.env.VITE_LISTENER_SECRET || ''
 
 async function call(path, { method = 'GET', body } = {}) {

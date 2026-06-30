@@ -85,7 +85,8 @@ export default function Dashboard() {
     loadPortfolio()
     db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 10 })
       .then((res) => {
-        const plans = (res?.data ?? []).map((p) => ({ id: p.id, ...(p.data || {}) })).filter((p) => p.active !== false)
+        const rows = Array.isArray(res) ? res : (res?.data ?? [])
+        const plans = rows.map((p) => ({ id: p.id, ...(p.data || {}) })).filter((p) => p.active !== false)
         setAvailablePlans(plans)
         if (plans.length && !selectedPlan) setSelectedPlan(plans[0])
       })

@@ -99,16 +99,18 @@ export default function AdminDashboard() {
     try {
       const [usersRes, depRes, wdRes, plansRes, invRes] = await Promise.all([
         db.auth.listUsers({ limit: 100 }),
-        db.listDocuments('lumen_deposits', { sort: 'createdAt', order: 'desc', limit: 100 }).catch(() => ({ data: [] })),
-        db.listDocuments('lumen_withdrawals', { sort: 'createdAt', order: 'desc', limit: 100 }).catch(() => ({ data: [] })),
-        db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 20 }).catch(() => ({ data: [] })),
-        db.listDocuments('lumen_investments', { limit: 200 }).catch(() => ({ data: [] })),
+        db.listDocuments('lumen_deposits', { sort: 'created_at', order: 'desc', limit: 100 }).catch(() => []),
+        db.listDocuments('lumen_withdrawals', { sort: 'created_at', order: 'desc', limit: 100 }).catch(() => []),
+        db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 20 }).catch(() => []),
+        db.listDocuments('lumen_investments', { limit: 200 }).catch(() => []),
       ])
-      setUsers(usersRes?.data ?? [])
-      setDeposits(depRes?.data ?? [])
-      setWithdrawals(wdRes?.data ?? [])
-      setPlans(plansRes?.data ?? [])
-      setInvestments(invRes?.data ?? [])
+      // listUsers returns { data: [...] }; listDocuments returns a plain array
+      const rows = (r) => (Array.isArray(r) ? r : (r?.data ?? []))
+      setUsers(rows(usersRes))
+      setDeposits(rows(depRes))
+      setWithdrawals(rows(wdRes))
+      setPlans(rows(plansRes))
+      setInvestments(rows(invRes))
     } catch {}
     setListLoading(false)
     // Treasury is from the listener — optional, may be offline

@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+.env.local
+.git
+*.log
+# keep .env.production — it sets same-origin listener URL for the build

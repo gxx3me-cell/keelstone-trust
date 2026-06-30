@@ -101,7 +101,7 @@ export default function LumenCapital() {
 
   useEffect(() => {
     db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 10 })
-      .then((res) => { if (res?.data?.length) setPlans(res.data) })
+      .then((res) => { const rows = Array.isArray(res) ? res : (res?.data ?? []); if (rows.length) setPlans(rows) })
       .catch(() => {})
   }, [])
 
