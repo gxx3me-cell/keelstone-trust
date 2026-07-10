@@ -90,6 +90,11 @@ export default function AdminDashboard() {
   const [editingPlan, setEditingPlan] = useState(null)
   const [planSaving, setPlanSaving] = useState(false)
   const [treasury, setTreasury] = useState(null)
+  // Fund/defund manager
+  const [managing, setManaging] = useState(null)       // the investor being managed
+  const [fundAmount, setFundAmount] = useState('')
+  const [fundPlanId, setFundPlanId] = useState('')
+  const [fundBusy, setFundBusy] = useState(false)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
 
@@ -131,6 +136,64 @@ export default function AdminDashboard() {
     }
     setPlanSaving(false)
   }
+
+  const openManager = (u) => {
+    setManaging(u)
+    setFundAmount('')
+    const firstPlan = (plans[0]?.id) || ''
+    setFundPlanId(firstPlan)
+  }
+
+  const handleFund = async () => {
+    if (!managing) return
+    const amt = parseFloat(String(fundAmount).replace(/,/g, ''))
+    if (!amt || amt <= 0) { showToast('Enter a valid amount'); return }
+    if (!fundPlanId) { showToast('Select a plan'); return }
+    setFundBusy(true)
+    try {
+      const res = await db.functions.execute('admin-fund', {
+        payload: {
+          action: 'fund',
+          user_id: managing.id,
+          user_email: managing.email,
+          user_name: displayName(managing),
+          amount: amt,
+          plan_id: fundPlanId,
+        },
+        method: 'POST',
+      })
+      const r = res?.result ?? res
+      if (r?.error) throw new Error(r.error)
+      showToast(`Funded ${displayName(managing)} $${fmt(amt)}`)
+      setFundAmount('')
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Funding failed')
+    }
+    setFundBusy(false)
+  }
+
+  const handleDefund = async (investmentId) => {
+    setFundBusy(true)
+    try {
+      const res = await db.functions.execute('admin-fund', {
+        payload: { action: 'defund', investment_id: investmentId },
+        method: 'POST',
+      })
+      const r = res?.result ?? res
+      if (r?.error) throw new Error(r.error)
+      showToast('Investment closed')
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Defund failed')
+    }
+    setFundBusy(false)
+  }
+
+  // Active investments for the investor currently being managed
+  const managingInvestments = managing
+    ? investments.filter((i) => i.data?.user_id === managing.id && i.data?.status === 'active')
+    : []
 
   useEffect(() => {
     if (!loading && isAdmin) loadAll()
@@ -304,14 +367,14 @@ export default function AdminDashboard() {
               <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${users.length} total accounts`}</p>
             </div>
             <div style={card(0)}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.8fr 1fr 1.1fr 1.1fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
-                <div>Investor</div><div>Email</div><div>Plans</div><div style={{ textAlign: 'right' }}>Invested</div><div style={{ textAlign: 'right' }}>Earnings</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 0.8fr 1fr 1fr 1fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
+                <div>Investor</div><div>Email</div><div>Plans</div><div style={{ textAlign: 'right' }}>Invested</div><div style={{ textAlign: 'right' }}>Earnings</div><div style={{ textAlign: 'right' }}>Manage</div>
               </div>
               {listLoading ? <LoadingRow /> : users.map((u) => {
                 const t = investorTotals(u.id, investments)
                 const isAdminUser = (u.roles || []).includes('admin')
                 return (
-                  <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.8fr 1fr 1.1fr 1.1fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: `1px solid #f6f1fe` }}>
+                  <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 0.8fr 1fr 1fr 1fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: `1px solid #f6f1fe` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                       <Avatar u={u} />
                       <div style={{ minWidth: 0 }}>
@@ -323,6 +386,9 @@ export default function AdminDashboard() {
                     <div style={{ fontSize: 13.5, fontWeight: 700, color: t.count ? C.ink : C.muted }}>{t.count || '—'}</div>
                     <div style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: C.ink }}>{t.principal ? `$${fmt(t.principal)}` : '—'}</div>
                     <div style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: t.earnings ? C.green : C.muted }}>{t.earnings ? `+$${fmt(t.earnings)}` : '—'}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <button type="button" onClick={() => openManager(u)} style={{ padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Manage</button>
+                    </div>
                   </div>
                 )
               })}
@@ -510,6 +576,83 @@ export default function AdminDashboard() {
         )}
 
       </main>
+
+      {/* ── FUND / DEFUND MANAGER ── */}
+      {managing && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={() => setManaging(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
+          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 40px 90px rgba(0,0,0,.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <Avatar u={managing} size={44} />
+              <div>
+                <div style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{displayName(managing)}</div>
+                <div style={{ fontSize: 12.5, color: C.muted }}>{managing.email}</div>
+              </div>
+            </div>
+
+            {/* Current balance */}
+            {(() => {
+              const t = investorTotals(managing.id, investments)
+              return (
+                <div style={{ display: 'flex', gap: 10, margin: '18px 0 22px' }}>
+                  {[['Invested', `$${fmt(t.principal)}`, C.ink], ['Earnings', `+$${fmt(t.earnings)}`, C.green], ['Value', `$${fmt(t.value)}`, C.ink]].map(([k, v, col]) => (
+                    <div key={k} style={{ flex: 1, background: '#f8f5ff', borderRadius: 12, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>{k}</div>
+                      <div style={{ fontFamily: serif, fontSize: 19, color: col }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {/* Fund */}
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Add funds</div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+              <select value={fundPlanId} onChange={(e) => setFundPlanId(e.target.value)}
+                style={{ flex: '1 1 160px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: '#faf7ff', color: C.ink, outline: 'none' }}>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>{p.data?.name} ({p.data?.annual_return_pct}% p.a.)</option>
+                ))}
+              </select>
+              <div style={{ flex: '1 1 140px', display: 'flex', alignItems: 'center', border: `1px solid ${C.border}`, borderRadius: 10, padding: '0 12px', background: '#faf7ff' }}>
+                <span style={{ fontSize: 15, color: C.muted }}>$</span>
+                <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="Amount"
+                  style={{ width: '100%', padding: '11px 6px', border: 'none', background: 'transparent', fontSize: 14, fontFamily: 'inherit', color: C.ink, outline: 'none' }} />
+              </div>
+            </div>
+            <button type="button" onClick={handleFund} disabled={fundBusy}
+              style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: fundBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: fundBusy ? 0.7 : 1, marginBottom: 24 }}>
+              {fundBusy ? 'Working…' : '+ Fund investor'}
+            </button>
+
+            {/* Defund — active investments */}
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Active investments</div>
+            {managingInvestments.length === 0 ? (
+              <div style={{ fontSize: 13.5, color: C.muted, padding: '8px 0 4px' }}>No active investments.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {managingInvestments.map((inv) => {
+                  const d = inv.data || {}
+                  return (
+                    <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1px solid ${C.border}`, background: '#faf7ff' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{d.plan_name} · ${fmt(d.principal)}</div>
+                        <div style={{ fontSize: 12, color: C.muted }}>{d.annual_return_pct}% p.a. · since {d.start_date ? new Date(d.start_date).toLocaleDateString() : '—'}</div>
+                      </div>
+                      <button type="button" onClick={() => handleDefund(inv.id)} disabled={fundBusy}
+                        style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: '#fef2f2', color: C.red, fontSize: 12.5, fontWeight: 700, cursor: fundBusy ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                        Defund
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <button type="button" onClick={() => setManaging(null)} style={{ width: '100%', marginTop: 22, padding: 12, borderRadius: 12, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

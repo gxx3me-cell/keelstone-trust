@@ -1,16 +1,4 @@
-// Client for the Lumen deposit listener (BSC/USDT BEP-20).
-// The listener is a long-running server (see Desktop/lumen-listener) that:
-//  - assigns each investor a unique BEP-20 deposit address
-//  - watches BSC and auto-creates an investment when USDT arrives
-//  - sends USDT out for approved withdrawals
-//
-// Configure via .env:
-//   VITE_LISTENER_URL=https://your-listener-host
-//   VITE_LISTENER_SECRET=<same API_SECRET as the listener .env>
 
-// When the listener also serves the UI (single-VPS deploy), leave VITE_LISTENER_URL
-// empty so requests go to the same origin. Set it only if the listener is on a
-// different host than the UI.
 const LISTENER_URL = import.meta.env.VITE_LISTENER_URL ?? ''
 const LISTENER_SECRET = import.meta.env.VITE_LISTENER_SECRET || ''
 
