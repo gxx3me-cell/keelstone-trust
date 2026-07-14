@@ -4,7 +4,6 @@ import '../dashboard/dashboard.css'
 import { db } from '../lib/cocobase'
 import { createDepositSession, checkPayment } from '../lib/listener'
 import { useAuth } from '../hooks/useAuth'
-import { holdings, txns, txIcon, txLabel, chg, reports, insights } from '../dashboard/data'
 import {
   chartData, perfData, drawArea, drawDonut, drawBars, drawSpark, animate,
 } from '../dashboard/charts'
@@ -18,8 +17,6 @@ const icons = {
   activity: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v13M7 4l-3 3M7 4l3 3" /><path d="M17 20V7M17 20l3-3M17 20l-3-3" /></svg>,
   performance: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 17 9 11 13 15 21 6" /></svg>,
   reports: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>,
-  insights: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
-  advisor: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>,
   settings: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="8" x2="20" y2="8" /><line x1="4" y1="16" x2="20" y2="16" /><circle cx="9" cy="8" r="2.4" fill="var(--sidebar)" /><circle cx="15" cy="16" r="2.4" fill="var(--sidebar)" /></svg>,
 }
 
@@ -30,8 +27,6 @@ const navItems = [
   ['activity', 'Activity'],
   ['performance', 'Performance'],
   ['reports', 'Reports'],
-  ['insights', 'Market Insights'],
-  ['advisor', 'Advisor Support'],
   ['settings', 'Settings'],
 ]
 
@@ -54,13 +49,9 @@ export default function Dashboard() {
   const [modal, setModal] = useState(null)
   const [curTf, setCurTf] = useState('1M')
   const [curPerf, setCurPerf] = useState('1Y')
-  const [hfilter, setHfilter] = useState('all')
   const [txfilter, setTxfilter] = useState('all')
   const [depositAmt, setDepositAmt] = useState('25,000')
-  const [switches, setSwitches] = useState({ '2fa': true, bio: true, email: true })
-  const [msgSent, setMsgSent] = useState(false)
-  const [msgText, setMsgText] = useState('')
-  const [reportDownloaded, setReportDownloaded] = useState(null)
+  const [switches, setSwitches] = useState({ email: true })
 
   // Real portfolio + plans from CocoBase
   const [portfolio, setPortfolio] = useState(null)
@@ -144,7 +135,7 @@ export default function Dashboard() {
     rootRef.current?.querySelectorAll('[data-spark]').forEach((cv) => {
       drawSpark(cv, JSON.parse(cv.getAttribute('data-spark')), cv.getAttribute('data-color'))
     })
-  }, [screen, hfilter, theme])
+  }, [screen, theme])
 
   useEffect(() => {
     const onResize = () => {
@@ -174,13 +165,6 @@ export default function Dashboard() {
   const goScreen = (name) => { setScreen(name); setNavOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
-  const filteredHoldings = holdings.filter((h) => {
-    if (hfilter === 'all') return true
-    if (hfilter === 'staked') return h.staked
-    if (hfilter === 'crypto') return !['USDC', 'USDT', 'USD'].includes(h.sym)
-    return true
-  })
-  const filteredTx = txns.filter((t) => (txfilter === 'all' ? true : t.type === txfilter))
 
   // Deposit (USDT BEP-20) flow: step 'form' -> 'pay' -> 'done'
   const [depositStep, setDepositStep] = useState('form')
@@ -201,16 +185,61 @@ export default function Dashboard() {
     setDepositDone(false); setCopied(false)
   }
 
-  const handleSendMessage = () => {
-    if (!msgText.trim()) return
-    setMsgSent(true)
-    setMsgText('')
-    setTimeout(() => setMsgSent(false), 4000)
-  }
-
-  const handleDownload = (idx) => {
-    setReportDownloaded(idx)
-    setTimeout(() => setReportDownloaded(null), 2000)
+  // Build an account statement from the live portfolio and download it.
+  const downloadStatement = (format) => {
+    if (!portfolio) return
+    const today = new Date().toISOString().slice(0, 10)
+    let content, mime, ext
+    if (format === 'csv') {
+      const rows = [
+        ['Lumen Account Statement'],
+        ['Generated', today],
+        ['Investor', fullName],
+        ['Email', userEmail],
+        [],
+        ['Summary'],
+        ['Total invested (USD)', portfolio.total_principal],
+        ['Earnings to date (USD)', portfolio.total_earnings],
+        ['Current value (USD)', portfolio.total_value],
+        ['Total return (%)', portfolio.return_pct],
+        [],
+        ['Plan', 'Invested (USD)', 'Return % p.a.', 'Earnings (USD)', 'Current value (USD)', 'Since'],
+        ...portfolio.investments.map((i) => [i.plan_name, i.principal, i.annual_return_pct, i.earnings, i.current_value, new Date(i.start_date).toLocaleDateString()]),
+      ]
+      content = rows.map((r) => r.map((c) => `"${String(c)}"`).join(',')).join('\n')
+      mime = 'text/csv'; ext = 'csv'
+    } else {
+      const lines = [
+        'LUMEN — ACCOUNT STATEMENT',
+        '='.repeat(40),
+        `Generated:  ${today}`,
+        `Investor:   ${fullName}`,
+        `Email:      ${userEmail}`,
+        '',
+        'SUMMARY',
+        '-'.repeat(40),
+        `Total invested:    $${money(portfolio.total_principal)}`,
+        `Earnings to date:  +$${money(portfolio.total_earnings)}`,
+        `Current value:     $${money(portfolio.total_value)}`,
+        `Total return:      +${portfolio.return_pct}%`,
+        '',
+        'INVESTMENTS',
+        '-'.repeat(40),
+        ...portfolio.investments.map((i) =>
+          `${i.plan_name} — $${money(i.principal)} @ ${i.annual_return_pct}% p.a. · earned +$${money(i.earnings)} · now $${money(i.current_value)} (since ${new Date(i.start_date).toLocaleDateString()})`),
+        '',
+        'Returns accrue daily. This statement reflects your account at the time of generation.',
+      ]
+      content = lines.join('\n')
+      mime = 'text/plain'; ext = 'txt'
+    }
+    const blob = new Blob([content], { type: mime })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `lumen-statement-${today}.${ext}`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
   }
 
   // Step 1: validate + request the investor's unique BEP-20 deposit address
@@ -565,200 +594,180 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Latest insight teaser */}
-            <div style={{ ...card(24), marginTop: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Latest from the investment team</div>
-                <button type="button" onClick={() => goScreen('insights')} style={linkBtn()}>View all insights →</button>
-              </div>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 42, height: 42, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 16 }}>📊</div>
-                <div>
-                  <div style={{ fontSize: 11.5, color: '#6d28d9', fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>{insights[0].tag} · {insights[0].date}</div>
-                  <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{insights[0].headline}</div>
-                  <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.55 }}>{insights[0].body.slice(0, 140)}…</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Investment Tiers — persistent across overview */}
-            {availablePlans.length > 0 && (
-              <div style={{ marginTop: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Investment Tiers</div>
-                  <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>Start investing →</button>
-                </div>
-                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 4)},1fr)`, gap: 14 }}>
-                  {availablePlans.map((p, i) => <DashPlanCard key={p.id || i} plan={p} onSelect={() => { setSelectedPlan(p); setModal('deposit') }} />)}
-                </div>
-              </div>
-            )}
           </section>
         )}
 
         {/* ── PORTFOLIO ── */}
         {screen === 'portfolio' && (
           <section data-pane="portfolio">
-            <div style={card(24)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>All holdings</div>
-                <TabGroup tabs={[['all', 'All'], ['crypto', 'Crypto'], ['staked', 'Earning Yield']]} active={hfilter} onChange={setHfilter} />
+            {(!portfolio || portfolio.investment_count === 0) ? (
+              <div style={{ ...card(40), textAlign: 'center' }}>
+                <div style={{ fontSize: 44, marginBottom: 14 }}>💼</div>
+                <div style={{ fontFamily: serif, fontSize: 24, color: 'var(--text)', marginBottom: 8 }}>No holdings yet</div>
+                <div style={{ fontSize: 14, color: 'var(--text-3)', maxWidth: 420, margin: '0 auto 22px', lineHeight: 1.6 }}>Once you fund a plan, your active investments will appear here.</div>
+                <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fund a plan →</button>
               </div>
-              <div data-hidemobile style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.2fr 1fr 1.3fr', gap: 14, padding: '0 6px 12px', borderBottom: '1px solid var(--border)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>
-                <div>Asset</div><div>Holdings</div><div>Price</div><div>24h</div><div style={{ textAlign: 'right' }}>Value</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {filteredHoldings.map((h) => {
-                  const c = chg(h.chg)
-                  return (
-                    <div key={h.name} style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.2fr 1fr 1.3fr', gap: 14, alignItems: 'center', padding: '15px 6px', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                        <div style={iconChip(h.color, 40)}>{h.sym.slice(0, 3)}</div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{h.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{h.sym}{h.staked ? ' · Earning yield' : ''}</div>
+            ) : (
+              <>
+                <div style={card(24)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Your investments</div>
+                    <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>+ Add investment</button>
+                  </div>
+                  <div data-hidemobile style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.2fr 1.2fr 1.2fr 1.3fr', gap: 14, padding: '0 6px 12px', borderBottom: '1px solid var(--border)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>
+                    <div>Plan</div><div>Invested</div><div>Return</div><div>Earnings</div><div style={{ textAlign: 'right' }}>Current value</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {portfolio.investments.map((inv, i) => (
+                      <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.2fr 1.2fr 1.2fr 1.3fr', gap: 14, alignItems: 'center', padding: '15px 6px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 12, background: PLAN_GRADS[i % PLAN_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, flex: 'none' }}>◈</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{inv.plan_name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Since {new Date(inv.start_date).toLocaleDateString()}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ fontSize: 13.5, color: 'var(--text-2)', fontWeight: 600 }}>{h.amt}</div>
-                      <div style={{ fontSize: 13.5, color: 'var(--text)', fontWeight: 600 }}>{h.price}</div>
-                      <div style={{ fontSize: 13, color: c.col, fontWeight: 700 }}>{c.text}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
-                        <canvas data-hidemobile data-spark={JSON.stringify(h.spark)} data-color={h.color} style={{ width: 60, height: 30 }} />
+                        <div style={{ fontSize: 13.5, color: 'var(--text-2)', fontWeight: 600 }}>${money(inv.principal)}</div>
+                        <div style={{ fontSize: 13.5, color: '#16a34a', fontWeight: 700 }}>{inv.annual_return_pct}% p.a.</div>
+                        <div style={{ fontSize: 13.5, color: '#16a34a', fontWeight: 700 }}>+${money(inv.earnings)}</div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{h.val}</div>
-                          <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{h.pct}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>${money(inv.current_value)}</div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Investment Tiers — persistent */}
-            {availablePlans.length > 0 && (
-              <div style={{ marginTop: 24, marginBottom: 4 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Investment Tiers</div>
-                  <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>Add investment →</button>
+                <div style={{ ...card(24), marginTop: 20 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Portfolio summary</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your ${money(portfolio.total_principal)} is professionally managed across {portfolio.investment_count} {portfolio.investment_count === 1 ? 'plan' : 'plans'} by the Lumen investment team.</div>
+                  <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
+                    {portfolio.investments.map((inv, i) => {
+                      const pct = portfolio.total_value > 0 ? (inv.current_value / portfolio.total_value) * 100 : 0
+                      return <div key={inv.id} style={{ width: `${pct}%`, background: PLAN_COLORS[i % PLAN_COLORS.length], marginLeft: i > 0 ? 2 : 0 }} />
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 12, fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 }}>
+                    {portfolio.investments.map((inv, i) => {
+                      const pct = portfolio.total_value > 0 ? ((inv.current_value / portfolio.total_value) * 100).toFixed(1) : '0.0'
+                      return (
+                        <span key={inv.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: PLAN_COLORS[i % PLAN_COLORS.length] }} />{inv.plan_name} {pct}%
+                        </span>
+                      )
+                    })}
+                  </div>
                 </div>
-                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 4)},1fr)`, gap: 14 }}>
-                  {availablePlans.map((p, i) => <DashPlanCard key={p.id || i} plan={p} onSelect={() => { setSelectedPlan(p); setModal('deposit') }} />)}
-                </div>
-              </div>
+              </>
             )}
-
-            <div style={{ ...card(24), marginTop: 20 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Portfolio summary</div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your capital is professionally allocated across Bitcoin, Ethereum, and stablecoin yield products, managed by the Lumen investment team.</div>
-              <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
-                <div style={{ width: '45.0%', background: '#f59e0b' }} />
-                <div style={{ width: '28.2%', background: '#6366f1' }} />
-                <div style={{ width: '13.2%', background: '#2563eb' }} />
-                <div style={{ width: '9.0%', background: '#16a34a' }} />
-                <div style={{ width: '4.6%', background: '#8b8b97' }} />
-              </div>
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 12, fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 }}>
-                {[['Bitcoin', '#f59e0b', '45.0%'], ['Ethereum', '#6366f1', '28.2%'], ['USDC Yield', '#2563eb', '13.2%'], ['USDT Reserve', '#16a34a', '9.0%'], ['Other', '#8b8b97', '4.6%']].map(([n, c, p]) => (
-                  <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />{n} {p}
-                  </span>
-                ))}
-              </div>
-            </div>
           </section>
         )}
 
         {/* ── STRATEGIES ── */}
         {screen === 'strategies' && (
           <section data-pane="strategies">
-            <div data-grid3 style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18, marginBottom: 20 }}>
-              {[
-                {
-                  name: 'Growth Strategy', grad: 'linear-gradient(135deg,#f59e0b,#f97316)', pctColor: '#f59e0b', pctBg: 'rgba(245,158,11,.1)', pct: '35%',
-                  desc: 'Maximum long-term capital appreciation through concentrated Bitcoin and Ethereum positions.',
-                  alloc: '$120,000', ret: '+22%',
-                  icon: <div style={{ width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderBottom: '15px solid #fff' }} />,
-                  detail: 'Bitcoin (70%) · Ethereum (30%)',
-                },
-                {
-                  name: 'Balanced Strategy', grad: 'linear-gradient(135deg,#6d28d9,#a855f7)', pctColor: '#6d28d9', pctBg: 'rgba(109,40,217,.1)', pct: '40%',
-                  desc: 'Diversified exposure to growth through BTC and ETH, balanced with stablecoin yield positions.',
-                  alloc: '$100,000', ret: '+15%',
-                  icon: <div style={{ width: 18, height: 18, border: '3px solid #fff', borderRadius: 5 }} />,
-                  detail: 'Bitcoin (40%) · Ethereum (35%) · Stable (25%)',
-                },
-                {
-                  name: 'Conservative Strategy', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)', pctColor: '#2563eb', pctBg: 'rgba(37,99,235,.1)', pct: '25%',
-                  desc: 'Capital preservation through stablecoin yield opportunities and conservative digital asset exposure.',
-                  alloc: '$52,000', ret: '+9%',
-                  icon: <div style={{ width: 18, height: 18, borderRadius: '50%', border: '3px solid #fff' }} />,
-                  detail: 'Stablecoin Yield (75%) · Conservative Crypto (25%)',
-                },
-              ].map((s) => <StrategyCard key={s.name} {...s} />)}
-            </div>
-
-            <div style={card(24)}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Strategy allocation overview</div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your capital is spread across three distinct mandates, each managed independently with its own risk parameters and target return profile.</div>
-              <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
-                <div style={{ width: '35%', background: 'linear-gradient(90deg,#f59e0b,#f97316)' }} />
-                <div style={{ width: '40%', background: 'linear-gradient(90deg,#6d28d9,#a855f7)' }} />
-                <div style={{ width: '25%', background: 'linear-gradient(90deg,#2563eb,#06b6d4)' }} />
+            {(!portfolio || portfolio.investment_count === 0) ? (
+              <div style={{ ...card(40), textAlign: 'center' }}>
+                <div style={{ fontSize: 44, marginBottom: 14 }}>🎯</div>
+                <div style={{ fontFamily: serif, fontSize: 24, color: 'var(--text)', marginBottom: 8 }}>No active strategies</div>
+                <div style={{ fontSize: 14, color: 'var(--text-3)', maxWidth: 440, margin: '0 auto 22px', lineHeight: 1.6 }}>Fund a plan to put your capital into one of Lumen's managed strategies. Each plan targets a different return and risk profile.</div>
+                <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Choose a plan →</button>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 }}>
-                <span>Growth 35%</span><span>Balanced 40%</span><span>Conservative 25%</span>
-              </div>
-            </div>
-
-            <div style={{ ...card(24), marginTop: 20, background: 'linear-gradient(135deg,rgba(109,40,217,.06),rgba(192,38,211,.04))' }}>
-              <div style={{ fontSize: 11.5, color: '#6d28d9', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Quarterly Review · Q2 2026</div>
-              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Your portfolio outperformed its benchmark by 3.2% this quarter.</div>
-              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.65, marginBottom: 20 }}>The Growth Strategy delivered +22% annualized, driven by Bitcoin's appreciation. The Balanced Strategy returned +15%, while the Conservative Strategy generated a consistent +9% through stablecoin yield positions.</div>
-              <button type="button" onClick={() => goScreen('reports')} style={{ padding: '11px 22px', border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 6px 18px rgba(109,40,217,.3)' }}>Download Q2 Report →</button>
-            </div>
-
-            {/* Investment Tiers — persistent plan display */}
-            {availablePlans.length > 0 && (
-              <div style={{ marginTop: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Investment Tiers</div>
-                  <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>Invest now →</button>
+            ) : (
+              <>
+                <div data-grid3 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(portfolio.investment_count, 3)},1fr)`, gap: 18, marginBottom: 20 }}>
+                  {portfolio.investments.map((inv, i) => {
+                    const pct = portfolio.total_value > 0 ? Math.round((inv.current_value / portfolio.total_value) * 100) : 0
+                    const color = PLAN_COLORS[i % PLAN_COLORS.length]
+                    return (
+                      <StrategyCard
+                        key={inv.id}
+                        name={inv.plan_name}
+                        grad={PLAN_GRADS[i % PLAN_GRADS.length]}
+                        pctColor={color}
+                        pctBg={`${color}1a`}
+                        pct={`${pct}%`}
+                        desc={`Actively managed by the Lumen investment team, targeting ${inv.annual_return_pct}% annualized returns.`}
+                        alloc={`$${money(inv.principal)}`}
+                        ret={`+${inv.annual_return_pct}%`}
+                        icon={<div style={{ width: 18, height: 18, border: '3px solid #fff', borderRadius: 5 }} />}
+                        detail={`Earning since ${new Date(inv.start_date).toLocaleDateString()}`}
+                      />
+                    )
+                  })}
                 </div>
-                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 4)},1fr)`, gap: 14 }}>
-                  {availablePlans.map((p, i) => <DashPlanCard key={p.id || i} plan={p} onSelect={() => { setSelectedPlan(p); setModal('deposit') }} />)}
+
+                <div style={card(24)}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Strategy allocation overview</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your ${money(portfolio.total_principal)} is spread across {portfolio.investment_count} {portfolio.investment_count === 1 ? 'strategy' : 'strategies'}, each managed independently with its own risk parameters and target return.</div>
+                  <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
+                    {portfolio.investments.map((inv, i) => {
+                      const pct = portfolio.total_value > 0 ? (inv.current_value / portfolio.total_value) * 100 : 0
+                      return <div key={inv.id} style={{ width: `${pct}%`, background: PLAN_COLORS[i % PLAN_COLORS.length], marginLeft: i > 0 ? 2 : 0 }} />
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 12, fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 }}>
+                    {portfolio.investments.map((inv, i) => {
+                      const pct = portfolio.total_value > 0 ? Math.round((inv.current_value / portfolio.total_value) * 100) : 0
+                      return <span key={inv.id}>{inv.plan_name} {pct}%</span>
+                    })}
+                  </div>
                 </div>
-              </div>
+
+                <div style={{ ...card(24), marginTop: 20, background: 'linear-gradient(135deg,rgba(124,58,237,.06),rgba(236,72,153,.04))' }}>
+                  <div style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 8 }}>Your portfolio</div>
+                  <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>You've earned ${money(portfolio.total_earnings)} so far — a {portfolio.return_pct}% return.</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 18 }}>Your investments continue to accrue returns daily. Add capital to any plan at any time, or reach out to your advisor to discuss your strategy.</div>
+                  <button type="button" onClick={() => goScreen('advisor')} style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: '#7c3aed', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Talk to your advisor →</button>
+                </div>
+              </>
             )}
           </section>
         )}
 
         {/* ── ACTIVITY ── */}
-        {screen === 'activity' && (
-          <section data-pane="activity">
-            <div style={card(24)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Transaction history</div>
-                <TabGroup tabs={[['all', 'All'], ['deposit', 'Deposits'], ['yield', 'Yield'], ['withdraw', 'Withdrawals']]} active={txfilter} onChange={setTxfilter} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {filteredTx.map((t, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 6px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 12, background: `${txIcon[t.type]}1e`, color: txIcon[t.type], display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 16, fontWeight: 800 }}>{txLabel[t.type] || '·'}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{t.label}</div>
-                      <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{t.sub}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 700, color: t.sign > 0 ? '#16a34a' : t.sign < 0 ? '#ef4444' : 'var(--text-3)' }}>{t.amt}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.when}</div>
-                    </div>
+        {screen === 'activity' && (() => {
+          const acts = [
+            ...((portfolio?.deposits) || []).map((d) => ({ ...d, kind: 'deposit' })),
+            ...((portfolio?.withdrawals) || []).map((w) => ({ ...w, kind: 'withdrawal' })),
+          ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          const filtered = acts.filter((a) => (
+            txfilter === 'all' ? true : txfilter === 'deposit' ? a.kind === 'deposit' : txfilter === 'withdraw' ? a.kind === 'withdrawal' : true
+          ))
+          return (
+            <section data-pane="activity">
+              <div style={card(24)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Transaction history</div>
+                  <TabGroup tabs={[['all', 'All'], ['deposit', 'Deposits'], ['withdraw', 'Withdrawals']]} active={txfilter} onChange={setTxfilter} />
+                </div>
+                {filtered.length === 0 ? (
+                  <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>No transactions yet.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {filtered.map((t) => {
+                      const isDep = t.kind === 'deposit'
+                      const col = t.status === 'approved' ? '#16a34a' : t.status === 'rejected' ? '#ef4444' : '#f59e0b'
+                      return (
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 6px', borderBottom: '1px solid var(--border)' }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 12, background: `${col}1e`, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 18, fontWeight: 800 }}>{isDep ? '↓' : '↑'}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{isDep ? `Deposit · ${t.plan_name || 'Plan'}` : 'Withdrawal'}</div>
+                            <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>USDT BEP-20 · <span style={{ color: col, fontWeight: 700, textTransform: 'capitalize' }}>{t.status}</span></div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 14.5, fontWeight: 700, color: isDep ? '#16a34a' : 'var(--text)' }}>{isDep ? '+' : '−'}${money(t.amount || 0)}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )
+        })()}
 
         {/* ── PERFORMANCE ── */}
         {screen === 'performance' && (
@@ -768,7 +777,7 @@ export default function Dashboard() {
                 <div>
                   <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600, marginBottom: 6 }}>Cumulative return</div>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-                    <div style={{ fontFamily: serif, fontSize: 40, color: 'var(--text)', lineHeight: 1 }}>+18.6%</div>
+                    <div style={{ fontFamily: serif, fontSize: 40, color: 'var(--text)', lineHeight: 1 }}>+{portfolio?.return_pct ?? 0}%</div>
                     <div style={{ fontSize: 13, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>since inception</div>
                   </div>
                 </div>
@@ -784,14 +793,11 @@ export default function Dashboard() {
               <div style={{ ...card(24), display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Key metrics</div>
                 {[
-                  ['Total invested', '$272,000', 'var(--text)'],
-                  ['Current value', '$322,750', 'var(--text)'],
-                  ['Total return', '+$50,750', '#16a34a'],
-                  ['Return %', '+18.6%', '#16a34a'],
-                  ['Annual yield earned', '$4,820', '#f59e0b'],
-                  ['Best month', '+6.2%', '#16a34a'],
-                  ['Max drawdown', '−8.4%', 'var(--text)'],
-                  ['Risk profile', 'Balanced', 'var(--text)'],
+                  ['Total invested', `$${money(portfolio?.total_principal || 0)}`, 'var(--text)'],
+                  ['Current value', `$${money(portfolio?.total_value || 0)}`, 'var(--text)'],
+                  ['Total earnings', `+$${money(portfolio?.total_earnings || 0)}`, '#16a34a'],
+                  ['Return %', `+${portfolio?.return_pct ?? 0}%`, '#16a34a'],
+                  ['Active plans', String(portfolio?.investment_count ?? 0), 'var(--text)'],
                 ].map(([k, v, c]) => (
                   <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{k}</span>
@@ -808,131 +814,48 @@ export default function Dashboard() {
         {screen === 'reports' && (
           <section data-pane="reports">
             <div style={card(24)}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Reports Center</div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 24 }}>Download your official Lumen investment reports, statements, and tax documents.</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {reports.map((r, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 6px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(109,40,217,.1)', color: '#6d28d9', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 18 }}>
-                      📄
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{r.title}</div>
-                      <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 }}>{r.period} · {r.size}</div>
-                    </div>
-                    <div style={{ textAlign: 'right', flex: 'none' }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }}>{r.date}</div>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(i)}
-                        style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: reportDownloaded === i ? '#16a34a' : 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background .3s' }}
-                      >
-                        {reportDownloaded === i ? '✓ Downloaded' : '↓ Download PDF'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Account statement</div>
+              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 24 }}>Generate and download a statement of your Lumen account, built from your live portfolio.</div>
 
-            <div style={{ ...card(24), marginTop: 20 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Request a custom report</div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 20, lineHeight: 1.6 }}>Need a specific report or document? Contact your portfolio management team and we'll prepare it for you within 2 business days.</div>
-              <button type="button" onClick={() => goScreen('advisor')} style={{ padding: '12px 22px', borderRadius: 10, border: 'none', background: 'var(--text)', color: 'var(--sidebar)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Contact portfolio team →</button>
-            </div>
-          </section>
-        )}
-
-        {/* ── MARKET INSIGHTS ── */}
-        {screen === 'insights' && (
-          <section data-pane="insights">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {insights.map((ins, i) => (
-                <div key={i} style={card(24)}>
-                  <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                    <div style={{ width: 46, height: 46, borderRadius: 12, background: 'rgba(109,40,217,.1)', color: '#6d28d9', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 20 }}>
-                      {i === 0 ? '📈' : i === 1 ? '🛡️' : i === 2 ? '💰' : '⚖️'}
+              {(!portfolio || portfolio.investment_count === 0) ? (
+                <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
+                  You have no active investments yet — fund a plan to generate your first statement.
+                </div>
+              ) : (
+                <>
+                  {/* Live statement preview */}
+                  <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ fontFamily: serif, fontSize: 18, color: 'var(--text)' }}>Lumen · Account Statement</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6d28d9', background: 'rgba(109,40,217,.1)', padding: '3px 9px', borderRadius: 6 }}>{ins.tag}</span>
-                        <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{ins.date}</span>
+                    <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>{fullName} · {userEmail}</div>
+                    {[
+                      ['Total invested', `$${money(portfolio.total_principal)}`],
+                      ['Earnings to date', `+$${money(portfolio.total_earnings)}`],
+                      ['Current value', `$${money(portfolio.total_value)}`],
+                      ['Total return', `+${portfolio.return_pct}%`],
+                      ['Active plans', String(portfolio.investment_count)],
+                    ].map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5 }}>
+                        <span style={{ color: 'var(--text-2)' }}>{k}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>{v}</span>
                       </div>
-                      <div style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)', marginBottom: 10, lineHeight: 1.25 }}>{ins.headline}</div>
-                      <div style={{ fontSize: 14.5, color: 'var(--text-3)', lineHeight: 1.65 }}>{ins.body}</div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
 
-            <div style={{ ...card(24), marginTop: 16, background: 'linear-gradient(135deg,rgba(14,14,18,.96),rgba(30,20,50,.98))', border: 'none' }}>
-              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Subscribe to updates</div>
-              <div style={{ fontFamily: serif, fontSize: 22, color: '#fff', marginBottom: 8 }}>Receive monthly commentary from the Lumen investment team.</div>
-              <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.6)', marginBottom: 20, lineHeight: 1.55 }}>Market insights, portfolio updates, and quarterly outlooks — delivered directly to your inbox.</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input type="email" placeholder="you@example.com" style={{ flex: 1, padding: '12px 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
-                <button type="button" style={{ padding: '12px 20px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Subscribe</button>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ── ADVISOR SUPPORT ── */}
-        {screen === 'advisor' && (
-          <section data-pane="advisor">
-            <div data-grid2 style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-              {[
-                { emoji: '📅', title: 'Schedule Investment Review', desc: 'Book a 30-minute call with your portfolio manager to discuss performance, strategy, and your financial goals.', action: 'Schedule a call', color: '#6d28d9' },
-                { emoji: '📋', title: 'Quarterly Review Call', desc: 'Join a dedicated Q2 2026 review session. We\'ll walk through your portfolio performance and answer any questions.', action: 'Book Q2 review', color: '#ec4899' },
-                { emoji: '🔐', title: 'Secure Messaging', desc: 'Send an encrypted message directly to the Lumen portfolio management team.', action: null, color: '#6366f1' },
-                { emoji: '📥', title: 'Request Documents', desc: 'Need your investment agreement, KYC documents, or a custom report? Request them here and we\'ll deliver within 2 business days.', action: 'Request documents', color: '#f59e0b' },
-              ].map((item, i) => (
-                <div key={i} style={card(24)}>
-                  <div style={{ fontSize: 28, marginBottom: 14 }}>{item.emoji}</div>
-                  <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{item.title}</div>
-                  <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 20 }}>{item.desc}</div>
-                  {item.action ? (
-                    <button type="button" style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: item.color, color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{item.action}</button>
-                  ) : (
-                    <div>
-                      <textarea
-                        value={msgText}
-                        onChange={(e) => setMsgText(e.target.value)}
-                        placeholder="Type your message to the portfolio team…"
-                        rows={3}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)', fontSize: 13.5, outline: 'none', resize: 'vertical', fontFamily: 'inherit', marginBottom: 10 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendMessage}
-                        style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: msgSent ? '#16a34a' : item.color, color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background .3s' }}
-                      >
-                        {msgSent ? '✓ Message sent!' : 'Send message'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div style={card(24)}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Your dedicated advisor</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--border)', marginBottom: 18 }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18, flex: 'none' }}>SM</div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Sarah Mitchell</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)' }}>Senior Portfolio Manager · Lumen</div>
-                  <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, marginTop: 3 }}>● Available Mon–Fri, 9am–5pm GMT</div>
-                </div>
-              </div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.65, marginBottom: 18 }}>
-                Sarah manages your Growth Strategy allocation and is your primary point of contact at Lumen. She conducts your quarterly portfolio reviews and is available for any questions about your investment.
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button type="button" style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'var(--text)', color: 'var(--sidebar)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Send secure message</button>
-                <button type="button" style={{ padding: '11px 20px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Schedule a call</button>
-              </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button type="button" onClick={() => downloadStatement('csv')}
+                      style={{ padding: '12px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      ↓ Download statement (CSV)
+                    </button>
+                    <button type="button" onClick={() => downloadStatement('txt')}
+                      style={{ padding: '12px 22px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      ↓ Download statement (TXT)
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -968,13 +891,7 @@ export default function Dashboard() {
               <div style={card(26)}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>Security &amp; preferences</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {[
-                    { key: '2fa', title: 'Two-factor authentication', sub: 'Extra layer of account security' },
-                    { key: 'bio', title: 'Biometric login', sub: 'Face ID / fingerprint on mobile' },
-                    { key: 'email', title: 'Monthly Investor Letter', sub: 'Receive the Lumen newsletter' },
-                  ].map((row, i) => (
-                    <SettingRow key={row.key} {...row} on={switches[row.key]} onToggle={() => setSwitches((s) => ({ ...s, [row.key]: !s[row.key] }))} border={i < 3} />
-                  ))}
+                  <SettingRow title="Monthly Investor Letter" sub="Receive the Lumen newsletter" on={switches.email} onToggle={() => setSwitches((s) => ({ ...s, email: !s.email }))} border />
                   <SettingRow title="Dark appearance" sub="Toggle light / dark theme" on={theme === 'dark'} onToggle={toggleTheme} border={false} />
                 </div>
                 <button type="button" onClick={handleSignOut} style={{ width: '100%', textDecoration: 'none', display: 'block', textAlign: 'center', marginTop: 22, padding: 13, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: '#ef4444', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
