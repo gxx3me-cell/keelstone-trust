@@ -67,8 +67,8 @@ export default function Login() {
     <div ref={rootRef} data-authgrid style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1.05fr .95fr', background: '#fff', color: C.ink }}>
       {/* LEFT: brand panel */}
       <div data-brandpanel style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(150deg,#0a0612 0%,#130a28 60%,#1a0a2e 100%)', padding: '46px clamp(32px,4vw,64px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#fff' }}>
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: .3 }}>
-          <ImageSlot id="login-panel-bg" shape="rect" placeholder="" style={{ width: '100%', height: '100%' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: .22 }}>
+          <img src="/uploads/pasted-1782018213315-0.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </div>
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(10,6,18,.5),rgba(10,6,18,.9)), radial-gradient(ellipse 70% 60% at 80% 30%, rgba(109,40,217,.25) 0%, transparent 70%)', zIndex: 1 }} />
 
@@ -86,7 +86,7 @@ export default function Login() {
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 18px' }}>Welcome back to your portfolio.</h1>
           <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: '0 0 32px', maxWidth: 410 }}>Your portfolio has been actively managed while you were away. Sign in to review your performance.</p>
           <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)', maxWidth: 420 }}>
-            <ImageSlot id="login-art" shape="rect" placeholder="Dashboard preview" style={{ width: '100%', height: 230 }} />
+            <img src="/uploads/pasted-1782018213315-0.png" alt="Lumen dashboard" style={{ width: '100%', height: 230, objectFit: 'cover', display: 'block' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '36px 18px 16px', background: 'linear-gradient(to top, rgba(10,6,18,.88) 0%, transparent 100%)' }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>Live Portfolio</div>
               <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#fff' }}>+18.6% all-time return</div>

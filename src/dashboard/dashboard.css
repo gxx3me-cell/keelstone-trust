@@ -1,9 +1,9 @@
 [data-root] {
-  --bg: #f5f2fc; --surface: #ffffff; --surface-2: #f0ebfb; --surface-3: #e9e1f7;
-  --border: #e4daf5; --text: #0a0612; --text-2: #3d3450; --text-3: #7c728f;
-  --sidebar: #ffffff; --shadow: 0 4px 24px rgba(109,40,217,.08); --hover: #f0ebfb;
-  --primary: #6d28d9; --accent: #c026d3;
-  --primary-glow: rgba(109,40,217,.18);
+  --bg: #f8f6fc; --surface: #ffffff; --surface-2: #f3f0fa; --surface-3: #ede8f5;
+  --border: #e8e3f0; --text: #111018; --text-2: #3d3450; --text-3: #8a829a;
+  --sidebar: #ffffff; --shadow: 0 2px 12px rgba(109,40,217,.06); --hover: #f3f0fa;
+  --primary: #6d28d9; --accent: #7c3aed;
+  --primary-glow: rgba(109,40,217,.12);
 }
 [data-root][data-theme="dark"] {
   --bg: #0a0612; --surface: #110a22; --surface-2: #180f2e; --surface-3: #1f1538;

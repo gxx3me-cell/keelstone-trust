@@ -149,8 +149,8 @@ export default function Signup() {
 
       {/* RIGHT: brand panel */}
       <div data-brandpanel style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(150deg,#0a0612 0%,#130a28 60%,#1a0a2e 100%)', padding: '46px clamp(32px,4vw,64px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#fff', order: 2 }}>
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: .28 }}>
-          <ImageSlot id="signup-panel-bg" shape="rect" placeholder="" style={{ width: '100%', height: '100%' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: .2 }}>
+          <img src="/uploads/pasted-1782018213315-0.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </div>
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(10,6,18,.5),rgba(10,6,18,.9)), radial-gradient(ellipse 70% 60% at 20% 70%, rgba(109,40,217,.22) 0%, transparent 70%)', zIndex: 1 }} />
 
@@ -161,7 +161,7 @@ export default function Signup() {
 
         <div data-anim data-delay="140" style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)', marginBottom: 24 }}>
-            <ImageSlot id="signup-art" shape="rect" placeholder="Portfolio dashboard" style={{ width: '100%', height: 220 }} />
+            <img src="/uploads/pasted-1782018213315-0.png" alt="Portfolio dashboard" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '36px 18px 16px', background: 'linear-gradient(to top, rgba(10,6,18,.88) 0%, transparent 100%)' }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 3 }}>Portfolio Dashboard</div>
               <div style={{ fontFamily: serif, fontSize: 17, color: '#fff' }}>Managed. Monitored. Transparent.</div>
