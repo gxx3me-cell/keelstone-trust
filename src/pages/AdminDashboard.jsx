@@ -6,9 +6,9 @@ import { useAuth } from '../hooks/useAuth'
 
 const serif = "'DM Serif Display',serif"
 const C = {
-  bg: '#faf7ff', surface: '#fff', border: '#ece4fb',
-  ink: '#221a33', body: '#5b5172', muted: '#a89cc4',
-  primary: '#7c3aed', pink: '#ec4899',
+  bg: '#f5f2fc', surface: '#fff', border: '#e4daf5',
+  ink: '#0a0612', body: '#3d3450', muted: '#7c728f',
+  primary: '#6d28d9', pink: '#c026d3',
   green: '#16a34a', red: '#ef4444', amber: '#f59e0b',
 }
 
@@ -21,7 +21,7 @@ const card = (pad = 24) => ({
 function Avatar({ u, size = 38 }) {
   const name = u?.data?.full_name || u?.data?.first_name || u?.email || '?'
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', color: '#fff', fontWeight: 700, fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontWeight: 700, fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
       {name.trim().slice(0, 2).toUpperCase()}
     </div>
   )
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
       {/* HEADER */}
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px clamp(18px,4vw,52px)', borderBottom: `1px solid ${C.border}`, background: C.surface, position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 12, height: 12, border: '2.5px solid #fff', borderRadius: 3, transform: 'rotate(45deg)' }} />
           </div>
           <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>Lumen</span>
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
                     <button type="button" onClick={savePlan} disabled={planSaving}
-                      style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
+                      style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
                       {planSaving ? 'Saving…' : 'Save changes'}
                     </button>
                     <button type="button" onClick={() => setEditingPlan(null)}
@@ -467,7 +467,7 @@ export default function AdminDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, marginBottom: 24 }}>
               {[
                 { name: 'Growth Strategy', alloc: '$120,000', ret: '+22%', risk: 'High', assets: 'BTC 70% · ETH 30%', color: '#f59e0b', grad: 'linear-gradient(135deg,#f59e0b,#f97316)' },
-                { name: 'Balanced Strategy', alloc: '$100,000', ret: '+15%', risk: 'Medium', assets: 'BTC 40% · ETH 35% · Stable 25%', color: C.primary, grad: 'linear-gradient(135deg,#7c3aed,#a855f7)' },
+                { name: 'Balanced Strategy', alloc: '$100,000', ret: '+15%', risk: 'Medium', assets: 'BTC 40% · ETH 35% · Stable 25%', color: C.primary, grad: 'linear-gradient(135deg,#6d28d9,#a855f7)' },
                 { name: 'Conservative Strategy', alloc: '$52,000', ret: '+9%', risk: 'Low', assets: 'Stable yield 75% · Crypto 25%', color: '#2563eb', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)' },
               ].map((s) => (
                 <div key={s.name} style={card(22)}>
@@ -531,7 +531,7 @@ function RequestRows({ items, type, actionLoading, onAction, actionNote, setActi
             <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#221a33' }}>${parseFloat(d.amount || 0).toLocaleString()}</div>
             <div style={{ fontSize: 12, color: '#5b5172', minWidth: 0 }}>
               {d.tx_hash ? (
-                <a href={`https://bscscan.com/tx/${d.tx_hash}`} target="_blank" rel="noreferrer" style={{ color: '#7c3aed', fontWeight: 700, fontFamily: 'monospace', textDecoration: 'none' }}>
+                <a href={`https://bscscan.com/tx/${d.tx_hash}`} target="_blank" rel="noreferrer" style={{ color: '#6d28d9', fontWeight: 700, fontFamily: 'monospace', textDecoration: 'none' }}>
                   {d.tx_hash.slice(0, 8)}…{d.tx_hash.slice(-6)} ↗
                 </a>
               ) : type === 'withdrawal' && d.bank_details ? (
@@ -593,5 +593,5 @@ function Centered({ children }) {
 }
 
 function btnStyle() {
-  return { display: 'inline-block', padding: '13px 24px', borderRadius: 13, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', boxShadow: '0 14px 30px rgba(124,58,237,.3)' }
+  return { display: 'inline-block', padding: '13px 24px', borderRadius: 13, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', boxShadow: '0 14px 30px rgba(109,40,217,.35)' }
 }

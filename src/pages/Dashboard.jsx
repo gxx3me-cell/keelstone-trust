@@ -296,8 +296,8 @@ export default function Dashboard() {
   }
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#faf7ff' }}>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e7e7ec', borderTopColor: '#7c3aed', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f5f2fc' }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e4daf5', borderTopColor: '#6d28d9', animation: 'spin 0.8s linear infinite' }} />
     </div>
   )
 
@@ -341,7 +341,7 @@ export default function Dashboard() {
             const active = screen === key
             return (
               <button key={key} type="button" onClick={() => goScreen(key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,rgba(124,58,237,.12),rgba(236,72,153,.12))' : 'transparent', color: active ? '#7c3aed' : 'var(--text-2)', fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,rgba(109,40,217,.12),rgba(236,72,153,.12))' : 'transparent', color: active ? '#6d28d9' : 'var(--text-2)', fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
                 {icons[key]} {label}
               </button>
             )
@@ -354,7 +354,7 @@ export default function Dashboard() {
             const active = screen === key
             return (
               <button key={key} type="button" onClick={() => goScreen(key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,rgba(124,58,237,.12),rgba(236,72,153,.12))' : 'transparent', color: active ? '#7c3aed' : 'var(--text-2)', fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,rgba(109,40,217,.12),rgba(236,72,153,.12))' : 'transparent', color: active ? '#6d28d9' : 'var(--text-2)', fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
                 {icons[key]} {label}
               </button>
             )
@@ -362,13 +362,33 @@ export default function Dashboard() {
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ background: 'linear-gradient(150deg,#7c3aed,#ec4899)', borderRadius: 16, padding: '16px 18px', color: '#fff' }}>
-            <div style={{ fontFamily: serif, fontSize: 16, marginBottom: 4 }}>Grow your portfolio</div>
-            <div style={{ fontSize: 12, opacity: .88, lineHeight: 1.5, marginBottom: 12 }}>Add capital to unlock higher-yield strategies.</div>
-            <button type="button" onClick={() => setModal('deposit')} style={{ width: '100%', padding: 9, borderRadius: 9, border: 'none', background: '#fff', color: '#7c3aed', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fund Portfolio</button>
+          {/* Active plan mini-card — persistent across all screens */}
+          {portfolio && portfolio.investment_count > 0 && portfolio.investments?.[0] && (
+            <div style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', overflow: 'hidden' }}>
+              <div style={{ height: 3, background: 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
+              <div style={{ padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 4 }}>Active Plan</div>
+                <div style={{ fontFamily: serif, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{portfolio.investments[0].plan_name}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Current value</div>
+                  <div style={{ fontFamily: serif, fontSize: 14, color: 'var(--text)' }}>${money(portfolio.total_value)}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Return</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>+{portfolio.return_pct}%</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ background: 'linear-gradient(135deg,#6d28d9,#c026d3)', padding: '18px', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,.08)' }} />
+            <div style={{ fontFamily: serif, fontSize: 17, marginBottom: 5, position: 'relative' }}>Grow your portfolio</div>
+            <div style={{ fontSize: 12, opacity: .82, lineHeight: 1.55, marginBottom: 14, position: 'relative' }}>Add capital to unlock higher-yield strategies.</div>
+            <button type="button" onClick={() => setModal('deposit')} style={{ width: '100%', padding: 10, border: 'none', background: '#fff', color: '#6d28d9', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', position: 'relative' }}>Fund Portfolio</button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '8px 10px', borderRadius: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flex: 'none' }}>{initials || '?'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '8px 10px' }}>
+            <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flex: 'none' }}>{initials || '?'}</div>
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fullName}</div>
               <div style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
@@ -399,7 +419,7 @@ export default function Dashboard() {
             <input placeholder="Search…" style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 14, color: 'var(--text)', width: '100%', fontFamily: 'inherit' }} />
           </div>
           <button type="button" data-hidemobile onClick={() => setModal('withdraw')} style={{ padding: '11px 18px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Withdraw</button>
-          <button type="button" onClick={() => setModal('deposit')} style={{ padding: '11px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 10px 24px rgba(124,58,237,.32)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>+ Deposit</button>
+          <button type="button" onClick={() => setModal('deposit')} style={{ padding: '11px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 10px 24px rgba(109,40,217,.38)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>+ Deposit</button>
           <button type="button" onClick={toggleTheme} style={{ width: 44, height: 44, flex: 'none', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>{theme === 'dark' ? '☀' : '☾'}</span>
           </button>
@@ -421,7 +441,7 @@ export default function Dashboard() {
                     ⏳ You have a deposit pending review — we'll activate it shortly.
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setModal('deposit')} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 12px 28px rgba(124,58,237,.3)' }}>
+                  <button type="button" onClick={() => setModal('deposit')} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 12px 28px rgba(109,40,217,.3)' }}>
                     Choose a plan & invest →
                   </button>
                 )}
@@ -552,14 +572,27 @@ export default function Dashboard() {
                 <button type="button" onClick={() => goScreen('insights')} style={linkBtn()}>View all insights →</button>
               </div>
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(124,58,237,.1)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 18 }}>📊</div>
+                <div style={{ width: 42, height: 42, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 16 }}>📊</div>
                 <div>
-                  <div style={{ fontSize: 11.5, color: '#7c3aed', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 4 }}>{insights[0].tag} · {insights[0].date}</div>
+                  <div style={{ fontSize: 11.5, color: '#6d28d9', fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>{insights[0].tag} · {insights[0].date}</div>
                   <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{insights[0].headline}</div>
                   <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.55 }}>{insights[0].body.slice(0, 140)}…</div>
                 </div>
               </div>
             </div>
+
+            {/* Investment Tiers — persistent across overview */}
+            {availablePlans.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Investment Tiers</div>
+                  <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>Start investing →</button>
+                </div>
+                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 4)},1fr)`, gap: 14 }}>
+                  {availablePlans.map((p, i) => <DashPlanCard key={p.id || i} plan={p} onSelect={() => { setSelectedPlan(p); setModal('deposit') }} />)}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -602,6 +635,19 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Investment Tiers — persistent */}
+            {availablePlans.length > 0 && (
+              <div style={{ marginTop: 24, marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Investment Tiers</div>
+                  <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>Add investment →</button>
+                </div>
+                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 4)},1fr)`, gap: 14 }}>
+                  {availablePlans.map((p, i) => <DashPlanCard key={p.id || i} plan={p} onSelect={() => { setSelectedPlan(p); setModal('deposit') }} />)}
+                </div>
+              </div>
+            )}
+
             <div style={{ ...card(24), marginTop: 20 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Portfolio summary</div>
               <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your capital is professionally allocated across Bitcoin, Ethereum, and stablecoin yield products, managed by the Lumen investment team.</div>
@@ -636,7 +682,7 @@ export default function Dashboard() {
                   detail: 'Bitcoin (70%) · Ethereum (30%)',
                 },
                 {
-                  name: 'Balanced Strategy', grad: 'linear-gradient(135deg,#7c3aed,#a855f7)', pctColor: '#7c3aed', pctBg: 'rgba(124,58,237,.1)', pct: '40%',
+                  name: 'Balanced Strategy', grad: 'linear-gradient(135deg,#6d28d9,#a855f7)', pctColor: '#6d28d9', pctBg: 'rgba(109,40,217,.1)', pct: '40%',
                   desc: 'Diversified exposure to growth through BTC and ETH, balanced with stablecoin yield positions.',
                   alloc: '$100,000', ret: '+15%',
                   icon: <div style={{ width: 18, height: 18, border: '3px solid #fff', borderRadius: 5 }} />,
@@ -657,7 +703,7 @@ export default function Dashboard() {
               <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your capital is spread across three distinct mandates, each managed independently with its own risk parameters and target return profile.</div>
               <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
                 <div style={{ width: '35%', background: 'linear-gradient(90deg,#f59e0b,#f97316)' }} />
-                <div style={{ width: '40%', background: 'linear-gradient(90deg,#7c3aed,#a855f7)' }} />
+                <div style={{ width: '40%', background: 'linear-gradient(90deg,#6d28d9,#a855f7)' }} />
                 <div style={{ width: '25%', background: 'linear-gradient(90deg,#2563eb,#06b6d4)' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 }}>
@@ -665,12 +711,25 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div style={{ ...card(24), marginTop: 20, background: 'linear-gradient(135deg,rgba(124,58,237,.06),rgba(236,72,153,.04))' }}>
-              <div style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 8 }}>Quarterly Review · Q2 2026</div>
+            <div style={{ ...card(24), marginTop: 20, background: 'linear-gradient(135deg,rgba(109,40,217,.06),rgba(192,38,211,.04))' }}>
+              <div style={{ fontSize: 11.5, color: '#6d28d9', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Quarterly Review · Q2 2026</div>
               <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Your portfolio outperformed its benchmark by 3.2% this quarter.</div>
-              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 18 }}>The Growth Strategy delivered +22% annualized, driven by Bitcoin's appreciation. The Balanced Strategy returned +15%, while the Conservative Strategy generated a consistent +9% through stablecoin yield positions.</div>
-              <button type="button" onClick={() => goScreen('reports')} style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: '#7c3aed', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Download Q2 Report →</button>
+              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.65, marginBottom: 20 }}>The Growth Strategy delivered +22% annualized, driven by Bitcoin's appreciation. The Balanced Strategy returned +15%, while the Conservative Strategy generated a consistent +9% through stablecoin yield positions.</div>
+              <button type="button" onClick={() => goScreen('reports')} style={{ padding: '11px 22px', border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 6px 18px rgba(109,40,217,.3)' }}>Download Q2 Report →</button>
             </div>
+
+            {/* Investment Tiers — persistent plan display */}
+            {availablePlans.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Investment Tiers</div>
+                  <button type="button" onClick={() => setModal('deposit')} style={linkBtn()}>Invest now →</button>
+                </div>
+                <div data-grid4 style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 4)},1fr)`, gap: 14 }}>
+                  {availablePlans.map((p, i) => <DashPlanCard key={p.id || i} plan={p} onSelect={() => { setSelectedPlan(p); setModal('deposit') }} />)}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -754,7 +813,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {reports.map((r, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 6px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(124,58,237,.1)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 18 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(109,40,217,.1)', color: '#6d28d9', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 18 }}>
                       📄
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -766,7 +825,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={() => handleDownload(i)}
-                        style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: reportDownloaded === i ? '#16a34a' : 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background .3s' }}
+                        style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: reportDownloaded === i ? '#16a34a' : 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background .3s' }}
                       >
                         {reportDownloaded === i ? '✓ Downloaded' : '↓ Download PDF'}
                       </button>
@@ -791,12 +850,12 @@ export default function Dashboard() {
               {insights.map((ins, i) => (
                 <div key={i} style={card(24)}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                    <div style={{ width: 46, height: 46, borderRadius: 12, background: 'rgba(124,58,237,.1)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 20 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 12, background: 'rgba(109,40,217,.1)', color: '#6d28d9', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 20 }}>
                       {i === 0 ? '📈' : i === 1 ? '🛡️' : i === 2 ? '💰' : '⚖️'}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#7c3aed', background: 'rgba(124,58,237,.1)', padding: '3px 9px', borderRadius: 6 }}>{ins.tag}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6d28d9', background: 'rgba(109,40,217,.1)', padding: '3px 9px', borderRadius: 6 }}>{ins.tag}</span>
                         <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{ins.date}</span>
                       </div>
                       <div style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)', marginBottom: 10, lineHeight: 1.25 }}>{ins.headline}</div>
@@ -813,7 +872,7 @@ export default function Dashboard() {
               <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.6)', marginBottom: 20, lineHeight: 1.55 }}>Market insights, portfolio updates, and quarterly outlooks — delivered directly to your inbox.</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input type="email" placeholder="you@example.com" style={{ flex: 1, padding: '12px 14px', borderRadius: 9, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
-                <button type="button" style={{ padding: '12px 20px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Subscribe</button>
+                <button type="button" style={{ padding: '12px 20px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Subscribe</button>
               </div>
             </div>
           </section>
@@ -824,7 +883,7 @@ export default function Dashboard() {
           <section data-pane="advisor">
             <div data-grid2 style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
               {[
-                { emoji: '📅', title: 'Schedule Investment Review', desc: 'Book a 30-minute call with your portfolio manager to discuss performance, strategy, and your financial goals.', action: 'Schedule a call', color: '#7c3aed' },
+                { emoji: '📅', title: 'Schedule Investment Review', desc: 'Book a 30-minute call with your portfolio manager to discuss performance, strategy, and your financial goals.', action: 'Schedule a call', color: '#6d28d9' },
                 { emoji: '📋', title: 'Quarterly Review Call', desc: 'Join a dedicated Q2 2026 review session. We\'ll walk through your portfolio performance and answer any questions.', action: 'Book Q2 review', color: '#ec4899' },
                 { emoji: '🔐', title: 'Secure Messaging', desc: 'Send an encrypted message directly to the Lumen portfolio management team.', action: null, color: '#6366f1' },
                 { emoji: '📥', title: 'Request Documents', desc: 'Need your investment agreement, KYC documents, or a custom report? Request them here and we\'ll deliver within 2 business days.', action: 'Request documents', color: '#f59e0b' },
@@ -860,7 +919,7 @@ export default function Dashboard() {
             <div style={card(24)}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Your dedicated advisor</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--border)', marginBottom: 18 }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18, flex: 'none' }}>SM</div>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 18, flex: 'none' }}>SM</div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Sarah Mitchell</div>
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>Senior Portfolio Manager · Lumen</div>
@@ -889,7 +948,7 @@ export default function Dashboard() {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{fullName}</div>
                     <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{userEmail}</div>
-                    <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>Lumen Investor Account</div>
+                    <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginTop: 3 }}>Lumen Investor Account</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -960,7 +1019,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'monospace', color: 'var(--text)', wordBreak: 'break-all' }}>{depositAddress}</span>
                 <button type="button" onClick={() => { navigator.clipboard?.writeText(depositAddress); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
-                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 9, border: 'none', background: copied ? '#16a34a' : 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 9, border: 'none', background: copied ? '#16a34a' : 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copied ? '✓ Copied' : 'Copy'}
                 </button>
               </div>
@@ -986,24 +1045,21 @@ export default function Dashboard() {
                 Choose a plan and amount, then send USDT (BEP-20). Your investment activates automatically once the transfer confirms on-chain.
               </div>
 
-              {/* PLAN PICKER */}
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Choose your plan</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {/* PLAN PICKER — uses plan card design */}
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Choose your plan</div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 2)},1fr)`, gap: 8, marginBottom: 18 }}>
                 {availablePlans.map((p) => {
                   const active = selectedPlan?.id === p.id
                   const isPrivate = p.slug === 'private' || p.annual_return_pct === 0
                   return (
                     <button key={p.id} type="button" onClick={() => { setSelectedPlan(p); setDepositAmt((p.min_usd || 0).toLocaleString()) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${active ? '#7c3aed' : 'var(--border)'}`, background: active ? 'rgba(124,58,237,.06)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' }}>
-                      <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : 'var(--border)'}`, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {active && <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#7c3aed' }} />}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.name}</div>
-                        <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Min ${(p.min_usd || 0).toLocaleString()} · {p.risk} risk</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flex: 'none' }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>{isPrivate ? 'Bespoke' : `${p.annual_return_pct}% p.a.`}</div>
+                      style={{ textAlign: 'left', padding: 0, border: `2px solid ${active ? '#6d28d9' : 'var(--border)'}`, background: active ? 'linear-gradient(135deg,#6d28d9,#c026d3)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', overflow: 'hidden', boxShadow: active ? '0 8px 24px rgba(109,40,217,.35)' : 'none' }}>
+                      <div style={{ height: 2, background: active ? 'rgba(255,255,255,.3)' : 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
+                      <div style={{ padding: '12px 14px' }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: active ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginBottom: 4 }}>{p.risk} risk</div>
+                        <div style={{ fontFamily: serif, fontSize: 14, color: active ? '#fff' : 'var(--text)', marginBottom: 6 }}>{p.name}</div>
+                        <div style={{ fontFamily: serif, fontSize: 22, color: active ? '#fff' : '#6d28d9', lineHeight: 1 }}>{isPrivate ? 'Custom' : `${p.annual_return_pct}%`}</div>
+                        {!isPrivate && <div style={{ fontSize: 10, fontWeight: 700, color: active ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginTop: 2 }}>p.a. · Min ${(p.min_usd || 0).toLocaleString()}</div>}
                       </div>
                     </button>
                   )
@@ -1073,9 +1129,9 @@ export default function Dashboard() {
 
 /* ─── helpers ─── */
 const money = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const PLAN_COLORS = ['#7c3aed', '#f59e0b', '#2563eb', '#16a34a', '#ec4899']
+const PLAN_COLORS = ['#6d28d9', '#f59e0b', '#2563eb', '#16a34a', '#ec4899']
 const PLAN_GRADS = [
-  'linear-gradient(135deg,#7c3aed,#a855f7)',
+  'linear-gradient(135deg,#6d28d9,#a855f7)',
   'linear-gradient(135deg,#f59e0b,#f97316)',
   'linear-gradient(135deg,#2563eb,#06b6d4)',
   'linear-gradient(135deg,#16a34a,#22c55e)',
@@ -1086,9 +1142,9 @@ const card = (pad = 26, padTop) => ({
   borderRadius: pad >= 24 ? 24 : 20, padding: padTop ? `${padTop}px` : pad === 26 ? '26px 26px 8px' : pad,
   boxShadow: 'var(--shadow)',
 })
-const linkBtn = () => ({ border: 'none', background: 'transparent', color: '#7c3aed', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
+const linkBtn = () => ({ border: 'none', background: 'transparent', color: '#6d28d9', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
 const iconChip = (color, size) => ({ width: size, height: size, borderRadius: size === 38 ? 11 : 12, background: `${color}22`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11.5, flex: 'none' })
-const modalBtn = () => ({ width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 14px 30px rgba(124,58,237,.32)', fontFamily: 'inherit' })
+const modalBtn = () => ({ width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 14px 30px rgba(109,40,217,.38)', fontFamily: 'inherit' })
 
 function TabGroup({ tabs, active, onChange }) {
   const normalized = tabs.map((t) => (Array.isArray(t) ? t : [t, t]))
@@ -1098,7 +1154,7 @@ function TabGroup({ tabs, active, onChange }) {
         const on = active === val
         return (
           <button key={val} type="button" onClick={() => onChange(val)}
-            style={{ border: 'none', background: on ? 'var(--surface)' : 'transparent', color: on ? '#7c3aed' : 'var(--text-2)', fontSize: 12.5, fontWeight: 700, padding: '7px 11px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', boxShadow: on ? '0 2px 8px rgba(124,58,237,.12)' : 'none' }}>
+            style={{ border: 'none', background: on ? 'var(--surface)' : 'transparent', color: on ? '#6d28d9' : 'var(--text-2)', fontSize: 12.5, fontWeight: 700, padding: '7px 11px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', boxShadow: on ? '0 2px 8px rgba(109,40,217,.12)' : 'none' }}>
             {label}
           </button>
         )
@@ -1107,21 +1163,47 @@ function TabGroup({ tabs, active, onChange }) {
   )
 }
 
-function StrategyCard({ name, grad, pctColor, pctBg, pct, desc, alloc, ret, icon, detail }) {
+function StrategyCard({ name, grad, pctColor, pct, desc, alloc, ret, detail }) {
   const [hover, setHover] = useState(false)
   return (
     <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 22, padding: 24, boxShadow: hover ? '0 30px 60px rgba(124,58,237,.16)' : 'var(--shadow)', cursor: 'pointer', transition: 'transform .35s,box-shadow .35s', transform: hover ? 'translateY(-6px)' : 'none' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ width: 46, height: 46, borderRadius: 13, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: pctColor, background: pctBg, padding: '5px 11px', borderRadius: 999 }}>{pct} of portfolio</div>
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: hover ? '0 24px 50px rgba(109,40,217,.18)' : 'var(--shadow)', cursor: 'pointer', transition: 'transform .35s,box-shadow .35s', transform: hover ? 'translateY(-5px)' : 'none', position: 'relative' }}>
+      <div style={{ height: 3, background: grad }} />
+      <div style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ width: 44, height: 44, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 17 9 11 13 15 21 6" /></svg>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: pctColor, background: `${pctColor}18`, padding: '4px 10px', letterSpacing: '.04em' }}>{pct} of portfolio</div>
+        </div>
+        <div style={{ fontFamily: serif, fontSize: 21, color: 'var(--text)', marginBottom: 6 }}>{name}</div>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 6 }}>{desc}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginBottom: 18, fontWeight: 600 }}>{detail}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <div><div style={{ fontSize: 17, fontFamily: serif, color: 'var(--text)' }}>{alloc}</div><div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>Allocated</div></div>
+          <div style={{ textAlign: 'right' }}><div style={{ fontSize: 17, fontFamily: serif, color: '#16a34a' }}>{ret}</div><div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>Annual return</div></div>
+        </div>
       </div>
-      <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 6 }}>{name}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.55, marginBottom: 8 }}>{desc}</div>
-      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 18, fontStyle: 'italic' }}>{detail}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-        <div><div style={{ fontSize: 18, fontFamily: serif, color: 'var(--text)' }}>{alloc}</div><div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Allocated</div></div>
-        <div style={{ textAlign: 'right' }}><div style={{ fontSize: 18, fontFamily: serif, color: '#16a34a' }}>{ret}</div><div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Annual return</div></div>
+    </div>
+  )
+}
+
+function DashPlanCard({ plan, onSelect }) {
+  const [hover, setHover] = useState(false)
+  const isPrivate = plan.slug === 'private' || plan.annual_return_pct === 0
+  const featured = !!plan.featured
+  return (
+    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={onSelect}
+      style={{ cursor: 'pointer', border: featured ? '1px solid #6d28d9' : '1px solid var(--border)', background: featured ? 'linear-gradient(135deg,#6d28d9,#c026d3)' : 'var(--surface)', overflow: 'hidden', transition: 'transform .3s,box-shadow .3s', transform: hover ? 'translateY(-4px)' : 'none', boxShadow: hover ? (featured ? '0 20px 50px rgba(109,40,217,.4)' : 'var(--shadow)') : 'none', position: 'relative' }}>
+      <div style={{ height: 3, background: featured ? 'rgba(255,255,255,.3)' : 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
+      <div style={{ padding: '16px 16px 18px' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: featured ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginBottom: 6 }}>{plan.risk} risk</div>
+        <div style={{ fontFamily: serif, fontSize: 16, color: featured ? '#fff' : 'var(--text)', marginBottom: 10 }}>{plan.name}</div>
+        <div style={{ fontFamily: serif, fontSize: isPrivate ? 22 : 28, color: featured ? '#fff' : '#6d28d9', lineHeight: 1 }}>{isPrivate ? 'Custom' : `${plan.annual_return_pct}%`}</div>
+        {!isPrivate && <div style={{ fontSize: 10.5, fontWeight: 700, color: featured ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginTop: 3 }}>target p.a.</div>}
+        <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: featured ? 'rgba(255,255,255,.75)' : '#6d28d9', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {isPrivate ? 'Enquire →' : 'Invest →'}
+        </div>
       </div>
     </div>
   )
@@ -1131,7 +1213,7 @@ function SettingRow({ title, sub, on, onToggle, border }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: border ? '1px solid var(--border)' : 'none' }}>
       <div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</div><div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{sub}</div></div>
-      <button type="button" onClick={onToggle} style={{ width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', background: on ? 'linear-gradient(135deg,#7c3aed,#ec4899)' : 'var(--surface-3)', position: 'relative', transition: 'background .3s', flex: 'none' }}>
+      <button type="button" onClick={onToggle} style={{ width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', background: on ? 'linear-gradient(135deg,#6d28d9,#ec4899)' : 'var(--surface-3)', position: 'relative', transition: 'background .3s', flex: 'none' }}>
         <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .25s', boxShadow: on ? 'none' : '0 1px 3px rgba(0,0,0,.2)' }} />
       </button>
     </div>

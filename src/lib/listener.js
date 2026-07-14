@@ -25,7 +25,7 @@ async function call(path, { method = 'GET', body } = {}) {
   })
   if (!res.ok) {
     let detail = `Listener error (${res.status})`
-    try { const j = await res.json(); detail = j.error || detail } catch {}
+    try { const j = await res.json(); detail = j.error || detail } catch { }
     throw new Error(detail)
   }
   return res.json()

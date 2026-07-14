@@ -2,13 +2,13 @@
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: #faf7ff;
-  color: #221a33;
+  background: #f5f2fc;
+  color: #0a0612;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-::selection { background: #ec4899; color: #fff; }
+::selection { background: #6d28d9; color: #fff; }
 a { color: inherit; }
 input { font-family: inherit; }
 canvas { display: block; }

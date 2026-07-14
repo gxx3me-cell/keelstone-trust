@@ -6,10 +6,10 @@ import { Vault, ArrowRight, EnvelopeSimple } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
 const C = {
-  ink: '#0e0e12', body: '#4a4a55', muted: '#8b8b97',
-  line: '#e7e7ec', surface: '#f6f6f8', primary: '#7c3aed', white: '#fff',
+  ink: '#0a0612', body: '#3d3450', muted: '#7c728f',
+  line: '#ede8f7', surface: '#f5f2fc', primary: '#6d28d9', accent: '#c026d3', white: '#fff',
 }
-const RAD = 8
+const RAD = 0
 
 export default function ForgotPassword() {
   const rootRef = useRef(null)
@@ -54,7 +54,7 @@ export default function ForgotPassword() {
         <div style={{ background: '#fff', borderRadius: 24, padding: 36, boxShadow: '0 40px 90px rgba(0,0,0,.4)' }}>
           {done ? (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 16px 40px rgba(124,58,237,.4)' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 16px 40px rgba(109,40,217,.45)' }}>
                 <EnvelopeSimple size={28} color="#fff" weight="fill" />
               </div>
               <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>Check your inbox</div>

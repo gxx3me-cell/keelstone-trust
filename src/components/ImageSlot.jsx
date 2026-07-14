@@ -47,7 +47,7 @@ export default function ImageSlot({ id, shape = 'rect', radius, placeholder = ''
         fontSize: '13px',
         fontWeight: 600,
         background:
-          'linear-gradient(135deg, rgba(124,58,237,.35), rgba(236,72,153,.3))',
+          'linear-gradient(135deg, rgba(109,40,217,.38), rgba(192,38,211,.28))',
         borderRadius,
         ...style,
       }}
