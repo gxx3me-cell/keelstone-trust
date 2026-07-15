@@ -9,7 +9,14 @@ import {
   Vault, ChartLineUp, Cube,
 } from '@phosphor-icons/react'
 
-const heroImg = '/uploads/pasted-1782018213315-0.png'
+const heroImg = '/uploads/hero-trading-chart.jpg'
+const heroImages = [
+  '/uploads/hero-trading-chart.jpg',
+  '/uploads/hero-bitcoin-screen.jpg',
+  '/uploads/hero-crypto-dark.jpg',
+  '/uploads/hero-finance-desk.jpg',
+  '/uploads/hero-portfolio.jpg',
+]
 
 const C = {
   ink: '#111018',
@@ -95,6 +102,7 @@ export default function LumenCapital() {
   const [shown, setShown] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [plans, setPlans] = useState([])
+  const [heroIdx, setHeroIdx] = useState(0)
 
   useReveal(rootRef)
   useCountUp(rootRef)
@@ -110,17 +118,22 @@ export default function LumenCapital() {
     const onScroll = () => {
       if (!nav) return
       const sy = window.scrollY || window.pageYOffset
-      if (sy > 12) {
-        nav.style.boxShadow = '0 1px 0 rgba(17,16,24,.06)'
-        nav.style.background = 'rgba(250,249,253,.97)'
+      if (sy > 40) {
+        nav.style.boxShadow = '0 8px 32px rgba(17,16,24,.12)'
+        nav.style.background = 'rgba(255,255,255,.97)'
       } else {
-        nav.style.boxShadow = 'none'
-        nav.style.background = 'rgba(250,249,253,.92)'
+        nav.style.boxShadow = '0 4px 24px rgba(17,16,24,.07)'
+        nav.style.background = 'rgba(255,255,255,.92)'
       }
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => setHeroIdx((i) => (i + 1) % heroImages.length), 5000)
+    return () => clearInterval(t)
   }, [])
 
   const openReport = (id) => {
@@ -152,37 +165,41 @@ export default function LumenCapital() {
       <nav
         ref={navRef}
         style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 120,
+          position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+          width: 'calc(100% - 32px)', maxWidth: 1280, zIndex: 120,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px clamp(18px,5vw,72px)',
-          background: 'rgba(250,249,253,.92)', backdropFilter: 'blur(18px)',
-          borderBottom: `1px solid ${C.line}`,
-          transition: 'box-shadow .3s ease',
+          padding: '10px 14px 10px 18px',
+          background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(20px)',
+          border: `1px solid ${C.line}`,
+          borderRadius: 999,
+          boxShadow: '0 4px 24px rgba(17,16,24,.07)',
+          transition: 'box-shadow .3s ease, background .3s ease',
+          minWidth: 0,
         }}
       >
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none' }}>
-          <div style={{ width: 32, height: 32, background: C.primary, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Vault size={17} color="#fff" weight="duotone" />
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', flex: 'none' }}>
+          <div style={{ width: 30, height: 30, background: C.primary, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+            <Vault size={16} color="#fff" weight="duotone" />
           </div>
-          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink, letterSpacing: '.2px' }}>Lumen</span>
+          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>Lumen</span>
         </Link>
-        <div data-navlinks style={{ display: 'flex', alignItems: 'center', gap: 30, fontSize: 14, fontWeight: 500, color: C.body }}>
+        <div data-navlinks style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px,2vw,28px)', fontSize: 13.5, fontWeight: 500, color: C.body, flex: '0 1 auto', overflow: 'hidden' }}>
           {navItems.map(([label, href]) => (
-            <a key={label} href={href} style={{ textDecoration: 'none', transition: 'color .2s' }} onMouseEnter={(e) => e.target.style.color=C.primary} onMouseLeave={(e) => e.target.style.color=C.body}>{label}</a>
+            <a key={label} href={href} style={{ textDecoration: 'none', transition: 'color .2s', whiteSpace: 'nowrap' }} onMouseEnter={(e) => e.target.style.color=C.primary} onMouseLeave={(e) => e.target.style.color=C.body}>{label}</a>
           ))}
         </div>
-        <div data-navactions style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link to="/login" style={{ textDecoration: 'none', fontSize: 14, fontWeight: 600, color: C.body, padding: '9px 16px' }}>Sign in</Link>
-          <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 700, color: '#fff', padding: '10px 20px', background: C.primary, borderRadius: RAD }}>
-            Open Account <ArrowRight size={14} weight="bold" />
+        <div data-navactions style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 'none' }}>
+          <Link to="/login" style={{ textDecoration: 'none', fontSize: 13.5, fontWeight: 600, color: C.body, padding: '8px 14px', whiteSpace: 'nowrap' }}>Sign in</Link>
+          <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#fff', padding: '9px 18px', background: C.primary, borderRadius: RAD, whiteSpace: 'nowrap' }}>
+            Open Account <ArrowRight size={13} weight="bold" />
           </Link>
         </div>
         <button
           type="button" data-navtoggle aria-label="Toggle menu" aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
-          style={{ display: 'none', width: 44, height: 44, border: `1px solid ${C.line}`, background: '#fff', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: RAD }}
+          style={{ display: 'none', width: 40, height: 40, border: `1px solid ${C.line}`, background: '#fff', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: 20, flex: 'none' }}
         >
-          {menuOpen ? <X size={22} color={C.ink} /> : <List size={22} color={C.ink} />}
+          {menuOpen ? <X size={20} color={C.ink} /> : <List size={20} color={C.ink} />}
         </button>
       </nav>
 
@@ -213,26 +230,34 @@ export default function LumenCapital() {
       </div>
 
       {/* HERO */}
-      <section style={{ position: 'relative', minHeight: '92vh', padding: '150px clamp(18px,5vw,72px) 80px', display: 'flex', alignItems: 'center', background: '#faf9fd', overflow: 'hidden' }}>
-        {/* Single, restrained glow — far right, very faint */}
-        <div style={{ position: 'absolute', top: '5%', right: '-12%', width: 680, height: 680, borderRadius: '50%', background: 'radial-gradient(circle, rgba(109,40,217,.07) 0%, transparent 68%)', pointerEvents: 'none' }} />
+      <section style={{ position: 'relative', minHeight: '92vh', padding: '160px clamp(18px,5vw,72px) 80px', display: 'flex', alignItems: 'center', background: '#0d0b14', overflow: 'hidden' }}>
+        {/* Rotating background photos */}
+        {heroImages.map((src, i) => (
+          <div key={src} style={{ position: 'absolute', inset: 0, zIndex: 0, transition: 'opacity 1.4s ease', opacity: i === heroIdx ? 1 : 0 }}>
+            <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block', opacity: .18 }} />
+          </div>
+        ))}
+        {/* Overlay: dark left-to-right fade so text side stays readable */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(105deg, rgba(13,11,20,.97) 0%, rgba(13,11,20,.84) 50%, rgba(13,11,20,.55) 100%)' }} />
+        {/* Very subtle purple tint — kept restrained */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'radial-gradient(ellipse 45% 60% at 0% 65%, rgba(109,40,217,.10) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
         <div data-herogrid style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 1320, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 64, alignItems: 'center' }}>
           <div>
-            <div data-reveal style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', border: `1px solid ${C.line}`, borderRadius: 4, fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: C.muted, marginBottom: 28 }}>
-              <ShieldCheck size={13} color={C.primary} weight="fill" /> Professional Digital Asset Management
+            <div data-reveal style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', border: '1px solid rgba(255,255,255,.18)', borderRadius: 4, fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.6)', marginBottom: 28 }}>
+              <ShieldCheck size={13} color="#a78bfa" weight="fill" /> Professional Digital Asset Management
             </div>
-            <h1 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(46px,5.6vw,82px)', lineHeight: 1.03, letterSpacing: '-.5px', margin: '0 0 24px', color: C.ink }}>
-              Wealth managed<br />with <em style={{ fontStyle: 'italic', color: C.primary }}>discipline</em><br />and clarity.
+            <h1 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(46px,5.6vw,82px)', lineHeight: 1.03, letterSpacing: '-.5px', margin: '0 0 24px', color: '#fff' }}>
+              Wealth managed<br />with <em style={{ fontStyle: 'italic', color: '#a78bfa' }}>discipline</em><br />and clarity.
             </h1>
-            <p data-reveal data-delay="160" style={{ fontSize: 17.5, lineHeight: 1.75, color: C.body, maxWidth: 480, margin: '0 0 36px' }}>
+            <p data-reveal data-delay="160" style={{ fontSize: 17.5, lineHeight: 1.75, color: 'rgba(255,255,255,.62)', maxWidth: 480, margin: '0 0 36px' }}>
               Professionally managed digital asset portfolios for investors seeking long-term exposure to the digital economy — without the complexity.
             </p>
             <div data-reveal data-delay="240" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 52 }}>
-              <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 28px', background: C.primary, borderRadius: RAD, boxShadow: '0 6px 22px rgba(109,40,217,.32)' }}>
+              <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 28px', background: C.primary, borderRadius: RAD, boxShadow: '0 6px 22px rgba(109,40,217,.5)' }}>
                 Open Your Account <ArrowRight size={16} weight="bold" />
               </Link>
-              <a href="#strategies" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: C.body, padding: '15px 24px', border: `1px solid ${C.line}`, borderRadius: RAD }}>
+              <a href="#strategies" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.8)', padding: '15px 24px', border: '1px solid rgba(255,255,255,.2)', borderRadius: RAD, backdropFilter: 'blur(8px)' }}>
                 View Strategies
               </a>
             </div>
@@ -243,10 +268,10 @@ export default function LumenCapital() {
                 [<><span data-count="38">0</span></>, 'Countries'],
               ].map(([v, l], i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
-                  {i > 0 && <div style={{ width: 1, height: 36, background: C.line }} />}
+                  {i > 0 && <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,.15)' }} />}
                   <div>
-                    <div style={{ fontFamily: serif, fontSize: 28, color: C.ink }}>{v}</div>
-                    <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{l}</div>
+                    <div style={{ fontFamily: serif, fontSize: 28, color: '#fff' }}>{v}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', fontWeight: 600 }}>{l}</div>
                   </div>
                 </div>
               ))}
@@ -255,8 +280,8 @@ export default function LumenCapital() {
 
           <div data-reveal data-delay="200" style={{ position: 'relative' }}>
             {/* Image: text overlay — no border-radius */}
-            <div style={{ position: 'relative', overflow: 'hidden', border: `1px solid ${C.line}`, boxShadow: '0 24px 64px rgba(109,40,217,.10)' }}>
-              <img src={heroImg} alt="Lumen dashboard" style={{ width: '100%', height: 'auto', display: 'block' }} />
+            <div style={{ position: 'relative', overflow: 'hidden', border: `1px solid rgba(255,255,255,.12)`, boxShadow: '0 16px 48px rgba(0,0,0,.4)' }}>
+              <img src={heroImages[(heroIdx + 1) % heroImages.length]} alt="Lumen dashboard" style={{ width: '100%', height: 340, objectFit: 'cover', display: 'block', transition: 'opacity 1.2s ease' }} />
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '40px 24px 24px', background: 'linear-gradient(to top, rgba(10,6,18,.88) 0%, transparent 100%)' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>Live Portfolio</div>
                 <div style={{ fontFamily: serif, fontSize: 24, color: '#fff', marginBottom: 4 }}>$248,750 · +18.6%</div>
@@ -427,7 +452,7 @@ export default function LumenCapital() {
 
       {/* REFERRALS */}
       <section id="referrals" style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: 'linear-gradient(145deg,#0a0612 0%,#130a28 50%,#1a0a2e 100%)', color: '#fff', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(109,40,217,.2) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 50% 70% at 80% 50%, rgba(109,40,217,.10) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div data-appgrid style={{ display: 'grid', gridTemplateColumns: '.9fr 1.1fr', gap: 52, alignItems: 'center' }}>
             <div>
@@ -505,7 +530,7 @@ export default function LumenCapital() {
 
       {/* PERFORMANCE */}
       <section id="performance" style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: C.ink, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 80% at 30% 50%, rgba(109,40,217,.22) 0%, transparent 65%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 70% at 30% 50%, rgba(109,40,217,.11) 0%, transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 52px' }}>
             <div data-reveal style={{ fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, marginBottom: 16, color: 'rgba(167,139,250,.9)' }}>Track Record</div>
@@ -555,7 +580,7 @@ export default function LumenCapital() {
           </div>
           {/* Image with text overlay, no border radius */}
           <div data-reveal data-delay="160" style={{ position: 'relative', overflow: 'hidden' }}>
-            <img src={heroImg} alt="Lumen investor dashboard" style={{ display: 'block', width: '100%', height: 'auto' }} />
+            <img src="/uploads/hero-finance-desk.jpg" alt="Lumen investor dashboard" style={{ display: 'block', width: '100%', height: 420, objectFit: 'cover' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '50px 26px 26px', background: 'linear-gradient(to top, rgba(10,6,18,.9) 0%, transparent 100%)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 5 }}>Investor Dashboard</div>
               <div style={{ fontFamily: serif, fontSize: 22, color: '#fff' }}>Full visibility into your portfolio, 24/7.</div>
@@ -637,6 +662,12 @@ export default function LumenCapital() {
   )
 }
 
+const strategyImages = {
+  'lumen-s1': '/uploads/hero-trading-chart.jpg',
+  'lumen-s2': '/uploads/hero-bitcoin-screen.jpg',
+  'lumen-s3': '/uploads/hero-finance-desk.jpg',
+}
+
 function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, onOpen }) {
   const [hover, setHover] = useState(false)
   const lift = hover ? { transform: 'translateY(-5px)', boxShadow: '0 28px 60px rgba(0,0,0,.35)' } : {}
@@ -644,8 +675,13 @@ function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, 
   if (bespoke) {
     return (
       <div data-reveal data-delay={delay} onClick={onOpen} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-        style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', background: 'linear-gradient(135deg,rgba(109,40,217,.25),rgba(192,38,211,.15))', border: '1px solid rgba(255,255,255,.1)', color: '#fff', transition: 'transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s ease', ...lift }}>
-        <div style={{ padding: '40px 34px', minHeight: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', background: '#0a0612', border: '1px solid rgba(255,255,255,.1)', color: '#fff', transition: 'transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s ease', ...lift }}>
+        {/* Background image */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+          <img src="/uploads/hero-portfolio.jpg" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: .18, display: 'block' }} />
+        </div>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(135deg, rgba(10,6,18,.85) 0%, rgba(109,40,217,.08) 100%)' }} />
+        <div style={{ position: 'relative', zIndex: 2, padding: '40px 34px', minHeight: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div style={{ display: 'inline-flex', padding: '5px 12px', border: '1px solid rgba(255,255,255,.18)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 18, color: 'rgba(255,255,255,.7)' }}>PRIVATE CLIENT</div>
             <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 12px', color: '#fff' }}>Private Mandate</h3>
@@ -662,7 +698,7 @@ function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, 
       style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', transition: 'transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s ease', ...lift }}>
       {/* Image with overlay text — no border-radius */}
       <div style={{ position: 'relative', width: '100%', height: 240, overflow: 'hidden' }}>
-        <ImageSlot id={slot} shape="rect" placeholder="Strategy image" style={{ width: '100%', height: 240, display: 'block' }} />
+        <img src={strategyImages[slot] || heroImg} alt={title} style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,6,18,.85) 0%, rgba(10,6,18,.1) 60%, transparent 100%)' }} />
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '28px 24px 20px' }}>
           <div style={{ display: 'inline-flex', padding: '4px 10px', border: '1px solid rgba(255,255,255,.2)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.75)', marginBottom: 10 }}>{tag}</div>
@@ -832,10 +868,16 @@ function TrustMeter({ label, pct, delay }) {
 
 function Report({ data, shown, onClose }) {
   if (!data) return null
+  const reportImages = {
+    'lumen-r1': '/uploads/hero-trading-chart.jpg',
+    'lumen-r2': '/uploads/hero-bitcoin-screen.jpg',
+    'lumen-r3': '/uploads/hero-finance-desk.jpg',
+    'lumen-r4': '/uploads/hero-portfolio.jpg',
+  }
   const imageBlock = (
     /* Image with text overlay — no border-radius */
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      <ImageSlot id={data.slot} shape="rect" placeholder="Report image" style={{ width: '100%', height: 480, display: 'block' }} />
+      <img src={reportImages[data.slot] || heroImg} alt={data.title} style={{ width: '100%', height: 480, objectFit: 'cover', display: 'block' }} />
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '60px 28px 28px', background: 'linear-gradient(to top, rgba(10,6,18,.9) 0%, transparent 100%)' }}>
         <div style={{ fontFamily: serif, fontSize: 16, color: '#fff', opacity: .7 }}>{data.tag}</div>
       </div>

@@ -28,6 +28,14 @@ canvas { display: block; }
   [data-navactions] { display: none !important; }
   [data-navtoggle] { display: flex !important; }
 }
+/* Tighten pill on small phones */
+@media (max-width: 480px) {
+  nav[style*="position: fixed"] {
+    top: 8px !important;
+    width: calc(100% - 20px) !important;
+    padding: 8px 10px 8px 14px !important;
+  }
+}
 @media (max-width: 860px) {
   [data-herogrid] { grid-template-columns: 1fr !important; gap: 40px !important; }
   [data-herogrid] > div:last-child { display: none; }
