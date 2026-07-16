@@ -7,10 +7,10 @@ import { Vault, ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/r
 
 const serif = "'DM Serif Display',serif"
 const C = {
-  ink: '#0e0e12', body: '#4a4a55', muted: '#8b8b97',
-  line: '#e7e7ec', surface: '#f6f6f8', primary: '#7c3aed', white: '#fff',
+  ink: '#0a0612', body: '#3d3450', muted: '#7c728f',
+  line: '#ede8f7', surface: '#f5f2fc', primary: '#6d28d9', accent: '#c026d3', white: '#fff',
 }
-const RAD = 8
+const RAD = 0
 
 function Field({ label, type = 'text', value, onChange, placeholder, focused, onFocus, onBlur, trailing }) {
   return (
@@ -134,7 +134,7 @@ export default function Signup() {
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: C.body, lineHeight: 1.5, marginBottom: 22, cursor: 'pointer' }}>
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} />
-              I agree to the <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</a> &amp; <a href="#" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</a> of Lumen.
+              I agree to the <Link to="/terms" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</Link> &amp; <Link to="/privacy" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</Link> of Lumen.
             </label>
 
             {error && (
@@ -150,11 +150,11 @@ export default function Signup() {
       </div>
 
       {/* RIGHT: brand panel */}
-      <div data-brandpanel style={{ position: 'relative', overflow: 'hidden', background: C.ink, padding: '46px clamp(32px,4vw,64px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#fff', order: 2 }}>
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: .35 }}>
-          <ImageSlot id="signup-panel-bg" shape="rect" placeholder="" style={{ width: '100%', height: '100%' }} />
+      <div data-brandpanel style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(150deg,#0a0612 0%,#130a28 60%,#1a0a2e 100%)', padding: '46px clamp(32px,4vw,64px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: '#fff', order: 2 }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: .2 }}>
+          <img src="/uploads/pasted-1782018213315-0.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </div>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(14,14,18,.6),rgba(14,14,18,.92))', zIndex: 1 }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(10,6,18,.5),rgba(10,6,18,.9)), radial-gradient(ellipse 70% 60% at 20% 70%, rgba(109,40,217,.22) 0%, transparent 70%)', zIndex: 1 }} />
 
         <div data-anim style={{ position: 'relative', zIndex: 2 }}>
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: 440 }}>Join investors who trust professionals to manage their digital wealth.</h1>
@@ -163,7 +163,11 @@ export default function Signup() {
 
         <div data-anim data-delay="140" style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)', marginBottom: 24 }}>
-            <ImageSlot id="signup-art" shape="rect" placeholder="Portfolio dashboard" style={{ width: '100%', height: 220 }} />
+            <img src="/uploads/pasted-1782018213315-0.png" alt="Portfolio dashboard" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '36px 18px 16px', background: 'linear-gradient(to top, rgba(10,6,18,.88) 0%, transparent 100%)' }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 3 }}>Portfolio Dashboard</div>
+              <div style={{ fontFamily: serif, fontSize: 17, color: '#fff' }}>Managed. Monitored. Transparent.</div>
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
             {[

@@ -2,13 +2,13 @@
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: #faf7ff;
-  color: #221a33;
+  background: #f5f2fc;
+  color: #0a0612;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-::selection { background: #ec4899; color: #fff; }
+::selection { background: #6d28d9; color: #fff; }
 a { color: inherit; }
 input { font-family: inherit; }
 canvas { display: block; }
@@ -27,6 +27,14 @@ canvas { display: block; }
   [data-navlinks] { display: none !important; }
   [data-navactions] { display: none !important; }
   [data-navtoggle] { display: flex !important; }
+}
+/* Tighten pill on small phones */
+@media (max-width: 480px) {
+  nav[style*="position: fixed"] {
+    top: 8px !important;
+    width: calc(100% - 20px) !important;
+    padding: 8px 10px 8px 14px !important;
+  }
 }
 @media (max-width: 860px) {
   [data-herogrid] { grid-template-columns: 1fr !important; gap: 40px !important; }

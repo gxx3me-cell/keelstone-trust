@@ -334,8 +334,8 @@ export default function Dashboard() {
   }
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#faf7ff' }}>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e7e7ec', borderTopColor: '#7c3aed', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f5f2fc' }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e4daf5', borderTopColor: '#6d28d9', animation: 'spin 0.8s linear infinite' }} />
     </div>
   )
 
@@ -355,8 +355,8 @@ export default function Dashboard() {
         {...(navOpen ? { 'data-open': '' } : {})}
         style={{ width: 270, flex: 'none', position: 'fixed', top: 0, left: 0, height: '100vh', background: 'var(--sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '22px 16px', zIndex: 50, transition: 'background .4s,border-color .4s,transform .38s cubic-bezier(.16,1,.3,1)', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '0 8px 24px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 11, background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sidebar)" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          <div style={{ width: 34, height: 34, borderRadius: 6, background: '#6d28d9', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: serif, fontSize: 16, color: 'var(--text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Lumen</div>
@@ -379,7 +379,7 @@ export default function Dashboard() {
             const active = screen === key
             return (
               <button key={key} type="button" onClick={() => goScreen(key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,rgba(124,58,237,.12),rgba(236,72,153,.12))' : 'transparent', color: active ? '#7c3aed' : 'var(--text-2)', fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '10px 12px', borderRadius: 6, border: 'none', background: active ? 'rgba(109,40,217,.1)' : 'transparent', color: active ? '#6d28d9' : 'var(--text-2)', fontSize: 14, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
                 {icons[key]} {label}
               </button>
             )
@@ -392,7 +392,7 @@ export default function Dashboard() {
             const active = screen === key
             return (
               <button key={key} type="button" onClick={() => goScreen(key)}
-                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px', borderRadius: 12, border: 'none', background: active ? 'linear-gradient(135deg,rgba(124,58,237,.12),rgba(236,72,153,.12))' : 'transparent', color: active ? '#7c3aed' : 'var(--text-2)', fontSize: 14, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '10px 12px', borderRadius: 6, border: 'none', background: active ? 'rgba(109,40,217,.1)' : 'transparent', color: active ? '#6d28d9' : 'var(--text-2)', fontSize: 14, fontWeight: active ? 700 : 500, cursor: 'pointer', textAlign: 'left', transition: 'background .2s,color .2s', fontFamily: 'inherit' }}>
                 {icons[key]} {label}
               </button>
             )
@@ -400,13 +400,32 @@ export default function Dashboard() {
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ background: 'linear-gradient(150deg,#7c3aed,#ec4899)', borderRadius: 16, padding: '16px 18px', color: '#fff' }}>
-            <div style={{ fontFamily: serif, fontSize: 16, marginBottom: 4 }}>Grow your portfolio</div>
-            <div style={{ fontSize: 12, opacity: .88, lineHeight: 1.5, marginBottom: 12 }}>Add capital to unlock higher-yield strategies.</div>
-            <button type="button" onClick={() => setModal('deposit')} style={{ width: '100%', padding: 9, borderRadius: 9, border: 'none', background: '#fff', color: '#7c3aed', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fund Portfolio</button>
+          {/* Active plan mini-card — persistent across all screens */}
+          {portfolio && portfolio.investment_count > 0 && portfolio.investments?.[0] && (
+            <div style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', overflow: 'hidden' }}>
+              <div style={{ height: 3, background: 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
+              <div style={{ padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 4 }}>Active Plan</div>
+                <div style={{ fontFamily: serif, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{portfolio.investments[0].plan_name}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Current value</div>
+                  <div style={{ fontFamily: serif, fontSize: 14, color: 'var(--text)' }}>${money(portfolio.total_value)}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Return</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>+{portfolio.return_pct}%</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ background: '#6d28d9', padding: '18px', color: '#fff', position: 'relative', overflow: 'hidden', borderRadius: 6 }}>
+            <div style={{ fontFamily: serif, fontSize: 16, marginBottom: 5 }}>Grow your portfolio</div>
+            <div style={{ fontSize: 12, opacity: .75, lineHeight: 1.55, marginBottom: 14 }}>Add capital to unlock higher-yield strategies.</div>
+            <button type="button" onClick={() => setModal('deposit')} style={{ width: '100%', padding: '9px 0', border: 'none', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 4 }}>Fund Portfolio</button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '8px 10px', borderRadius: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flex: 'none' }}>{initials || '?'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '8px 10px' }}>
+            <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flex: 'none' }}>{initials || '?'}</div>
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fullName}</div>
               <div style={{ fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
@@ -425,20 +444,20 @@ export default function Dashboard() {
             type="button"
             aria-label="Open menu"
             onClick={() => setNavOpen(true)}
-            style={{ width: 42, height: 42, flex: 'none', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', gap: 0 }}
+            style={{ width: 40, height: 40, flex: 'none', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', gap: 0 }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 data-pagetitle style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(24px,3vw,32px)', margin: 0, color: 'var(--text)' }}>{title}</h1>
           </div>
-          <div data-topbar-search style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px', width: 220 }}>
+          <div data-topbar-search style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 14px', width: 210 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" /></svg>
             <input placeholder="Search…" style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 14, color: 'var(--text)', width: '100%', fontFamily: 'inherit' }} />
           </div>
-          <button type="button" data-hidemobile onClick={() => setModal('withdraw')} style={{ padding: '11px 18px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Withdraw</button>
-          <button type="button" onClick={() => setModal('deposit')} style={{ padding: '11px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 10px 24px rgba(124,58,237,.32)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>+ Deposit</button>
-          <button type="button" onClick={toggleTheme} style={{ width: 44, height: 44, flex: 'none', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button type="button" data-hidemobile onClick={() => setModal('withdraw')} style={{ padding: '10px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Withdraw</button>
+          <button type="button" onClick={() => setModal('deposit')} style={{ padding: '10px 18px', borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,.28)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>+ Deposit</button>
+          <button type="button" onClick={toggleTheme} style={{ width: 40, height: 40, flex: 'none', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>{theme === 'dark' ? '☀' : '☾'}</span>
           </button>
         </div>
@@ -477,7 +496,7 @@ export default function Dashboard() {
                     ⏳ You have a deposit pending review — we'll activate it shortly.
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setModal('deposit')} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 12px 28px rgba(124,58,237,.3)' }}>
+                  <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(109,40,217,.28)' }}>
                     Choose a plan & invest →
                   </button>
                 )}
@@ -553,8 +572,8 @@ export default function Dashboard() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {portfolio.investments.map((inv, i) => (
-                      <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 13, background: PLAN_GRADS[i % PLAN_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, flex: 'none' }}>◈</div>
+                      <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 6, background: PLAN_GRADS[i % PLAN_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, flex: 'none' }}>◈</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{inv.plan_name}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Invested {new Date(inv.start_date).toLocaleDateString()} · {inv.annual_return_pct}% p.a.</div>
@@ -588,7 +607,7 @@ export default function Dashboard() {
                       const col = t.status === 'approved' ? '#16a34a' : t.status === 'rejected' ? '#ef4444' : '#f59e0b'
                       return (
                         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 10, background: `${col}1e`, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 14, fontWeight: 800 }}>{isDep ? '↓' : '↑'}</div>
+                          <div style={{ width: 34, height: 34, borderRadius: 6, background: `${col}18`, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 14, fontWeight: 800 }}>{isDep ? '↓' : '↑'}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>{isDep ? `Deposit · ${t.plan_name || 'Plan'}` : 'Withdrawal'}</div>
                             <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : ''} · <span style={{ color: col, fontWeight: 700, textTransform: 'capitalize' }}>{t.status}</span></div>
@@ -612,7 +631,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 44, marginBottom: 14 }}>💼</div>
                 <div style={{ fontFamily: serif, fontSize: 24, color: 'var(--text)', marginBottom: 8 }}>No holdings yet</div>
                 <div style={{ fontSize: 14, color: 'var(--text-3)', maxWidth: 420, margin: '0 auto 22px', lineHeight: 1.6 }}>Once you fund a plan, your active investments will appear here.</div>
-                <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fund a plan →</button>
+                <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 12, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 6 }}>Fund a plan →</button>
               </div>
             ) : (
               <>
@@ -628,7 +647,7 @@ export default function Dashboard() {
                     {portfolio.investments.map((inv, i) => (
                       <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.2fr 1.2fr 1.2fr 1.3fr', gap: 14, alignItems: 'center', padding: '15px 6px', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: 12, background: PLAN_GRADS[i % PLAN_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, flex: 'none' }}>◈</div>
+                          <div style={{ width: 38, height: 38, borderRadius: 6, background: PLAN_GRADS[i % PLAN_GRADS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, flex: 'none' }}>◈</div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{inv.plan_name}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Since {new Date(inv.start_date).toLocaleDateString()}</div>
@@ -678,7 +697,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 44, marginBottom: 14 }}>🎯</div>
                 <div style={{ fontFamily: serif, fontSize: 24, color: 'var(--text)', marginBottom: 8 }}>No active strategies</div>
                 <div style={{ fontSize: 14, color: 'var(--text-3)', maxWidth: 440, margin: '0 auto 22px', lineHeight: 1.6 }}>Fund a plan to put your capital into one of Lumen's managed strategies. Each plan targets a different return and risk profile.</div>
-                <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Choose a plan →</button>
+                <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Choose a plan →</button>
               </div>
             ) : (
               <>
@@ -878,7 +897,7 @@ export default function Dashboard() {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{fullName}</div>
                     <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{userEmail}</div>
-                    <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>Lumen Investor Account</div>
+                    <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginTop: 3 }}>Lumen Investor Account</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -943,7 +962,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'monospace', color: 'var(--text)', wordBreak: 'break-all' }}>{depositAddress}</span>
                 <button type="button" onClick={() => { navigator.clipboard?.writeText(depositAddress); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
-                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 9, border: 'none', background: copied ? '#16a34a' : 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 9, border: 'none', background: copied ? '#16a34a' : 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copied ? '✓ Copied' : 'Copy'}
                 </button>
               </div>
@@ -969,24 +988,21 @@ export default function Dashboard() {
                 Choose a plan and amount, then send USDT (BEP-20). Your investment activates automatically once the transfer confirms on-chain.
               </div>
 
-              {/* PLAN PICKER */}
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Choose your plan</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {/* PLAN PICKER — uses plan card design */}
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Choose your plan</div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 2)},1fr)`, gap: 8, marginBottom: 18 }}>
                 {availablePlans.map((p) => {
                   const active = selectedPlan?.id === p.id
                   const isPrivate = p.slug === 'private' || p.annual_return_pct === 0
                   return (
                     <button key={p.id} type="button" onClick={() => { setSelectedPlan(p); setDepositAmt((p.min_usd || 0).toLocaleString()) }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${active ? '#7c3aed' : 'var(--border)'}`, background: active ? 'rgba(124,58,237,.06)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' }}>
-                      <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${active ? '#7c3aed' : 'var(--border)'}`, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {active && <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#7c3aed' }} />}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.name}</div>
-                        <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Min ${(p.min_usd || 0).toLocaleString()} · {p.risk} risk</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flex: 'none' }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>{isPrivate ? 'Bespoke' : `${p.annual_return_pct}% p.a.`}</div>
+                      style={{ textAlign: 'left', padding: 0, border: `2px solid ${active ? '#6d28d9' : 'var(--border)'}`, background: active ? 'linear-gradient(135deg,#6d28d9,#c026d3)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', overflow: 'hidden', boxShadow: active ? '0 8px 24px rgba(109,40,217,.35)' : 'none' }}>
+                      <div style={{ height: 2, background: active ? 'rgba(255,255,255,.3)' : 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
+                      <div style={{ padding: '12px 14px' }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: active ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginBottom: 4 }}>{p.risk} risk</div>
+                        <div style={{ fontFamily: serif, fontSize: 14, color: active ? '#fff' : 'var(--text)', marginBottom: 6 }}>{p.name}</div>
+                        <div style={{ fontFamily: serif, fontSize: 22, color: active ? '#fff' : '#6d28d9', lineHeight: 1 }}>{isPrivate ? 'Custom' : `${p.annual_return_pct}%`}</div>
+                        {!isPrivate && <div style={{ fontSize: 10, fontWeight: 700, color: active ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginTop: 2 }}>p.a. · Min ${(p.min_usd || 0).toLocaleString()}</div>}
                       </div>
                     </button>
                   )
@@ -1056,9 +1072,9 @@ export default function Dashboard() {
 
 /* ─── helpers ─── */
 const money = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const PLAN_COLORS = ['#7c3aed', '#f59e0b', '#2563eb', '#16a34a', '#ec4899']
+const PLAN_COLORS = ['#6d28d9', '#f59e0b', '#2563eb', '#16a34a', '#ec4899']
 const PLAN_GRADS = [
-  'linear-gradient(135deg,#7c3aed,#a855f7)',
+  'linear-gradient(135deg,#6d28d9,#a855f7)',
   'linear-gradient(135deg,#f59e0b,#f97316)',
   'linear-gradient(135deg,#2563eb,#06b6d4)',
   'linear-gradient(135deg,#16a34a,#22c55e)',
@@ -1066,12 +1082,12 @@ const PLAN_GRADS = [
 ]
 const card = (pad = 26, padTop) => ({
   background: 'var(--surface)', border: '1px solid var(--border)',
-  borderRadius: pad >= 24 ? 24 : 20, padding: padTop ? `${padTop}px` : pad === 26 ? '26px 26px 8px' : pad,
+  borderRadius: 8, padding: padTop ? `${padTop}px` : pad === 26 ? '26px 26px 8px' : pad,
   boxShadow: 'var(--shadow)',
 })
-const linkBtn = () => ({ border: 'none', background: 'transparent', color: '#7c3aed', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
-const iconChip = (color, size) => ({ width: size, height: size, borderRadius: size === 38 ? 11 : 12, background: `${color}22`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11.5, flex: 'none' })
-const modalBtn = () => ({ width: '100%', padding: 16, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 14px 30px rgba(124,58,237,.32)', fontFamily: 'inherit' })
+const linkBtn = () => ({ border: 'none', background: 'transparent', color: '#6d28d9', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
+const iconChip = (color, size) => ({ width: size, height: size, borderRadius: 6, background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11.5, flex: 'none' })
+const modalBtn = () => ({ width: '100%', padding: 15, borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(109,40,217,.28)', fontFamily: 'inherit' })
 
 function TabGroup({ tabs, active, onChange }) {
   const normalized = tabs.map((t) => (Array.isArray(t) ? t : [t, t]))
@@ -1081,7 +1097,7 @@ function TabGroup({ tabs, active, onChange }) {
         const on = active === val
         return (
           <button key={val} type="button" onClick={() => onChange(val)}
-            style={{ border: 'none', background: on ? 'var(--surface)' : 'transparent', color: on ? '#7c3aed' : 'var(--text-2)', fontSize: 12.5, fontWeight: 700, padding: '7px 11px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', boxShadow: on ? '0 2px 8px rgba(124,58,237,.12)' : 'none' }}>
+            style={{ border: 'none', background: on ? 'var(--surface)' : 'transparent', color: on ? '#6d28d9' : 'var(--text-2)', fontSize: 12.5, fontWeight: 700, padding: '7px 11px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', boxShadow: on ? '0 2px 8px rgba(109,40,217,.12)' : 'none' }}>
             {label}
           </button>
         )
@@ -1090,21 +1106,47 @@ function TabGroup({ tabs, active, onChange }) {
   )
 }
 
-function StrategyCard({ name, grad, pctColor, pctBg, pct, desc, alloc, ret, icon, detail }) {
+function StrategyCard({ name, grad, pctColor, pct, desc, alloc, ret, detail }) {
   const [hover, setHover] = useState(false)
   return (
     <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 22, padding: 24, boxShadow: hover ? '0 30px 60px rgba(124,58,237,.16)' : 'var(--shadow)', cursor: 'pointer', transition: 'transform .35s,box-shadow .35s', transform: hover ? 'translateY(-6px)' : 'none' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ width: 46, height: 46, borderRadius: 13, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: pctColor, background: pctBg, padding: '5px 11px', borderRadius: 999 }}>{pct} of portfolio</div>
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: hover ? '0 24px 50px rgba(109,40,217,.18)' : 'var(--shadow)', cursor: 'pointer', transition: 'transform .35s,box-shadow .35s', transform: hover ? 'translateY(-5px)' : 'none', position: 'relative' }}>
+      <div style={{ height: 3, background: grad }} />
+      <div style={{ padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ width: 44, height: 44, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 17 9 11 13 15 21 6" /></svg>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: pctColor, background: `${pctColor}18`, padding: '4px 10px', letterSpacing: '.04em' }}>{pct} of portfolio</div>
+        </div>
+        <div style={{ fontFamily: serif, fontSize: 21, color: 'var(--text)', marginBottom: 6 }}>{name}</div>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 6 }}>{desc}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginBottom: 18, fontWeight: 600 }}>{detail}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <div><div style={{ fontSize: 17, fontFamily: serif, color: 'var(--text)' }}>{alloc}</div><div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>Allocated</div></div>
+          <div style={{ textAlign: 'right' }}><div style={{ fontSize: 17, fontFamily: serif, color: '#16a34a' }}>{ret}</div><div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>Annual return</div></div>
+        </div>
       </div>
-      <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 6 }}>{name}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.55, marginBottom: 8 }}>{desc}</div>
-      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 18, fontStyle: 'italic' }}>{detail}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-        <div><div style={{ fontSize: 18, fontFamily: serif, color: 'var(--text)' }}>{alloc}</div><div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Allocated</div></div>
-        <div style={{ textAlign: 'right' }}><div style={{ fontSize: 18, fontFamily: serif, color: '#16a34a' }}>{ret}</div><div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Annual return</div></div>
+    </div>
+  )
+}
+
+function DashPlanCard({ plan, onSelect }) {
+  const [hover, setHover] = useState(false)
+  const isPrivate = plan.slug === 'private' || plan.annual_return_pct === 0
+  const featured = !!plan.featured
+  return (
+    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={onSelect}
+      style={{ cursor: 'pointer', border: featured ? '1px solid #6d28d9' : '1px solid var(--border)', background: featured ? 'linear-gradient(135deg,#6d28d9,#c026d3)' : 'var(--surface)', overflow: 'hidden', transition: 'transform .3s,box-shadow .3s', transform: hover ? 'translateY(-4px)' : 'none', boxShadow: hover ? (featured ? '0 20px 50px rgba(109,40,217,.4)' : 'var(--shadow)') : 'none', position: 'relative' }}>
+      <div style={{ height: 3, background: featured ? 'rgba(255,255,255,.3)' : 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
+      <div style={{ padding: '16px 16px 18px' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: featured ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginBottom: 6 }}>{plan.risk} risk</div>
+        <div style={{ fontFamily: serif, fontSize: 16, color: featured ? '#fff' : 'var(--text)', marginBottom: 10 }}>{plan.name}</div>
+        <div style={{ fontFamily: serif, fontSize: isPrivate ? 22 : 28, color: featured ? '#fff' : '#6d28d9', lineHeight: 1 }}>{isPrivate ? 'Custom' : `${plan.annual_return_pct}%`}</div>
+        {!isPrivate && <div style={{ fontSize: 10.5, fontWeight: 700, color: featured ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginTop: 3 }}>target p.a.</div>}
+        <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: featured ? 'rgba(255,255,255,.75)' : '#6d28d9', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {isPrivate ? 'Enquire →' : 'Invest →'}
+        </div>
       </div>
     </div>
   )
@@ -1114,7 +1156,7 @@ function SettingRow({ title, sub, on, onToggle, border }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: border ? '1px solid var(--border)' : 'none' }}>
       <div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</div><div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{sub}</div></div>
-      <button type="button" onClick={onToggle} style={{ width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', background: on ? 'linear-gradient(135deg,#7c3aed,#ec4899)' : 'var(--surface-3)', position: 'relative', transition: 'background .3s', flex: 'none' }}>
+      <button type="button" onClick={onToggle} style={{ width: 48, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', background: on ? 'linear-gradient(135deg,#6d28d9,#ec4899)' : 'var(--surface-3)', position: 'relative', transition: 'background .3s', flex: 'none' }}>
         <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 22, height: 22, borderRadius: '50%', background: '#fff', transition: 'left .25s', boxShadow: on ? 'none' : '0 1px 3px rgba(0,0,0,.2)' }} />
       </button>
     </div>

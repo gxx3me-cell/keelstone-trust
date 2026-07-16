@@ -6,22 +6,22 @@ import { useAuth } from '../hooks/useAuth'
 
 const serif = "'DM Serif Display',serif"
 const C = {
-  bg: '#faf7ff', surface: '#fff', border: '#ece4fb',
-  ink: '#221a33', body: '#5b5172', muted: '#a89cc4',
-  primary: '#7c3aed', pink: '#ec4899',
+  bg: '#f8f6fc', surface: '#fff', border: '#e8e3f0',
+  ink: '#111018', body: '#3d3450', muted: '#8a829a',
+  primary: '#6d28d9', pink: '#7c3aed',
   green: '#16a34a', red: '#ef4444', amber: '#f59e0b',
 }
 
 const card = (pad = 24) => ({
   background: C.surface, border: `1px solid ${C.border}`,
-  borderRadius: 20, padding: pad,
-  boxShadow: '0 12px 32px rgba(124,58,237,.07)',
+  borderRadius: 8, padding: pad,
+  boxShadow: '0 2px 10px rgba(109,40,217,.05)',
 })
 
 function Avatar({ u, size = 38 }) {
   const name = u?.data?.full_name || u?.data?.first_name || u?.email || '?'
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#a855f7,#ec4899)', color: '#fff', fontWeight: 700, fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontWeight: 700, fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
       {name.trim().slice(0, 2).toUpperCase()}
     </div>
   )
@@ -58,7 +58,7 @@ function StatusBadge({ status }) {
   const map = { pending: [C.amber, '#fffbeb', '⏳'], approved: [C.green, '#f0fdf4', '✓'], rejected: [C.red, '#fef2f2', '✕'] }
   const [color, bg, icon] = map[status] || [C.muted, C.bg, '·']
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: bg, color }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: bg, color }}>
       {icon} {status}
     </span>
   )
@@ -257,18 +257,18 @@ export default function AdminDashboard() {
       {/* HEADER */}
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px clamp(18px,4vw,52px)', borderBottom: `1px solid ${C.border}`, background: C.surface, position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 12, height: 12, border: '2.5px solid #fff', borderRadius: 3, transform: 'rotate(45deg)' }} />
+          <div style={{ width: 32, height: 32, borderRadius: 6, background: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
           </div>
-          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>Lumen</span>
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: C.primary, background: 'rgba(124,58,237,.1)', padding: '3px 8px', borderRadius: 999 }}>Admin</span>
+          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Lumen</span>
+          <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: C.primary, background: 'rgba(109,40,217,.1)', padding: '3px 8px', borderRadius: 4 }}>Admin</span>
         </div>
 
         {/* NAV */}
-        <nav style={{ display: 'flex', gap: 2, marginLeft: 16, background: '#f6f1fe', padding: 4, borderRadius: 12 }}>
+        <nav style={{ display: 'flex', gap: 2, marginLeft: 16, background: C.bg, padding: 3, borderRadius: 6, border: `1px solid ${C.border}` }}>
           {NAV.map(([k, l]) => (
             <button key={k} type="button" onClick={() => setScreen(k)}
-              style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: screen === k ? C.surface : 'transparent', color: screen === k ? C.primary : C.body, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: screen === k ? '0 2px 8px rgba(124,58,237,.1)' : 'none', transition: 'all .2s', whiteSpace: 'nowrap' }}>
+              style={{ padding: '7px 13px', borderRadius: 4, border: 'none', background: screen === k ? C.surface : 'transparent', color: screen === k ? C.primary : C.body, fontSize: 13, fontWeight: screen === k ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: screen === k ? '0 1px 4px rgba(109,40,217,.08)' : 'none', transition: 'all .2s', whiteSpace: 'nowrap' }}>
               {l}{k === 'deposits' && pending.deposits.length > 0 ? ` (${pending.deposits.length})` : ''}{k === 'withdrawals' && pending.withdrawals.length > 0 ? ` (${pending.withdrawals.length})` : ''}
             </button>
           ))}
@@ -279,8 +279,8 @@ export default function AdminDashboard() {
           <Avatar u={user} size={34} />
           <span style={{ fontSize: 13, fontWeight: 600, color: C.body }}>{displayName(user)}</span>
         </div>
-        <Link to="/dashboard" style={{ fontSize: 13, fontWeight: 700, color: C.muted, textDecoration: 'none', padding: '8px 14px', borderRadius: 10, border: `1px solid ${C.border}` }}>Client view</Link>
-        <button type="button" onClick={handleSignOut} style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.red, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
+        <Link to="/dashboard" style={{ fontSize: 13, fontWeight: 600, color: C.muted, textDecoration: 'none', padding: '7px 13px', borderRadius: 6, border: `1px solid ${C.border}` }}>Client view</Link>
+        <button type="button" onClick={handleSignOut} style={{ padding: '7px 14px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.red, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
       </header>
 
       <main style={{ flex: 1, maxWidth: 1160, margin: '0 auto', width: '100%', padding: '32px clamp(18px,4vw,52px) 60px' }}>
@@ -428,7 +428,7 @@ export default function AdminDashboard() {
             {editingPlan && (
               <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
                 <div onClick={() => setEditingPlan(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-                <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 40px 90px rgba(0,0,0,.25)' }}>
+                <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
                   <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>Edit — {editingPlan.name}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {[
@@ -462,11 +462,11 @@ export default function AdminDashboard() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
                     <button type="button" onClick={savePlan} disabled={planSaving}
-                      style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
+                      style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
                       {planSaving ? 'Saving…' : 'Save changes'}
                     </button>
                     <button type="button" onClick={() => setEditingPlan(null)}
-                      style={{ padding: '12px 20px', borderRadius: 12, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       Cancel
                     </button>
                   </div>
@@ -482,8 +482,8 @@ export default function AdminDashboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                         <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{d.name}</span>
-                        {d.featured && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: 'rgba(124,58,237,.1)', color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em' }}>Featured</span>}
-                        {!d.active && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: '#fef2f2', color: C.red, textTransform: 'uppercase', letterSpacing: '.06em' }}>Hidden</span>}
+                        {d.featured && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: 'rgba(109,40,217,.1)', color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em' }}>Featured</span>}
+                        {!d.active && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: '#fef2f2', color: C.red, textTransform: 'uppercase', letterSpacing: '.06em' }}>Hidden</span>}
                       </div>
                       <div style={{ fontSize: 13, color: C.muted }}>
                         Min: <b style={{ color: C.ink }}>${(d.min_usd || 0).toLocaleString()}</b>
@@ -514,12 +514,12 @@ export default function AdminDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, marginBottom: 24 }}>
               {[
                 { name: 'Growth Strategy', alloc: '$120,000', ret: '+22%', risk: 'High', assets: 'BTC 70% · ETH 30%', color: '#f59e0b', grad: 'linear-gradient(135deg,#f59e0b,#f97316)' },
-                { name: 'Balanced Strategy', alloc: '$100,000', ret: '+15%', risk: 'Medium', assets: 'BTC 40% · ETH 35% · Stable 25%', color: C.primary, grad: 'linear-gradient(135deg,#7c3aed,#a855f7)' },
+                { name: 'Balanced Strategy', alloc: '$100,000', ret: '+15%', risk: 'Medium', assets: 'BTC 40% · ETH 35% · Stable 25%', color: C.primary, grad: 'linear-gradient(135deg,#6d28d9,#a855f7)' },
                 { name: 'Conservative Strategy', alloc: '$52,000', ret: '+9%', risk: 'Low', assets: 'Stable yield 75% · Crypto 25%', color: '#2563eb', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)' },
               ].map((s) => (
                 <div key={s.name} style={card(22)}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 12, background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, flex: 'none' }}>▲</div>
+                    <div style={{ width: 40, height: 40, borderRadius: 6, background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, flex: 'none' }}>▲</div>
                     <div style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>{s.name}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -562,7 +562,7 @@ export default function AdminDashboard() {
       {managing && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={() => setManaging(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 40px 90px rgba(0,0,0,.25)' }}>
+          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
               <Avatar u={managing} size={44} />
               <div>
@@ -577,7 +577,7 @@ export default function AdminDashboard() {
               return (
                 <div style={{ display: 'flex', gap: 10, margin: '18px 0 22px' }}>
                   {[['Invested', `$${fmt(t.principal)}`, C.ink], ['Earnings', `+$${fmt(t.earnings)}`, C.green], ['Value', `$${fmt(t.value)}`, C.ink]].map(([k, v, col]) => (
-                    <div key={k} style={{ flex: 1, background: '#f8f5ff', borderRadius: 12, padding: '12px 14px' }}>
+                    <div key={k} style={{ flex: 1, background: C.bg, borderRadius: 6, padding: '12px 14px' }}>
                       <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>{k}</div>
                       <div style={{ fontFamily: serif, fontSize: 19, color: col }}>{v}</div>
                     </div>
@@ -602,7 +602,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <button type="button" onClick={handleFund} disabled={fundBusy}
-              style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: fundBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: fundBusy ? 0.7 : 1, marginBottom: 24 }}>
+              style={{ width: '100%', padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: fundBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: fundBusy ? 0.7 : 1, marginBottom: 24 }}>
               {fundBusy ? 'Working…' : '+ Fund investor'}
             </button>
 
@@ -615,7 +615,7 @@ export default function AdminDashboard() {
                 {managingInvestments.map((inv) => {
                   const d = inv.data || {}
                   return (
-                    <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1px solid ${C.border}`, background: '#faf7ff' }}>
+                    <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{d.plan_name} · ${fmt(d.principal)}</div>
                         <div style={{ fontSize: 12, color: C.muted }}>{d.annual_return_pct}% p.a. · since {d.start_date ? new Date(d.start_date).toLocaleDateString() : '—'}</div>
@@ -630,7 +630,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            <button type="button" onClick={() => setManaging(null)} style={{ width: '100%', marginTop: 22, padding: 12, borderRadius: 12, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
+            <button type="button" onClick={() => setManaging(null)} style={{ width: '100%', marginTop: 22, padding: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
           </div>
         </div>
       )}
@@ -655,7 +655,7 @@ function RequestRows({ items, type, actionLoading, onAction, actionNote, setActi
             <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#221a33' }}>${parseFloat(d.amount || 0).toLocaleString()}</div>
             <div style={{ fontSize: 12, color: '#5b5172', minWidth: 0 }}>
               {d.tx_hash ? (
-                <a href={`https://bscscan.com/tx/${d.tx_hash}`} target="_blank" rel="noreferrer" style={{ color: '#7c3aed', fontWeight: 700, fontFamily: 'monospace', textDecoration: 'none' }}>
+                <a href={`https://bscscan.com/tx/${d.tx_hash}`} target="_blank" rel="noreferrer" style={{ color: '#6d28d9', fontWeight: 700, fontFamily: 'monospace', textDecoration: 'none' }}>
                   {d.tx_hash.slice(0, 8)}…{d.tx_hash.slice(-6)} ↗
                 </a>
               ) : type === 'withdrawal' && d.bank_details ? (
@@ -717,5 +717,5 @@ function Centered({ children }) {
 }
 
 function btnStyle() {
-  return { display: 'inline-block', padding: '13px 24px', borderRadius: 13, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', boxShadow: '0 14px 30px rgba(124,58,237,.3)' }
+  return { display: 'inline-block', padding: '13px 24px', borderRadius: 13, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', boxShadow: '0 14px 30px rgba(109,40,217,.35)' }
 }
