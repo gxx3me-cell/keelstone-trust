@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../dashboard/dashboard.css'
 import { db } from '../lib/cocobase'
-import { createDepositSession, checkPayment } from '../lib/listener'
+import { getDepositAddress } from '../lib/chainflow'
 import { useAuth } from '../hooks/useAuth'
 import {
   chartData, perfData, drawArea, drawDonut, drawBars, drawSpark, animate,
@@ -98,6 +98,18 @@ export default function Dashboard() {
   const handleSignOut = async () => {
     try { await db.auth.logout() } catch {}
     navigate('/login')
+  }
+
+  const emailVerified = user?.email_verified === true
+  const [resendState, setResendState] = useState('') // '' | 'sending' | 'sent' | 'error'
+  const handleResendVerification = async () => {
+    setResendState('sending')
+    try {
+      await db.auth.resendVerificationEmail()
+      setResendState('sent')
+    } catch {
+      setResendState('error')
+    }
   }
 
   const title = navItems.find(([k]) => k === screen)?.[1] || ''
@@ -256,40 +268,37 @@ export default function Dashboard() {
     }
     setDepositGenerating(true)
     try {
-      const session = await createDepositSession({
-        userId: user.id, userEmail: userEmail, userName: fullName, plan: selectedPlan,
-      })
-      setDepositAddress(session.address)
+      const wallet = await getDepositAddress(selectedPlan)
+      setDepositAddress(wallet.address)
       setDepositStep('pay')
     } catch (err) {
-      setDepositError(err?.message || 'Could not start deposit. The deposit service may be offline.')
+      setDepositError(err?.message || 'Could not start deposit. Please try again in a moment.')
     } finally {
       setDepositGenerating(false)
     }
   }
 
-  // Step 2: investor clicks "I've sent the payment" — ask listener to scan now, then poll
+  // Step 2: investor clicks "I've sent the payment".
+  // ChainFlow credits the deposit via our webhook once it confirms on-chain, so
+  // here we just poll our own portfolio until the new investment shows up.
   const handleConfirmPayment = async () => {
     setDepositError('')
     setDepositChecking(true)
     const before = portfolio?.investment_count ?? 0
     try {
-      await checkPayment(user.id)
-      // Poll get-my-portfolio for up to ~40s for the new investment to appear
       let found = false
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 10; i++) {
         await new Promise((r) => setTimeout(r, 5000))
         const res = await db.functions.execute('get-my-portfolio', { payload: {}, method: 'POST' })
         const p = res?.result ?? res
         if (p && p.investment_count > before) { setPortfolio(p); found = true; break }
-        await checkPayment(user.id).catch(() => {})
       }
       if (found) {
         setDepositDone(true)
         setDepositStep('done')
         setTimeout(() => { setModal(null); resetDeposit() }, 4000)
       } else {
-        setDepositError("We haven't seen your transfer yet. It can take a few minutes to confirm on BSC — keep this open or check back shortly.")
+        setDepositError("We haven't seen your transfer confirm yet. BSC usually takes under a minute — you can close this and it'll appear automatically once confirmed.")
       }
     } catch (err) {
       setDepositError(err?.message || 'Could not verify payment. Please try again in a moment.')
@@ -433,6 +442,24 @@ export default function Dashboard() {
             <span style={{ fontSize: 18, lineHeight: 1 }}>{theme === 'dark' ? '☀' : '☾'}</span>
           </button>
         </div>
+
+        {/* EMAIL VERIFICATION BANNER */}
+        {user && !emailVerified && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.32)', borderRadius: 14, padding: '13px 18px', marginBottom: 20 }}>
+            <span style={{ fontSize: 18, flex: 'none' }}>✉️</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>Verify your email address</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>We sent a verification link to {userEmail}. Please confirm it to fully secure your account.</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={resendState === 'sending' || resendState === 'sent'}
+              style={{ flex: 'none', padding: '9px 16px', borderRadius: 10, border: 'none', background: resendState === 'sent' ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: resendState === 'sending' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: resendState === 'sending' ? 0.7 : 1 }}>
+              {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? '✓ Email sent' : resendState === 'error' ? 'Try again' : 'Resend email'}
+            </button>
+          </div>
+        )}
 
         {/* ── OVERVIEW ── */}
         {screen === 'overview' && (

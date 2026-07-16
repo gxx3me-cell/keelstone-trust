@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { db } from '../lib/cocobase'
-import { getTreasuryBalance, sendWithdrawal } from '../lib/listener'
+import { sendPayout } from '../lib/chainflow'
 import { useAuth } from '../hooks/useAuth'
 
 const serif = "'DM Serif Display',serif"
@@ -89,7 +89,6 @@ export default function AdminDashboard() {
   const [toast, setToast] = useState('')
   const [editingPlan, setEditingPlan] = useState(null)
   const [planSaving, setPlanSaving] = useState(false)
-  const [treasury, setTreasury] = useState(null)
   // Fund/defund manager
   const [managing, setManaging] = useState(null)       // the investor being managed
   const [fundAmount, setFundAmount] = useState('')
@@ -118,8 +117,6 @@ export default function AdminDashboard() {
       setInvestments(rows(invRes))
     } catch {}
     setListLoading(false)
-    // Treasury is from the listener — optional, may be offline
-    getTreasuryBalance().then(setTreasury).catch(() => setTreasury(null))
   }, [isAdmin])
 
   const savePlan = async () => {
@@ -202,8 +199,8 @@ export default function AdminDashboard() {
   const handleAction = async (type, recordId, action, note = '') => {
     setActionLoading(recordId)
     try {
-      // For an approved withdrawal, send the USDT on-chain via the listener FIRST.
-      // Only mark approved in CocoBase if the transfer succeeds.
+      // For an approved withdrawal, send the USDT via ChainFlow FIRST.
+      // Only mark approved in CocoBase if the payout succeeds.
       if (type === 'withdrawal' && action === 'approve') {
         const rec = withdrawals.find((w) => w.id === recordId)
         const d = rec?.data || {}
@@ -212,8 +209,8 @@ export default function AdminDashboard() {
         if (!/^0x[a-fA-F0-9]{40}$/.test(toAddress || '')) {
           throw new Error('This withdrawal has no valid BEP-20 address on file.')
         }
-        const sent = await sendWithdrawal({ toAddress, amount })
-        const txHash = sent?.tx_hash ? `Sent on-chain: ${sent.tx_hash}` : ''
+        const sent = await sendPayout({ toAddress, amount })
+        const txHash = sent?.tx_hash ? `Sent via ChainFlow: ${sent.tx_hash}` : ''
         note = [note, txHash].filter(Boolean).join(' · ')
       }
       await db.functions.execute('admin-action', {
@@ -310,22 +307,6 @@ export default function AdminDashboard() {
                   <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{s.sub}</div>
                 </div>
               ))}
-            </div>
-
-            {/* Treasury (owner wallet via listener) */}
-            <div style={{ ...card(20), marginBottom: 26, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-              <div style={{ width: 46, height: 46, borderRadius: 13, background: 'linear-gradient(135deg,#16a34a,#22c55e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, flex: 'none' }}>◈</div>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 12.5, color: C.muted, fontWeight: 600 }}>Treasury wallet (USDT BEP-20)</div>
-                {treasury ? (
-                  <>
-                    <div style={{ fontFamily: serif, fontSize: 26, color: C.ink }}>${fmt(treasury.balance)} <span style={{ fontSize: 13, color: C.muted }}>USDT · {Number(treasury.bnb || 0).toFixed(4)} BNB gas</span></div>
-                    <a href={`https://bscscan.com/address/${treasury.address}`} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: C.primary, fontFamily: 'monospace', textDecoration: 'none' }}>{treasury.address} ↗</a>
-                  </>
-                ) : (
-                  <div style={{ fontSize: 13.5, color: C.muted, marginTop: 4 }}>Listener offline or not configured — start the lumen-listener server to see treasury balance and auto-confirm deposits.</div>
-                )}
-              </div>
             </div>
 
             {/* Quick action tables */}
