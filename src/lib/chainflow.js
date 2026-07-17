@@ -37,9 +37,20 @@ export async function getDepositAddress(plan) {
 }
 
 // Admin: pay an approved withdrawal out to the investor's wallet.
-export async function sendPayout({ toAddress, amount, token = 'USDT' }) {
+// source: 'master' (swept coins in your wallet) | 'chainflow' (instant balance).
+export async function sendPayout({ toAddress, amount, token = 'USDT', source = 'master' }) {
   const res = await db.functions.execute('chainflow-payout', {
-    payload: { to_address: toAddress, amount, token },
+    payload: { to_address: toAddress, amount, token, source },
+    method: 'POST',
+  })
+  return unwrap(res)
+}
+
+// Admin: the project's ChainFlow balance per token (master + chainflow pots).
+// Returns { payouts_enabled, master_address, balances: [...] }.
+export async function getBalance() {
+  const res = await db.functions.execute('chainflow-balance', {
+    payload: {},
     method: 'POST',
   })
   return unwrap(res)

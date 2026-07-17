@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { db } from '../lib/cocobase'
-import { sendPayout } from '../lib/chainflow'
+import { sendPayout, getBalance } from '../lib/chainflow'
 import { useAuth } from '../hooks/useAuth'
 
 const serif = "'DM Serif Display',serif"
@@ -94,8 +94,40 @@ export default function AdminDashboard() {
   const [fundAmount, setFundAmount] = useState('')
   const [fundPlanId, setFundPlanId] = useState('')
   const [fundBusy, setFundBusy] = useState(false)
+  // ChainFlow balance + payout
+  const [balance, setBalance] = useState(null)
+  const [balanceLoading, setBalanceLoading] = useState(false)
+  const [payoutForm, setPayoutForm] = useState({ to: '', amount: '', token: 'USDT', source: 'master' })
+  const [payoutBusy, setPayoutBusy] = useState(false)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
+
+  const loadBalance = async () => {
+    setBalanceLoading(true)
+    try {
+      const b = await getBalance()
+      setBalance(b)
+    } catch {
+      setBalance(null)
+    }
+    setBalanceLoading(false)
+  }
+
+  const handlePayout = async () => {
+    const amt = parseFloat(String(payoutForm.amount).replace(/,/g, ''))
+    if (!/^0x[a-fA-F0-9]{40}$/.test(payoutForm.to.trim())) { showToast('Enter a valid BEP-20 (0x…) address'); return }
+    if (!amt || amt <= 0) { showToast('Enter a valid amount'); return }
+    setPayoutBusy(true)
+    try {
+      const res = await sendPayout({ toAddress: payoutForm.to.trim(), amount: amt, token: payoutForm.token, source: payoutForm.source })
+      showToast(res?.tx_hash ? `Payout sent · ${res.tx_hash.slice(0, 12)}…` : 'Payout sent')
+      setPayoutForm((f) => ({ ...f, to: '', amount: '' }))
+      loadBalance()
+    } catch (err) {
+      showToast(err?.message || 'Payout failed')
+    }
+    setPayoutBusy(false)
+  }
 
   const loadAll = useCallback(async () => {
     if (!isAdmin) return
@@ -221,7 +253,7 @@ export default function AdminDashboard() {
     : []
 
   useEffect(() => {
-    if (!loading && isAdmin) loadAll()
+    if (!loading && isAdmin) { loadAll(); loadBalance() }
   }, [loading, isAdmin, loadAll])
 
   const handleAction = async (type, recordId, action, note = '') => {
@@ -335,6 +367,69 @@ export default function AdminDashboard() {
                   <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{s.sub}</div>
                 </div>
               ))}
+            </div>
+
+            {/* ChainFlow balance + payout */}
+            <div style={{ ...card(24), marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>ChainFlow balance</div>
+                <button type="button" onClick={loadBalance} disabled={balanceLoading}
+                  style={{ border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {balanceLoading ? 'Refreshing…' : '↻ Refresh'}
+                </button>
+              </div>
+
+              {!balance ? (
+                <div style={{ fontSize: 13.5, color: C.muted }}>{balanceLoading ? 'Loading…' : 'Balance unavailable.'}</div>
+              ) : !balance.payouts_enabled ? (
+                <div style={{ display: 'flex', gap: 10, background: 'rgba(243,186,47,.08)', border: '1px solid rgba(243,186,47,.3)', borderRadius: 12, padding: '13px 16px', fontSize: 13.5, color: '#8a6d1f', lineHeight: 1.55 }}>
+                  <span style={{ flex: 'none' }}>⚠️</span>
+                  <span>Payouts aren't activated for this project yet. Turn them on in the ChainFlow dashboard → <b>Balances &amp; Payouts</b> to see your balance and send payouts.</span>
+                </div>
+              ) : (
+                <>
+                  {balance.master_address && (
+                    <a href={`https://bscscan.com/address/${balance.master_address}`} target="_blank" rel="noreferrer"
+                      style={{ fontSize: 11.5, color: C.primary, fontFamily: 'monospace', textDecoration: 'none', display: 'inline-block', marginBottom: 14 }}>
+                      Master wallet: {balance.master_address} ↗
+                    </a>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 4 }}>
+                    {(balance.balances || []).length === 0 ? (
+                      <div style={{ fontSize: 13.5, color: C.muted }}>No balances yet.</div>
+                    ) : balance.balances.map((b) => (
+                      <div key={b.token} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px' }}>
+                        <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, marginBottom: 6 }}>{b.token}</div>
+                        <div style={{ fontFamily: serif, fontSize: 22, color: C.ink }}>{b.total ?? b.master_balance}</div>
+                        <div style={{ fontSize: 11.5, color: C.muted, marginTop: 4 }}>
+                          Master {b.master_balance} · ChainFlow {b.chainflow_balance ?? '0'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Send payout */}
+                  <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 18, paddingTop: 18 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Send a payout</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'stretch' }}>
+                      <input value={payoutForm.to} onChange={(e) => setPayoutForm((f) => ({ ...f, to: e.target.value }))} placeholder="0x… destination address"
+                        style={{ flex: '2 1 240px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13.5, fontFamily: 'monospace', outline: 'none', color: C.ink, background: '#faf7ff' }} />
+                      <input value={payoutForm.amount} onChange={(e) => setPayoutForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Amount"
+                        style={{ flex: '1 1 110px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff' }} />
+                      <select value={payoutForm.source} onChange={(e) => setPayoutForm((f) => ({ ...f, source: e.target.value }))}
+                        style={{ flex: '1 1 130px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff' }}>
+                        <option value="master">From master wallet</option>
+                        <option value="chainflow">From ChainFlow balance</option>
+                      </select>
+                      <button type="button" onClick={handlePayout} disabled={payoutBusy}
+                        style={{ flex: '0 0 auto', padding: '11px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: payoutBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: payoutBusy ? 0.7 : 1 }}>
+                        {payoutBusy ? 'Sending…' : 'Send payout'}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: C.muted, marginTop: 8 }}>Sends USDT (BEP-20). Payouts are free — the 0.4% fee is only taken when a payment is swept.</div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Quick action tables */}
