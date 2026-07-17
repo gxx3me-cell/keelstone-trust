@@ -14,8 +14,20 @@ function unwrap(res) {
   return r
 }
 
-// Get this investor's unique USDT (BEP-20) deposit address for a given plan.
-// Calling it again with the same user returns the same address.
+// Create a ChainFlow payment intent for a plan + amount and get the hosted
+// checkout URL. The investor is sent to that page (amount, address, QR, live
+// status). On confirmation ChainFlow fires our webhook and the investment
+// activates. Returns { intent_id, checkout_url, address, amount, currency, expires_at }.
+export async function createCheckout({ plan, amount }) {
+  const res = await db.functions.execute('chainflow-intent', {
+    payload: { plan_id: plan?.id, amount },
+    method: 'POST',
+  })
+  return unwrap(res)
+}
+
+// Get this investor's unique USDT (BEP-20) deposit address for a given plan
+// (raw-address flow — kept for reference; the modal uses createCheckout instead).
 export async function getDepositAddress(plan) {
   const res = await db.functions.execute('chainflow-wallet', {
     payload: { plan_id: plan?.id },

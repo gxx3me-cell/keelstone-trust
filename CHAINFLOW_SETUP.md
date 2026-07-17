@@ -1,6 +1,6 @@
 # ChainFlow payments — setup
 
-Crypto deposits and payouts run through [ChainFlow](https://chainflow-dashboard.vercel.app/docs)
+Crypto deposits and payouts run through [ChainFlow](https://chainflow.dev/docs)
 (USDT, BEP-20 on BNB Smart Chain). Everything server-side lives in CocoBase cloud
 functions, so **no key ever reaches the browser** and there is nothing to self-host.
 
@@ -8,20 +8,30 @@ functions, so **no key ever reaches the browser** and there is nothing to self-h
 
 | Cloud function | Does |
 |---|---|
-| `chainflow-wallet` | Investor picks a plan → returns their unique USDT deposit address (`POST /v1/wallets`) and records which plan they're funding |
-| `chainflow-webhook` | ChainFlow calls this when a payment confirms → verifies the HMAC signature, then creates the investor's deposit + active investment. Idempotent (a replayed tx can't double-credit) |
+| `chainflow-intent` | Investor picks a plan + amount → creates a ChainFlow payment intent (`POST /v1/payment-intents`) and returns the **hosted checkout URL** (`/pay/{id}`). Records which plan they're funding |
+| `chainflow-webhook` | ChainFlow calls this when a payment confirms → verifies the HMAC signature, then creates the investor's deposit + active investment. Idempotent (a replayed payment can't double-credit) |
 | `chainflow-payout` | Admin approves a withdrawal → sends USDT out (`POST /v1/payouts`) |
+| `chainflow-wallet` | (fallback) Raw per-customer deposit address (`POST /v1/wallets`). Not used by the current UI, kept for reference |
+
+**Deposit UX:** investor picks plan + amount → gets sent to ChainFlow's hosted
+checkout page (amount, address, QR, live status) → pays → the webhook activates
+their investment. The `sk_` key only ever runs inside the cloud functions.
 
 ## What you need to do
 
 ### 1. Add your ChainFlow API key
 
-Get a secret key (`sk_live_…`) from the ChainFlow dashboard, then set it on the
-**CocoBase project config** as `chainflow_api_key`. Both functions read it from
+Get a secret key from the ChainFlow dashboard (→ API Keys), then set it on the
+**CocoBase project config** as `chainflow_api_key`. The functions read it from
 config first, so you can rotate the key without touching code.
 
 Alternatively, edit the `CHAINFLOW_API_KEY` constant at the top of
-`chainflow-wallet` and `chainflow-payout` in the CocoBase dashboard.
+`chainflow-intent`, `chainflow-payout` (and `chainflow-wallet`) in the CocoBase
+dashboard.
+
+Optional config keys (sensible defaults are baked in):
+- `chainflow_checkout_host` — the host serving the `/pay/{id}` page (default `https://chainflow.dev`)
+- `chainflow_return_url` — where the checkout returns the investor (set this to your live dashboard URL, e.g. `https://yourdomain.com/dashboard`)
 
 ### 2. Connect the webhook
 

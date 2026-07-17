@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../dashboard/dashboard.css'
 import { db } from '../lib/cocobase'
-import { getDepositAddress } from '../lib/chainflow'
+import { createCheckout } from '../lib/chainflow'
 import { useAuth } from '../hooks/useAuth'
 import {
   chartData, perfData, drawArea, drawDonut, drawBars, drawSpark, animate,
@@ -180,12 +180,11 @@ export default function Dashboard() {
 
   // Deposit (USDT BEP-20) flow: step 'form' -> 'pay' -> 'done'
   const [depositStep, setDepositStep] = useState('form')
-  const [depositAddress, setDepositAddress] = useState('')
+  const [checkoutUrl, setCheckoutUrl] = useState('')
   const [depositGenerating, setDepositGenerating] = useState(false)
   const [depositChecking, setDepositChecking] = useState(false)
   const [depositDone, setDepositDone] = useState(false)
   const [depositError, setDepositError] = useState('')
-  const [copied, setCopied] = useState(false)
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
   const [withdrawDone, setWithdrawDone] = useState(false)
   const [withdrawError, setWithdrawError] = useState('')
@@ -193,8 +192,8 @@ export default function Dashboard() {
   const [withdrawAddr, setWithdrawAddr] = useState('')
 
   const resetDeposit = () => {
-    setDepositStep('form'); setDepositAddress(''); setDepositError('')
-    setDepositDone(false); setCopied(false)
+    setDepositStep('form'); setCheckoutUrl(''); setDepositError('')
+    setDepositDone(false)
   }
 
   // Build an account statement from the live portfolio and download it.
@@ -254,7 +253,7 @@ export default function Dashboard() {
     URL.revokeObjectURL(url)
   }
 
-  // Step 1: validate + request the investor's unique BEP-20 deposit address
+  // Step 1: validate + create a ChainFlow checkout, then open the hosted pay page.
   const handleGenerateAddress = async () => {
     setDepositError('')
     if (!selectedPlan) { setDepositError('Please select an investment plan.'); return }
@@ -268,26 +267,28 @@ export default function Dashboard() {
     }
     setDepositGenerating(true)
     try {
-      const wallet = await getDepositAddress(selectedPlan)
-      setDepositAddress(wallet.address)
+      const checkout = await createCheckout({ plan: selectedPlan, amount: amt })
+      setCheckoutUrl(checkout.checkout_url)
       setDepositStep('pay')
+      // Open the hosted checkout (amount, address, QR, live status) in a new tab.
+      window.open(checkout.checkout_url, '_blank', 'noopener,noreferrer')
     } catch (err) {
-      setDepositError(err?.message || 'Could not start deposit. Please try again in a moment.')
+      setDepositError(err?.message || 'Could not start checkout. Please try again in a moment.')
     } finally {
       setDepositGenerating(false)
     }
   }
 
-  // Step 2: investor clicks "I've sent the payment".
+  // Step 2: investor returns from checkout and clicks "I've completed payment".
   // ChainFlow credits the deposit via our webhook once it confirms on-chain, so
-  // here we just poll our own portfolio until the new investment shows up.
+  // we poll our own portfolio until the new investment appears.
   const handleConfirmPayment = async () => {
     setDepositError('')
     setDepositChecking(true)
     const before = portfolio?.investment_count ?? 0
     try {
       let found = false
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 12; i++) {
         await new Promise((r) => setTimeout(r, 5000))
         const res = await db.functions.execute('get-my-portfolio', { payload: {}, method: 'POST' })
         const p = res?.result ?? res
@@ -298,7 +299,7 @@ export default function Dashboard() {
         setDepositStep('done')
         setTimeout(() => { setModal(null); resetDeposit() }, 4000)
       } else {
-        setDepositError("We haven't seen your transfer confirm yet. BSC usually takes under a minute — you can close this and it'll appear automatically once confirmed.")
+        setDepositError("We haven't seen your payment confirm yet. It can take a minute after you pay — you can close this and your investment will appear automatically once confirmed.")
       }
     } catch (err) {
       setDepositError(err?.message || 'Could not verify payment. Please try again in a moment.')
@@ -941,41 +942,30 @@ export default function Dashboard() {
               <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>Your USDT was received on-chain and your {selectedPlan?.name} investment is now active and earning returns.</div>
             </div>
           ) : depositStep === 'pay' ? (
-            /* STEP: pay — show the unique address + QR */
+            /* STEP: pay — investor is sent to ChainFlow's hosted checkout */
             <>
-              <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 18, fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6 }}>
-                Send <b style={{ color: 'var(--text)' }}>exactly ${money(parseFloat(depositAmt.replace(/,/g, '')) || 0)} in USDT</b> on the <b style={{ color: 'var(--text)' }}>BNB Smart Chain (BEP-20)</b> network to the address below. Your {selectedPlan?.name} investment activates automatically once it confirms.
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                <div style={{ background: '#fff', padding: 12, borderRadius: 14, border: '1px solid var(--border)' }}>
-                  <img
-                    alt="Deposit address QR"
-                    width={170} height={170}
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(depositAddress)}`}
-                    style={{ display: 'block' }}
-                  />
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <div style={{ fontSize: 42, marginBottom: 14 }}>🔗</div>
+                <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Complete your payment</div>
+                <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 20 }}>
+                  We opened a secure checkout for your <b style={{ color: 'var(--text)' }}>${money(parseFloat(depositAmt.replace(/,/g, '')) || 0)}</b> {selectedPlan?.name} deposit in a new tab. Pay USDT (BEP-20) there — your investment activates automatically once it confirms.
                 </div>
               </div>
 
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Your USDT BEP-20 deposit address</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'monospace', color: 'var(--text)', wordBreak: 'break-all' }}>{depositAddress}</span>
-                <button type="button" onClick={() => { navigator.clipboard?.writeText(depositAddress); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
-                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 9, border: 'none', background: copied ? '#16a34a' : 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
-              </div>
+              <a href={checkoutUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', boxSizing: 'border-box', textDecoration: 'none', padding: 15, borderRadius: 14, background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+                Open checkout ↗
+              </a>
 
               <div style={{ display: 'flex', gap: 10, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 12, padding: '11px 14px', marginBottom: 18, fontSize: 12, color: '#b45309', lineHeight: 1.5 }}>
                 <span style={{ flex: 'none' }}>⚠️</span>
-                <span>Send <b>USDT on BEP-20 only</b>. Sending any other token or using another network (ERC-20, TRC-20) will result in permanent loss of funds.</span>
+                <span>Pay <b>USDT on BNB Smart Chain (BEP-20)</b> only. Using another token or network will result in permanent loss of funds.</span>
               </div>
 
               {depositError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 14 }}>{depositError}</div>}
 
               <button type="button" onClick={handleConfirmPayment} disabled={depositChecking} style={{ ...modalBtn(), opacity: depositChecking ? 0.75 : 1, cursor: depositChecking ? 'wait' : 'pointer' }}>
-                {depositChecking ? 'Checking the blockchain…' : "I've sent the payment"}
+                {depositChecking ? 'Confirming your payment…' : "I've completed payment"}
               </button>
               <button type="button" onClick={resetDeposit} style={{ width: '100%', marginTop: 10, padding: 12, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 ← Change plan or amount
