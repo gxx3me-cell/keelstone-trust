@@ -121,11 +121,33 @@ export default function AdminDashboard() {
 
   const savePlan = async () => {
     if (!editingPlan) return
+    if (!editingPlan.name?.trim()) { showToast('Plan name is required'); return }
     setPlanSaving(true)
     try {
-      const { id, ...data } = editingPlan
-      await db.updateDocument('lumen_plans', id, { data })
-      showToast('Plan updated')
+      const { id, ...fields } = editingPlan
+      // Normalize numeric fields
+      const data = {
+        name: fields.name,
+        slug: fields.slug || fields.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+        annual_return_pct: Number(fields.annual_return_pct) || 0,
+        min_usd: Number(fields.min_usd) || 0,
+        max_usd: Number(fields.max_usd) || 0,
+        risk: fields.risk || '',
+        assets: fields.assets || '',
+        strategy: fields.strategy || '',
+        perks: Array.isArray(fields.perks) ? fields.perks : [],
+        featured: !!fields.featured,
+        active: fields.active !== false,
+        sort_order: Number(fields.sort_order) || (plans.length + 1),
+      }
+      if (id) {
+        // updateDocument sends the 3rd arg as the PATCH body; the API wraps it in `data`.
+        await db.updateDocument('lumen_plans', id, data)
+        showToast('Plan updated')
+      } else {
+        await db.createDocument('lumen_plans', data)
+        showToast('Plan created')
+      }
       setEditingPlan(null)
       await loadAll()
     } catch (err) {
@@ -133,6 +155,12 @@ export default function AdminDashboard() {
     }
     setPlanSaving(false)
   }
+
+  const newPlan = () => setEditingPlan({
+    name: '', annual_return_pct: 0, min_usd: 5000, max_usd: 0,
+    risk: 'Medium', assets: '', strategy: '', perks: [], featured: false, active: true,
+    sort_order: plans.length + 1,
+  })
 
   const openManager = (u) => {
     setManaging(u)
@@ -420,16 +448,22 @@ export default function AdminDashboard() {
         {/* ── PLANS ── */}
         {screen === 'plans' && (
           <section>
-            <div style={{ marginBottom: 24 }}>
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Investment plans</h1>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>Edit plans shown on the public website. Changes go live immediately.</p>
+            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Investment plans</h1>
+                <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>Edit plans shown on the public website. Changes go live immediately.</p>
+              </div>
+              <button type="button" onClick={newPlan}
+                style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                + Add plan
+              </button>
             </div>
 
             {editingPlan && (
               <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
                 <div onClick={() => setEditingPlan(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
                 <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-                  <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>Edit — {editingPlan.name}</div>
+                  <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>{editingPlan.id ? `Edit — ${editingPlan.name}` : 'New investment plan'}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {[
                       { key: 'name', label: 'Plan name', type: 'text' },
@@ -463,7 +497,7 @@ export default function AdminDashboard() {
                   <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
                     <button type="button" onClick={savePlan} disabled={planSaving}
                       style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
-                      {planSaving ? 'Saving…' : 'Save changes'}
+                      {planSaving ? 'Saving…' : editingPlan.id ? 'Save changes' : 'Create plan'}
                     </button>
                     <button type="button" onClick={() => setEditingPlan(null)}
                       style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
