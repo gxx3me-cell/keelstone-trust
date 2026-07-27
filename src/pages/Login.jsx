@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
 import { db } from '../lib/cocobase'
-import { Vault, ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
+import { ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
 const C = {
@@ -73,11 +73,11 @@ export default function Login() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(10,6,18,.5),rgba(10,6,18,.9)), radial-gradient(ellipse 70% 60% at 80% 30%, rgba(109,40,217,.25) 0%, transparent 70%)', zIndex: 1 }} />
 
         <div data-anim style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: 11 }}>
-          <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Vault size={19} color="#fff" weight="duotone" />
+          <div style={{ width: 36, height: 36, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
           <div>
-            <span style={{ fontFamily: serif, fontSize: 20 }}>Lumen</span>
+            <span style={{ fontFamily: serif, fontSize: 20 }}>Kneelstone Trust</span>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 1 }}>Investor Portal</div>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function Login() {
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 18px' }}>Welcome back to your portfolio.</h1>
           <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: '0 0 32px', maxWidth: 410 }}>Your portfolio has been actively managed while you were away. Sign in to review your performance.</p>
           <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,.18)', maxWidth: 420 }}>
-            <img src="/uploads/pasted-1782018213315-0.png" alt="Lumen dashboard" style={{ width: '100%', height: 230, objectFit: 'cover', display: 'block' }} />
+            <img src="/uploads/pasted-1782018213315-0.png" alt="Kneelstone Trust dashboard" style={{ width: '100%', height: 230, objectFit: 'cover', display: 'block' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '36px 18px 16px', background: 'linear-gradient(to top, rgba(10,6,18,.88) 0%, transparent 100%)' }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 4 }}>Live Portfolio</div>
               <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#fff' }}>+18.6% all-time return</div>
@@ -106,7 +106,7 @@ export default function Login() {
         <div data-anim data-delay="80" style={{ width: '100%', maxWidth: 408 }}>
           <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Client Login</div>
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Sign in</h2>
-          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>New to Lumen? <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Open an account</Link></p>
+          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>New to Kneelstone Trust? <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Open an account</Link></p>
 
           <form onSubmit={handleLogin}>
             <Field
@@ -145,7 +145,7 @@ export default function Login() {
           </form>
 
           <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 12.5, color: C.muted, margin: '22px 0 0' }}><ShieldCheck size={15} weight="fill" color={C.primary} /> Protected by institutional-grade encryption &amp; multi-sig custody.</p>
-          <p style={{ textAlign: 'center', fontSize: 13.5, margin: '16px 0 0' }}><Link to="/" style={{ color: C.muted, textDecoration: 'none', fontWeight: 600 }}>← Back to Lumen</Link></p>
+          <p style={{ textAlign: 'center', fontSize: 13.5, margin: '16px 0 0' }}><Link to="/" style={{ color: C.muted, textDecoration: 'none', fontWeight: 600 }}>← Back to Kneelstone Trust</Link></p>
         </div>
       </div>
     </div>

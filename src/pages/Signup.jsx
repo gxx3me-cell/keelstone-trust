@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
 import { db } from '../lib/cocobase'
-import { Vault, ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
+import { ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
 const C = {
@@ -91,11 +91,11 @@ export default function Signup() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '46px clamp(22px,5vw,72px)', order: 1 }}>
         <div data-anim data-delay="80" style={{ width: '100%', maxWidth: 420 }}>
           <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 30 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 7, background: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Vault size={18} color="#fff" weight="duotone" />
+            <div style={{ width: 34, height: 34, borderRadius: 7, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div>
-              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block' }}>Lumen</span>
+              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block' }}>Kneelstone Trust</span>
               <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</span>
             </div>
           </Link>
@@ -134,7 +134,7 @@ export default function Signup() {
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: C.body, lineHeight: 1.5, marginBottom: 22, cursor: 'pointer' }}>
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} />
-              I agree to the <Link to="/terms" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</Link> &amp; <Link to="/privacy" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</Link> of Lumen.
+              I agree to the <Link to="/terms" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</Link> &amp; <Link to="/privacy" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</Link> of Kneelstone Trust.
             </label>
 
             {error && (
@@ -143,7 +143,7 @@ export default function Signup() {
 
             <button type="submit" disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-              {submitting ? 'Creating account…' : <>Open my Lumen account <ArrowRight size={16} weight="bold" /></>}
+              {submitting ? 'Creating account…' : <>Open my Kneelstone Trust account <ArrowRight size={16} weight="bold" /></>}
             </button>
           </form>
         </div>
@@ -158,7 +158,7 @@ export default function Signup() {
 
         <div data-anim style={{ position: 'relative', zIndex: 2 }}>
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: 440 }}>Join investors who trust professionals to manage their digital wealth.</h1>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Lumen offers professionally managed digital asset portfolios — built on preservation, growth, and income.</p>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Kneelstone Trust offers professionally managed digital asset portfolios — built on preservation, growth, and income.</p>
         </div>
 
         <div data-anim data-delay="140" style={{ position: 'relative', zIndex: 2 }}>

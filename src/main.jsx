@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
-import Lumen from './pages/Lumen'
+import Landing from './pages/Lumen'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
@@ -14,7 +14,7 @@ import Privacy from './pages/Privacy'
 import NotFound from './pages/NotFound'
 
 const router = createBrowserRouter([
-  { path: '/', element: <Lumen /> },
+  { path: '/', element: <Landing /> },
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
   { path: '/forgot-password', element: <ForgotPassword /> },

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { db } from '../lib/cocobase'
 import { sendPayout, getBalance } from '../lib/chainflow'
 import { useAuth } from '../hooks/useAuth'
+import BrandSplash from '../components/BrandSplash'
 
 const serif = "'DM Serif Display',serif"
 const C = {
@@ -287,11 +288,7 @@ export default function AdminDashboard() {
 
   const handleSignOut = async () => { try { await db.auth.logout() } catch {} navigate('/login') }
 
-  if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: C.bg }}>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e7e7ec', borderTopColor: C.primary, animation: 'spin 0.8s linear infinite' }} />
-    </div>
-  )
+  if (loading) return <BrandSplash label="Verifying admin access" />
 
   if (!isAuthenticated) return (
     <Centered><AuthBlock title="Sign in required" sub="You need to be signed in to access the admin console." action={<Link to="/login" style={btnStyle()}>Go to sign in</Link>} /></Centered>
@@ -317,10 +314,8 @@ export default function AdminDashboard() {
       {/* HEADER */}
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px clamp(18px,4vw,52px)', borderBottom: `1px solid ${C.border}`, background: C.surface, position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 6, background: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-          </div>
-          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Lumen</span>
+          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Kneelstone Trust</span>
           <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: C.primary, background: 'rgba(109,40,217,.1)', padding: '3px 8px', borderRadius: 4 }}>Admin</span>
         </div>
 
@@ -351,7 +346,7 @@ export default function AdminDashboard() {
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 8 }}>Admin console</div>
               <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, margin: '0 0 6px', color: C.ink }}>Platform overview</h1>
-              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>Real-time snapshot of the Lumen investment platform.</p>
+              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>Real-time snapshot of the Kneelstone Trust investment platform.</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16, marginBottom: 26 }}>

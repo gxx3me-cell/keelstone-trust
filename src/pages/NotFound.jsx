@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Vault, ArrowLeft } from '@phosphor-icons/react'
+import { ArrowLeft } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
 const C = { ink: '#111018', body: '#3d3450', muted: '#8a829a', line: '#e8e3f0', surface: '#f8f6fc', primary: '#6d28d9' }
@@ -9,9 +9,9 @@ export default function NotFound() {
     <div style={{ minHeight: '100vh', background: C.surface, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
       <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 56 }}>
         <div style={{ width: 32, height: 32, background: C.primary, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Vault size={17} color="#fff" weight="duotone" />
+          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         </div>
-        <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Lumen</span>
+        <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Kneelstone Trust</span>
       </Link>
 
       <div style={{ fontFamily: serif, fontSize: 'clamp(72px,14vw,120px)', lineHeight: 1, color: C.line, marginBottom: 8 }}>404</div>
