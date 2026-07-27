@@ -60,9 +60,7 @@ export default function Terms() {
       {/* Header */}
       <div style={{ borderBottom: `1px solid ${C.line}`, padding: '18px clamp(18px,5vw,72px)' }}>
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div style={{ width: 30, height: 30, background: C.primary, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-          </div>
+          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 30, height: 30, objectFit: "contain", flex: "none" }} />
           <span style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>Kneelstone Trust</span>
         </Link>
       </div>

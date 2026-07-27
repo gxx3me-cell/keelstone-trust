@@ -178,9 +178,7 @@ export default function LandingPage() {
         }}
       >
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', flex: 'none' }}>
-          <div style={{ width: 30, height: 30, background: C.primary, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-            <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-          </div>
+          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain', flex: 'none' }} />
           <span style={{ fontFamily: serif, fontSize: 19, color: C.ink, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>Kneelstone Trust</span>
         </Link>
         <div data-navlinks style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px,2vw,28px)', fontSize: 13.5, fontWeight: 500, color: C.body, flex: '0 1 auto', overflow: 'hidden' }}>

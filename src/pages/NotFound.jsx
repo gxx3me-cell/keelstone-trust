@@ -8,9 +8,7 @@ export default function NotFound() {
   return (
     <div style={{ minHeight: '100vh', background: C.surface, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
       <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 56 }}>
-        <div style={{ width: 32, height: 32, background: C.primary, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-        </div>
+        <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 32, height: 32, objectFit: "contain", flex: "none" }} />
         <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Kneelstone Trust</span>
       </Link>
 
