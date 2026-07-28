@@ -1,7 +1,7 @@
-// Kneelstone Trust brand mark.
+// Keelstone Trust brand mark.
 //
 // <Logo size={36} />            → just the emblem
-// <Logo size={36} withName />   → emblem + "Kneelstone Trust"
+// <Logo size={36} withName />   → emblem + "Keelstone Trust"
 // <Logo size={36} withName sub="Investor Portal" light /> → for dark backgrounds
 
 const LOGO_SRC = '/uploads/kneelstone-logo.png'
@@ -24,7 +24,7 @@ export default function Logo({
     <span style={{ display: 'inline-flex', alignItems: 'center', gap, ...style }}>
       <img
         src={LOGO_SRC}
-        alt="Kneelstone Trust"
+        alt="Keelstone Trust"
         width={size}
         height={size}
         style={{ width: size, height: size, objectFit: 'contain', display: 'block', flex: 'none' }}
@@ -32,7 +32,7 @@ export default function Logo({
       {withName && (
         <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.05 }}>
           <span style={{ fontFamily: serif, fontSize: ns, color: nameColor, whiteSpace: 'nowrap' }}>
-            Kneelstone <span style={{ fontStyle: 'italic', fontWeight: 400 }}>Trust</span>
+            Keelstone <span style={{ fontStyle: 'italic', fontWeight: 400 }}>Trust</span>
           </span>
           {sub && (
             <span style={{ fontSize: Math.max(9, Math.round(ns * 0.42)), color: subColor, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>

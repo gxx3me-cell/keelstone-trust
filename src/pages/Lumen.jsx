@@ -178,8 +178,8 @@ export default function LandingPage() {
         }}
       >
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', flex: 'none' }}>
-          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain', flex: 'none' }} />
-          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>Kneelstone Trust</span>
+          <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain', flex: 'none' }} />
+          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>Keelstone Trust</span>
         </Link>
         <div data-navlinks style={{ display: 'flex', alignItems: 'center', gap: 'clamp(14px,2vw,28px)', fontSize: 13.5, fontWeight: 500, color: C.body, flex: '0 1 auto', overflow: 'hidden' }}>
           {navItems.map(([label, href]) => (
@@ -207,8 +207,8 @@ export default function LandingPage() {
         <div style={{ position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(86vw,320px)', background: '#fff', borderLeft: `1px solid ${C.line}`, transform: menuOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform .45s cubic-bezier(.16,1,.3,1)', display: 'flex', flexDirection: 'column', padding: '22px 22px 30px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 34 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 30, height: 30, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
-              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>Kneelstone Trust</span>
+              <div style={{ width: 30, height: 30, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
+              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>Keelstone Trust</span>
             </div>
             <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" style={{ width: 38, height: 38, border: `1px solid ${C.line}`, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: RAD }}><X size={18} color={C.ink} /></button>
           </div>
@@ -279,7 +279,7 @@ export default function LandingPage() {
           <div data-reveal data-delay="200" style={{ position: 'relative' }}>
             {/* Image: text overlay — no border-radius */}
             <div style={{ position: 'relative', overflow: 'hidden', border: `1px solid rgba(255,255,255,.12)`, boxShadow: '0 16px 48px rgba(0,0,0,.4)' }}>
-              <img src={heroImages[(heroIdx + 1) % heroImages.length]} alt="Kneelstone Trust dashboard" style={{ width: '100%', height: 340, objectFit: 'cover', display: 'block', transition: 'opacity 1.2s ease' }} />
+              <img src={heroImages[(heroIdx + 1) % heroImages.length]} alt="Keelstone Trust dashboard" style={{ width: '100%', height: 340, objectFit: 'cover', display: 'block', transition: 'opacity 1.2s ease' }} />
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '40px 24px 24px', background: 'linear-gradient(to top, rgba(10,6,18,.88) 0%, transparent 100%)' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>Live Portfolio</div>
                 <div style={{ fontFamily: serif, fontSize: 24, color: '#fff', marginBottom: 4 }}>$248,750 · +18.6%</div>
@@ -456,7 +456,7 @@ export default function LandingPage() {
             <div>
               <div data-reveal style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', fontWeight: 800, marginBottom: 14 }}>Partner Program</div>
               <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(30px,4vw,50px)', lineHeight: 1.1, color: '#fff', margin: '0 0 18px' }}>Earn across three tiers of referrals.</h2>
-              <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: '0 0 28px', maxWidth: 450 }}>Introduce investors to Kneelstone Trust and earn a recurring commission on their investment capital — and on the capital of everyone they bring in, up to three levels deep.</p>
+              <p data-reveal data-delay="140" style={{ fontSize: 16.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: '0 0 28px', maxWidth: 450 }}>Introduce investors to Keelstone Trust and earn a recurring commission on their investment capital — and on the capital of everyone they bring in, up to three levels deep.</p>
               <div data-reveal data-delay="200" style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>
                 <div><div style={{ fontFamily: serif, fontSize: 28, color: '#fff' }}>$<span data-count="6.2" data-dec="1">0</span>M</div><div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>Paid to partners</div></div>
                 <div style={{ width: 1, background: 'rgba(255,255,255,.14)' }} />
@@ -485,7 +485,7 @@ export default function LandingPage() {
       <section style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: '#fff', borderTop: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 52px' }}>
-            <div data-reveal style={{ fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, marginBottom: 16, color: C.primary }}>Why Kneelstone Trust</div>
+            <div data-reveal style={{ fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 800, marginBottom: 16, color: C.primary }}>Why Keelstone Trust</div>
             <h2 data-reveal data-delay="80" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.2vw,56px)', lineHeight: 1.08, margin: 0, color: C.ink }}>Built for trust. Engineered for performance.</h2>
           </div>
           <div data-benefits-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 0, border: `1px solid ${C.line}`, overflow: 'hidden', marginBottom: 52 }}>
@@ -578,7 +578,7 @@ export default function LandingPage() {
           </div>
           {/* Image with text overlay, no border radius */}
           <div data-reveal data-delay="160" style={{ position: 'relative', overflow: 'hidden' }}>
-            <img src="/uploads/hero-finance-desk.jpg" alt="Kneelstone Trust investor dashboard" style={{ display: 'block', width: '100%', height: 420, objectFit: 'cover' }} />
+            <img src="/uploads/hero-finance-desk.jpg" alt="Keelstone Trust investor dashboard" style={{ display: 'block', width: '100%', height: 420, objectFit: 'cover' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '50px 26px 26px', background: 'linear-gradient(to top, rgba(10,6,18,.9) 0%, transparent 100%)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', marginBottom: 5 }}>Investor Dashboard</div>
               <div style={{ fontFamily: serif, fontSize: 22, color: '#fff' }}>Full visibility into your portfolio, 24/7.</div>
@@ -595,8 +595,8 @@ export default function LandingPage() {
         <div style={{ position: 'absolute', top: '-30%', right: '-8%', width: 580, height: 580, borderRadius: '50%', background: 'radial-gradient(circle, rgba(109,40,217,.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 2, maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
           <div data-reveal style={{ fontSize: 11.5, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 700, color: 'rgba(255,255,255,.4)', marginBottom: 20 }}>Get started</div>
-          <h2 data-reveal data-delay="60" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(34px,5vw,64px)', lineHeight: 1.06, margin: '0 0 20px' }}>Begin your journey with Kneelstone Trust.</h2>
-          <p data-reveal data-delay="120" style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,.6)', margin: '0 auto 36px', maxWidth: 500 }}>Join investors who trust Kneelstone Trust to manage their digital asset portfolios with professionalism, transparency, and discipline.</p>
+          <h2 data-reveal data-delay="60" style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(34px,5vw,64px)', lineHeight: 1.06, margin: '0 0 20px' }}>Begin your journey with Keelstone Trust.</h2>
+          <p data-reveal data-delay="120" style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,.6)', margin: '0 auto 36px', maxWidth: 500 }}>Join investors who trust Keelstone Trust to manage their digital asset portfolios with professionalism, transparency, and discipline.</p>
           <div data-reveal data-delay="180" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 30px', background: C.primary, borderRadius: RAD }}>Open Your Account <ArrowRight size={16} weight="bold" /></Link>
             <Link to="/login" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.75)', padding: '15px 28px', border: '1px solid rgba(255,255,255,.18)', borderRadius: RAD }}>Sign in</Link>
@@ -609,8 +609,8 @@ export default function LandingPage() {
         {/* Newsletter strip */}
         <div data-reveal style={{ maxWidth: 1240, margin: '0 auto 56px', border: '1px solid rgba(255,255,255,.08)', padding: 'clamp(28px,5vw,48px)', display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 36, alignItems: 'center', background: 'rgba(255,255,255,.03)' }}>
           <div>
-            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.1, color: '#fff', margin: '0 0 10px' }}>The Kneelstone Trust Investor Letter</h3>
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.55)', margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market insights, and portfolio commentary — from the Kneelstone Trust investment team.</p>
+            <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.1, color: '#fff', margin: '0 0 10px' }}>The Keelstone Trust Investor Letter</h3>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.55)', margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market insights, and portfolio commentary — from the Keelstone Trust investment team.</p>
           </div>
           <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input type="email" placeholder="you@example.com" style={{ flex: 1, minWidth: 180, padding: '14px 16px', border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 14.5, outline: 'none', fontFamily: 'inherit' }} />
@@ -621,8 +621,8 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.7fr 1fr 1fr 1fr', gap: 36, paddingBottom: 44, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 16 }}>
-              <div style={{ width: 34, height: 34, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
-              <span style={{ fontFamily: serif, fontSize: 19, color: '#fff' }}>Kneelstone Trust</span>
+              <div style={{ width: 34, height: 34, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
+              <span style={{ fontFamily: serif, fontSize: 19, color: '#fff' }}>Keelstone Trust</span>
             </div>
             <p style={{ fontSize: 14, lineHeight: 1.7, maxWidth: 300, margin: '0 0 22px', color: 'rgba(255,255,255,.48)' }}>Professional digital asset wealth management for investors who think in generations, not quarters.</p>
             <div style={{ display: 'flex', gap: 9 }}>
@@ -652,7 +652,7 @@ export default function LandingPage() {
         </div>
 
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '22px 0 34px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12, color: 'rgba(255,255,255,.3)' }}>
-          <span>© 2026 Kneelstone Trust. All rights reserved.</span>
+          <span>© 2026 Keelstone Trust. All rights reserved.</span>
           <span>Digital assets carry risk. Past performance is not indicative of future results. Capital is not guaranteed.</span>
         </div>
       </footer>
@@ -683,7 +683,7 @@ function StrategyCard({ slot, tag, title, text, yieldVal, risk, bespoke, delay, 
           <div>
             <div style={{ display: 'inline-flex', padding: '5px 12px', border: '1px solid rgba(255,255,255,.18)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 18, color: 'rgba(255,255,255,.7)' }}>PRIVATE CLIENT</div>
             <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 12px', color: '#fff' }}>Private Mandate</h3>
-            <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: 0 }}>For portfolios above $250,000, we construct a fully bespoke allocation with a dedicated Kneelstone Trust wealth advisor.</p>
+            <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'rgba(255,255,255,.65)', margin: 0 }}>For portfolios above $250,000, we construct a fully bespoke allocation with a dedicated Keelstone Trust wealth advisor.</p>
           </div>
           <div style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14.5, fontWeight: 700, color: '#fff' }}>Speak with an advisor <ArrowUpRight size={17} weight="bold" /></div>
         </div>
@@ -795,13 +795,13 @@ function PlanCard({ plan, delay }) {
 }
 
 const FAQ_ITEMS = [
-  { q: 'How does Kneelstone Trust manage my portfolio?', a: 'Our investment team allocates your capital across our three strategies — Growth, Balanced, or Conservative — depending on the tier you choose. We actively monitor markets, rebalance quarterly, and publish full performance reports each month.' },
+  { q: 'How does Keelstone Trust manage my portfolio?', a: 'Our investment team allocates your capital across our three strategies — Growth, Balanced, or Conservative — depending on the tier you choose. We actively monitor markets, rebalance quarterly, and publish full performance reports each month.' },
   { q: 'What is the minimum investment?', a: 'The minimum investment is $5,000 USD for the Conservative tier. Higher tiers (Balanced from $25,000, Growth from $100,000, and Private Mandate from $500,000) unlock progressively higher return targets and additional advisory services.' },
   { q: 'How and when can I withdraw my funds?', a: 'Withdrawals are processed within 3–5 business days. You submit a withdrawal request through your investor dashboard, and funds are returned via the same channel you deposited. Priority withdrawal processing is available for Growth tier and above.' },
-  { q: 'What digital assets does Kneelstone Trust invest in?', a: 'Kneelstone Trust focuses on Bitcoin (BTC) and Ethereum (ETH) as the core growth assets, alongside USDC and USDT stablecoin yield positions for our Balanced and Conservative strategies. We do not invest in speculative altcoins.' },
+  { q: 'What digital assets does Keelstone Trust invest in?', a: 'Keelstone Trust focuses on Bitcoin (BTC) and Ethereum (ETH) as the core growth assets, alongside USDC and USDT stablecoin yield positions for our Balanced and Conservative strategies. We do not invest in speculative altcoins.' },
   { q: 'Is my capital safe?', a: 'Client assets are held using institutional multi-signature custody arrangements. We use bank-grade encryption across all systems, and assets are never pooled or commingled across accounts. That said, digital assets carry inherent market risk and capital is not guaranteed.' },
   { q: 'How do I receive my returns?', a: 'Returns accrue to your portfolio balance and are reflected in your investor dashboard in real time. You may choose to reinvest returns or withdraw them to your wallet or bank account at any point.' },
-  { q: 'Do I need prior investment experience?', a: 'No. Kneelstone Trust is designed for investors at all levels of experience. Our team manages the technical complexity of digital asset allocation on your behalf — you simply choose a tier, fund your account, and monitor your growth.' },
+  { q: 'Do I need prior investment experience?', a: 'No. Keelstone Trust is designed for investors at all levels of experience. Our team manages the technical complexity of digital asset allocation on your behalf — you simply choose a tier, fund your account, and monitor your growth.' },
 ]
 
 function FAQ() {
@@ -913,8 +913,8 @@ function Report({ data, shown, onClose }) {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(24px,5vw,64px)', minHeight: '100%', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, color: '#fff' }}>
-            <div style={{ width: 28, height: 28, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
-            <span style={{ fontFamily: serif, fontSize: 18 }}>Kneelstone Trust</span>
+            <div style={{ width: 28, height: 28, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
+            <span style={{ fontFamily: serif, fontSize: 18 }}>Keelstone Trust</span>
             <span style={{ opacity: .4, fontSize: 12, fontWeight: 600 }}>Investment Strategy Report</span>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" style={{ width: 44, height: 44, border: '1px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.05)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>

@@ -204,7 +204,7 @@ export default function Dashboard() {
     let content, mime, ext
     if (format === 'csv') {
       const rows = [
-        ['Kneelstone Trust Account Statement'],
+        ['Keelstone Trust Account Statement'],
         ['Generated', today],
         ['Investor', fullName],
         ['Email', userEmail],
@@ -354,9 +354,9 @@ export default function Dashboard() {
         {...(navOpen ? { 'data-open': '' } : {})}
         style={{ width: 270, flex: 'none', position: 'fixed', top: 0, left: 0, height: '100vh', background: 'var(--sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '22px 16px', zIndex: 50, transition: 'background .4s,border-color .4s,transform .38s cubic-bezier(.16,1,.3,1)', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '0 8px 24px' }}>
-          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 36, height: 36, objectFit: 'contain', flex: 'none' }} />
+          <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: 36, height: 36, objectFit: 'contain', flex: 'none' }} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontFamily: serif, fontSize: 16, color: 'var(--text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Kneelstone Trust</div>
+            <div style={{ fontFamily: serif, fontSize: 16, color: 'var(--text)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Keelstone Trust</div>
             <div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</div>
           </div>
           <button
@@ -486,7 +486,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 46, marginBottom: 14 }}>🌱</div>
                 <div style={{ fontFamily: serif, fontSize: 28, color: 'var(--text)', marginBottom: 8 }}>Start your first investment</div>
                 <div style={{ fontSize: 14.5, color: 'var(--text-3)', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
-                  You don't have any active investments yet. Choose a plan, deposit from $5,000, and the Kneelstone Trust team will put your capital to work.
+                  You don't have any active investments yet. Choose a plan, deposit from $5,000, and the Keelstone Trust team will put your capital to work.
                 </div>
                 {portfolio?.deposits?.some((d) => d.status === 'pending') ? (
                   <div style={{ display: 'inline-block', padding: '12px 20px', borderRadius: 12, background: 'rgba(245,158,11,.12)', color: '#b45309', fontSize: 14, fontWeight: 700 }}>
@@ -663,7 +663,7 @@ export default function Dashboard() {
 
                 <div style={{ ...card(24), marginTop: 20 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Portfolio summary</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your ${money(portfolio.total_principal)} is professionally managed across {portfolio.investment_count} {portfolio.investment_count === 1 ? 'plan' : 'plans'} by the Kneelstone Trust investment team.</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 18 }}>Your ${money(portfolio.total_principal)} is professionally managed across {portfolio.investment_count} {portfolio.investment_count === 1 ? 'plan' : 'plans'} by the Keelstone Trust investment team.</div>
                   <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden' }}>
                     {portfolio.investments.map((inv, i) => {
                       const pct = portfolio.total_value > 0 ? (inv.current_value / portfolio.total_value) * 100 : 0
@@ -693,7 +693,7 @@ export default function Dashboard() {
               <div style={{ ...card(40), textAlign: 'center' }}>
                 <div style={{ fontSize: 44, marginBottom: 14 }}>🎯</div>
                 <div style={{ fontFamily: serif, fontSize: 24, color: 'var(--text)', marginBottom: 8 }}>No active strategies</div>
-                <div style={{ fontSize: 14, color: 'var(--text-3)', maxWidth: 440, margin: '0 auto 22px', lineHeight: 1.6 }}>Fund a plan to put your capital into one of Kneelstone Trust's managed strategies. Each plan targets a different return and risk profile.</div>
+                <div style={{ fontSize: 14, color: 'var(--text-3)', maxWidth: 440, margin: '0 auto 22px', lineHeight: 1.6 }}>Fund a plan to put your capital into one of Keelstone Trust's managed strategies. Each plan targets a different return and risk profile.</div>
                 <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Choose a plan →</button>
               </div>
             ) : (
@@ -710,7 +710,7 @@ export default function Dashboard() {
                         pctColor={color}
                         pctBg={`${color}1a`}
                         pct={`${pct}%`}
-                        desc={`Actively managed by the Kneelstone Trust investment team, targeting ${inv.annual_return_pct}% annualized returns.`}
+                        desc={`Actively managed by the Keelstone Trust investment team, targeting ${inv.annual_return_pct}% annualized returns.`}
                         alloc={`$${money(inv.principal)}`}
                         ret={`+${inv.annual_return_pct}%`}
                         icon={<div style={{ width: 18, height: 18, border: '3px solid #fff', borderRadius: 5 }} />}
@@ -838,7 +838,7 @@ export default function Dashboard() {
           <section data-pane="reports">
             <div style={card(24)}>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Account statement</div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 24 }}>Generate and download a statement of your Kneelstone Trust account, built from your live portfolio.</div>
+              <div style={{ fontSize: 13.5, color: 'var(--text-3)', marginBottom: 24 }}>Generate and download a statement of your Keelstone Trust account, built from your live portfolio.</div>
 
               {(!portfolio || portfolio.investment_count === 0) ? (
                 <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
@@ -849,7 +849,7 @@ export default function Dashboard() {
                   {/* Live statement preview */}
                   <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-                      <div style={{ fontFamily: serif, fontSize: 18, color: 'var(--text)' }}>Kneelstone Trust · Account Statement</div>
+                      <div style={{ fontFamily: serif, fontSize: 18, color: 'var(--text)' }}>Keelstone Trust · Account Statement</div>
                       <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16 }}>{fullName} · {userEmail}</div>
@@ -894,7 +894,7 @@ export default function Dashboard() {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{fullName}</div>
                     <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{userEmail}</div>
-                    <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginTop: 3 }}>Kneelstone Trust Investor Account</div>
+                    <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginTop: 3 }}>Keelstone Trust Investor Account</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -914,7 +914,7 @@ export default function Dashboard() {
               <div style={card(26)}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>Security &amp; preferences</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <SettingRow title="Monthly Investor Letter" sub="Receive the Kneelstone Trust newsletter" on={switches.email} onToggle={() => setSwitches((s) => ({ ...s, email: !s.email }))} border />
+                  <SettingRow title="Monthly Investor Letter" sub="Receive the Keelstone Trust newsletter" on={switches.email} onToggle={() => setSwitches((s) => ({ ...s, email: !s.email }))} border />
                   <SettingRow title="Dark appearance" sub="Toggle light / dark theme" on={theme === 'dark'} onToggle={toggleTheme} border={false} />
                 </div>
                 <button type="button" onClick={handleSignOut} style={{ width: '100%', textDecoration: 'none', display: 'block', textAlign: 'center', marginTop: 22, padding: 13, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: '#ef4444', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>

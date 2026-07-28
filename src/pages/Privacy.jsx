@@ -52,8 +52,8 @@ export default function Privacy() {
       {/* Header */}
       <div style={{ borderBottom: `1px solid ${C.line}`, padding: '18px clamp(18px,5vw,72px)' }}>
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 30, height: 30, objectFit: "contain", flex: "none" }} />
-          <span style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>Kneelstone Trust</span>
+          <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: 30, height: 30, objectFit: "contain", flex: "none" }} />
+          <span style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>Keelstone Trust</span>
         </Link>
       </div>
 
@@ -82,13 +82,13 @@ export default function Privacy() {
           </p>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <Link to="/terms" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>Terms of Service →</Link>
-            <Link to="/" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>← Back to Kneelstone Trust</Link>
+            <Link to="/" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>← Back to Keelstone Trust</Link>
           </div>
         </div>
       </div>
 
       <footer style={{ borderTop: `1px solid ${C.line}`, padding: '24px clamp(18px,5vw,72px)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <span style={{ fontSize: 12.5, color: C.muted }}>© 2026 Kneelstone Trust. All rights reserved.</span>
+        <span style={{ fontSize: 12.5, color: C.muted }}>© 2026 Keelstone Trust. All rights reserved.</span>
         <div style={{ display: 'flex', gap: 20, fontSize: 12.5 }}>
           <Link to="/terms" style={{ color: C.muted, textDecoration: 'none' }}>Terms</Link>
           <Link to="/privacy" style={{ color: C.primary, textDecoration: 'none', fontWeight: 600 }}>Privacy</Link>
