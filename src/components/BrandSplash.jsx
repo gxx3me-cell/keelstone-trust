@@ -1,4 +1,4 @@
-// A branded full-screen splash / loading screen for Kneelstone Trust.
+// A branded full-screen splash / loading screen for Keelstone Trust.
 // The green emblem glows on a deep backdrop with a soft float + shimmer.
 //
 // <BrandSplash />                     → default "loading" splash
@@ -52,7 +52,7 @@ export default function BrandSplash({ label = 'Loading your portfolio', static: 
       <div style={{ position: 'relative', animation: 'ks-float 5s ease-in-out infinite' }}>
         <img
           src="/uploads/kneelstone-logo.png"
-          alt="Kneelstone Trust"
+          alt="Keelstone Trust"
           style={{ width: 132, height: 132, objectFit: 'contain', filter: 'drop-shadow(0 12px 40px rgba(52,214,127,.35))' }}
         />
       </div>
@@ -60,7 +60,7 @@ export default function BrandSplash({ label = 'Loading your portfolio', static: 
       {/* wordmark */}
       <div style={{ textAlign: 'center', animation: 'ks-fade .6s ease both', animationDelay: '.15s' }}>
         <div style={{ fontFamily: serif, fontSize: 30, letterSpacing: '-.01em', lineHeight: 1 }}>
-          Kneelstone <span style={{ fontStyle: 'italic', fontWeight: 400, color: '#34d67f' }}>Trust</span>
+          Keelstone <span style={{ fontStyle: 'italic', fontWeight: 400, color: '#34d67f' }}>Trust</span>
         </div>
         <div style={{ fontSize: 11.5, letterSpacing: '.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', fontWeight: 700, marginTop: 10 }}>
           Private Digital Wealth

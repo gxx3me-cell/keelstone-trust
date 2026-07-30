@@ -8,8 +8,8 @@ export default function NotFound() {
   return (
     <div style={{ minHeight: '100vh', background: C.surface, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
       <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 56 }}>
-        <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 32, height: 32, objectFit: "contain", flex: "none" }} />
-        <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Kneelstone Trust</span>
+        <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: 32, height: 32, objectFit: "contain", flex: "none" }} />
+        <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Keelstone Trust</span>
       </Link>
 
       <div style={{ fontFamily: serif, fontSize: 'clamp(72px,14vw,120px)', lineHeight: 1, color: C.line, marginBottom: 8 }}>404</div>

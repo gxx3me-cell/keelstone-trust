@@ -415,8 +415,8 @@ export default function AdminDashboard() {
       {/* HEADER */}
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px clamp(18px,4vw,52px)', borderBottom: `1px solid ${C.border}`, background: C.surface, position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain' }} />
-          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Kneelstone Trust</span>
+          <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Keelstone Trust</span>
           <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: C.primary, background: 'rgba(109,40,217,.1)', padding: '3px 8px', borderRadius: 4 }}>Admin</span>
         </div>
 
@@ -447,7 +447,7 @@ export default function AdminDashboard() {
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 8 }}>Admin console</div>
               <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, margin: '0 0 6px', color: C.ink }}>Platform overview</h1>
-              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>Real-time snapshot of the Kneelstone Trust investment platform.</p>
+              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>Real-time snapshot of the Keelstone Trust investment platform.</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16, marginBottom: 26 }}>

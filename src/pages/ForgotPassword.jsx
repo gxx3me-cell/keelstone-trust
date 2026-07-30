@@ -46,9 +46,9 @@ export default function ForgotPassword() {
         {/* Logo */}
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 36 }}>
           <div style={{ width: 36, height: 36, borderRadius: 9, background: 'transparent', border: '1px solid rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/uploads/kneelstone-logo.png" alt="Kneelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
-          <span style={{ fontFamily: serif, fontSize: 20, color: '#fff' }}>Kneelstone Trust</span>
+          <span style={{ fontFamily: serif, fontSize: 20, color: '#fff' }}>Keelstone Trust</span>
         </Link>
 
         <div style={{ background: '#fff', borderRadius: 24, padding: 36, boxShadow: '0 40px 90px rgba(0,0,0,.4)' }}>
@@ -59,7 +59,7 @@ export default function ForgotPassword() {
               </div>
               <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>Check your inbox</div>
               <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.65, margin: '0 0 28px' }}>
-                If <strong style={{ color: C.ink }}>{email}</strong> is registered with Kneelstone Trust, you'll receive a password reset link shortly.
+                If <strong style={{ color: C.ink }}>{email}</strong> is registered with Keelstone Trust, you'll receive a password reset link shortly.
               </p>
               <p style={{ fontSize: 13, color: C.muted, margin: '0 0 24px', lineHeight: 1.6 }}>
                 Didn't receive it? Check your spam folder, or wait a few minutes before trying again.
@@ -73,7 +73,7 @@ export default function ForgotPassword() {
               <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Password reset</div>
               <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 8px', color: C.ink }}>Reset your password</h2>
               <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px', lineHeight: 1.6 }}>
-                Enter the email address linked to your Kneelstone Trust account and we'll send you a reset link.
+                Enter the email address linked to your Keelstone Trust account and we'll send you a reset link.
               </p>
 
               <form onSubmit={handleSubmit}>
