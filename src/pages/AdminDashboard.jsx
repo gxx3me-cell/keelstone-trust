@@ -72,6 +72,7 @@ const NAV = [
   ['withdrawals', 'Withdrawals'],
   ['plans', 'Plans'],
   ['portfolio', 'Portfolio Mgmt'],
+  ['messages', 'Messages'],
 ]
 
 export default function AdminDashboard() {
@@ -84,6 +85,14 @@ export default function AdminDashboard() {
   const [withdrawals, setWithdrawals] = useState([])
   const [plans, setPlans] = useState([])
   const [investments, setInvestments] = useState([])
+  const [messages, setMessages] = useState([])
+  const [activeMsg, setActiveMsg] = useState(null)      // message being viewed/replied to
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [replyBody, setReplyBody] = useState('')
+  const [replyBusy, setReplyBusy] = useState(false)
+  const [composing, setComposing] = useState(false)     // compose new email modal
+  const [compose, setCompose] = useState({ to: '', subject: '', body: '' })
+  const [composeBusy, setComposeBusy] = useState(false)
   const [listLoading, setListLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(null)
   const [actionNote, setActionNote] = useState({})
@@ -134,12 +143,13 @@ export default function AdminDashboard() {
     if (!isAdmin) return
     setListLoading(true)
     try {
-      const [usersRes, depRes, wdRes, plansRes, invRes] = await Promise.all([
+      const [usersRes, depRes, wdRes, plansRes, invRes, msgRes] = await Promise.all([
         db.auth.listUsers({ limit: 100 }),
         db.listDocuments('lumen_deposits', { sort: 'created_at', order: 'desc', limit: 100 }).catch(() => []),
         db.listDocuments('lumen_withdrawals', { sort: 'created_at', order: 'desc', limit: 100 }).catch(() => []),
         db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 20 }).catch(() => []),
         db.listDocuments('lumen_investments', { limit: 200 }).catch(() => []),
+        db.listDocuments('lumen_messages', { sort: 'created_at', order: 'desc', limit: 200 }).catch(() => []),
       ])
       // listUsers returns { data: [...] }; listDocuments returns a plain array
       const rows = (r) => (Array.isArray(r) ? r : (r?.data ?? []))
@@ -148,6 +158,7 @@ export default function AdminDashboard() {
       setWithdrawals(rows(wdRes))
       setPlans(rows(plansRes))
       setInvestments(rows(invRes))
+      setMessages(rows(msgRes))
     } catch {}
     setListLoading(false)
   }, [isAdmin])
@@ -248,6 +259,96 @@ export default function AdminDashboard() {
     setFundBusy(false)
   }
 
+  const openMessage = (m) => {
+    setActiveMsg(m)
+    setReplyBody('')
+  }
+
+  const handleReply = async () => {
+    if (!activeMsg) return
+    const to = activeMsg.data?.email
+    if (!to) { showToast('This message has no reply-to email'); return }
+    if (!replyBody.trim()) { showToast('Write a reply first'); return }
+    setReplyBusy(true)
+    try {
+      const res = await db.functions.execute('support-email', {
+        payload: {
+          action: 'reply',
+          message_id: activeMsg.id,
+          to_email: to,
+          subject: activeMsg.data?.subject ? `Re: ${activeMsg.data.subject}` : 'Re: your message',
+          body: replyBody,
+        },
+        method: 'POST',
+      })
+      const r = res?.result ?? res
+      if (r?.error) throw new Error(r.error)
+      showToast(`Reply sent to ${to}`)
+      setReplyBody('')
+      setActiveMsg(null)
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Failed to send reply')
+    }
+    setReplyBusy(false)
+  }
+
+  const handleCompose = async () => {
+    const to = compose.to.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { showToast('Enter a valid recipient email'); return }
+    if (!compose.subject.trim()) { showToast('Enter a subject'); return }
+    if (!compose.body.trim()) { showToast('Write a message'); return }
+    setComposeBusy(true)
+    try {
+      const res = await db.functions.execute('support-email', {
+        payload: { action: 'send', to_email: to, subject: compose.subject, body: compose.body },
+        method: 'POST',
+      })
+      const r = res?.result ?? res
+      if (r?.error) throw new Error(r.error)
+      showToast(`Email sent to ${to}`)
+      setCompose({ to: '', subject: '', body: '' })
+      setComposing(false)
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Failed to send email')
+    }
+    setComposeBusy(false)
+  }
+
+  const handleDeleteMessage = async (msg) => {
+    if (!msg) return
+    const label = msg.data?.subject || msg.data?.email || 'this message'
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return
+    setDeleteBusy(true)
+    try {
+      await db.deleteDocument('lumen_messages', msg.id)
+      setActiveMsg(null)
+      showToast('Message deleted')
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Failed to delete message')
+    }
+    setDeleteBusy(false)
+  }
+
+  const handleClearMessages = async () => {
+    if (messages.length === 0) return
+    if (!window.confirm(`Delete all ${messages.length} message${messages.length === 1 ? '' : 's'}? This cannot be undone.`)) return
+    setDeleteBusy(true)
+    try {
+      await db.deleteDocuments('lumen_messages', messages.map((m) => m.id))
+      setActiveMsg(null)
+      showToast('Inbox cleared')
+      await loadAll()
+    } catch (err) {
+      showToast(err?.message || 'Failed to clear inbox')
+    }
+    setDeleteBusy(false)
+  }
+
+  const unreadMessages = messages.filter((m) => (m.data?.status || 'new') === 'new').length
+
   // Active investments for the investor currently being managed
   const managingInvestments = managing
     ? investments.filter((i) => i.data?.user_id === managing.id && i.data?.status === 'active')
@@ -324,7 +425,7 @@ export default function AdminDashboard() {
           {NAV.map(([k, l]) => (
             <button key={k} type="button" onClick={() => setScreen(k)}
               style={{ padding: '7px 13px', borderRadius: 4, border: 'none', background: screen === k ? C.surface : 'transparent', color: screen === k ? C.primary : C.body, fontSize: 13, fontWeight: screen === k ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: screen === k ? '0 1px 4px rgba(109,40,217,.08)' : 'none', transition: 'all .2s', whiteSpace: 'nowrap' }}>
-              {l}{k === 'deposits' && pending.deposits.length > 0 ? ` (${pending.deposits.length})` : ''}{k === 'withdrawals' && pending.withdrawals.length > 0 ? ` (${pending.withdrawals.length})` : ''}
+              {l}{k === 'deposits' && pending.deposits.length > 0 ? ` (${pending.deposits.length})` : ''}{k === 'withdrawals' && pending.withdrawals.length > 0 ? ` (${pending.withdrawals.length})` : ''}{k === 'messages' && unreadMessages > 0 ? ` (${unreadMessages})` : ''}
             </button>
           ))}
         </nav>
@@ -680,6 +781,70 @@ export default function AdminDashboard() {
           </section>
         )}
 
+        {/* ── MESSAGES / SUPPORT INBOX ── */}
+        {screen === 'messages' && (
+          <section>
+            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Support inbox</h1>
+                <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${messages.length} message${messages.length === 1 ? '' : 's'} · ${unreadMessages} new`}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {messages.length > 0 && (
+                  <button type="button" onClick={handleClearMessages} disabled={deleteBusy}
+                    style={{ padding: '11px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.red, fontSize: 14, fontWeight: 700, cursor: deleteBusy ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: deleteBusy ? 0.6 : 1 }}>
+                    {deleteBusy ? 'Clearing…' : 'Clear all'}
+                  </button>
+                )}
+                <button type="button" onClick={() => { setCompose({ to: '', subject: '', body: '' }); setComposing(true) }}
+                  style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  ✉ Compose email
+                </button>
+              </div>
+            </div>
+
+            {listLoading ? (
+              <div style={card(32)}><LoadingRow /></div>
+            ) : messages.length === 0 ? (
+              <div style={{ ...card(32), textAlign: 'center' }}>
+                <div style={{ fontSize: 34, marginBottom: 12 }}>📭</div>
+                <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 6 }}>No messages yet</div>
+                <div style={{ fontSize: 14, color: C.muted, maxWidth: 460, margin: '0 auto' }}>Emails sent to your support address will appear here once inbound email is configured. You can still compose and send emails to any investor now.</div>
+              </div>
+            ) : (
+              <div style={card(0)}>
+                {messages.map((m) => {
+                  const d = m.data || {}
+                  const isNew = (d.status || 'new') === 'new'
+                  const outbound = d.direction === 'outbound'
+                  return (
+                    <button key={m.id} type="button" onClick={() => openMessage(m)}
+                      style={{ width: '100%', textAlign: 'left', display: 'grid', gridTemplateColumns: '1.6fr 2.4fr 0.9fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid #f6f1fe', background: 'transparent', border: 'none', borderBottomStyle: 'solid', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          {isNew && !outbound && <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.primary, flex: 'none' }} />}
+                          <span style={{ fontSize: 14, fontWeight: isNew && !outbound ? 800 : 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outbound ? `To: ${d.name || d.email}` : (d.name || d.email || 'Unknown')}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.email}</div>
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.body, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.subject || '(no subject)'}</div>
+                        <div style={{ fontSize: 12.5, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.message || ''}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: outbound ? '#eef2ff' : isNew ? 'rgba(109,40,217,.1)' : '#f0fdf4', color: outbound ? '#4338ca' : isNew ? C.primary : C.green }}>
+                          {outbound ? 'Sent' : isNew ? 'New' : 'Replied'}
+                        </span>
+                        <span style={{ fontSize: 11, color: C.muted }}>{d.created_at ? new Date(d.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
       </main>
 
       {/* ── FUND / DEFUND MANAGER ── */}
@@ -755,6 +920,86 @@ export default function AdminDashboard() {
             )}
 
             <button type="button" onClick={() => setManaging(null)} style={{ width: '100%', marginTop: 22, padding: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MESSAGE DETAIL + REPLY ── */}
+      {activeMsg && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={() => setActiveMsg(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
+          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, marginBottom: 4 }}>{activeMsg.data?.direction === 'outbound' ? 'To' : 'From'}</div>
+            <div style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{activeMsg.data?.name || activeMsg.data?.email || 'Unknown'}</div>
+            <div style={{ fontSize: 13, color: C.primary, marginBottom: 16 }}>{activeMsg.data?.email}</div>
+
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Subject</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 14 }}>{activeMsg.data?.subject || '(no subject)'}</div>
+
+            <div style={{ fontSize: 14, color: C.body, lineHeight: 1.65, whiteSpace: 'pre-wrap', background: C.bg, borderRadius: 8, padding: '14px 16px', marginBottom: 18 }}>{activeMsg.data?.message || '—'}</div>
+
+            {activeMsg.data?.reply_body && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Your reply{activeMsg.data?.replied_by ? ` · ${activeMsg.data.replied_by}` : ''}</div>
+                <div style={{ fontSize: 14, color: C.body, lineHeight: 1.65, whiteSpace: 'pre-wrap', background: '#f0fdf4', borderRadius: 8, padding: '14px 16px' }}>{activeMsg.data.reply_body}</div>
+              </div>
+            )}
+
+            {activeMsg.data?.direction !== 'outbound' && (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Reply via email</div>
+                <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} placeholder={`Write your reply to ${activeMsg.data?.email || 'the sender'}…`} rows={6}
+                  style={{ width: '100%', padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', resize: 'vertical', boxSizing: 'border-box' }} />
+                <button type="button" onClick={handleReply} disabled={replyBusy}
+                  style={{ width: '100%', marginTop: 12, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: replyBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: replyBusy ? 0.7 : 1 }}>
+                  {replyBusy ? 'Sending…' : 'Send reply'}
+                </button>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button type="button" onClick={() => handleDeleteMessage(activeMsg)} disabled={deleteBusy}
+                style={{ flex: 1, padding: 12, borderRadius: 6, border: `1px solid ${C.red}`, background: 'transparent', color: C.red, fontSize: 14, fontWeight: 600, cursor: deleteBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: deleteBusy ? 0.6 : 1 }}>
+                {deleteBusy ? 'Deleting…' : 'Delete'}
+              </button>
+              <button type="button" onClick={() => setActiveMsg(null)} style={{ flex: 1, padding: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── COMPOSE NEW EMAIL ── */}
+      {composing && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={() => setComposing(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
+          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>Compose email</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={{ display: 'block' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>To</div>
+                <input type="email" value={compose.to} onChange={(e) => setCompose((c) => ({ ...c, to: e.target.value }))} placeholder="investor@example.com"
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', boxSizing: 'border-box' }} />
+              </label>
+              <label style={{ display: 'block' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>Subject</div>
+                <input type="text" value={compose.subject} onChange={(e) => setCompose((c) => ({ ...c, subject: e.target.value }))} placeholder="Subject"
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', boxSizing: 'border-box' }} />
+              </label>
+              <label style={{ display: 'block' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>Message</div>
+                <textarea value={compose.body} onChange={(e) => setCompose((c) => ({ ...c, body: e.target.value }))} placeholder="Write your message…" rows={7}
+                  style={{ width: '100%', padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', resize: 'vertical', boxSizing: 'border-box' }} />
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+              <button type="button" onClick={handleCompose} disabled={composeBusy}
+                style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: composeBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: composeBusy ? 0.7 : 1 }}>
+                {composeBusy ? 'Sending…' : 'Send email'}
+              </button>
+              <button type="button" onClick={() => setComposing(false)}
+                style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

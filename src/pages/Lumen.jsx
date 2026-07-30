@@ -6,7 +6,7 @@ import { useReveal, useCountUp } from '../hooks/useReveal'
 import {
   ShieldCheck, TrendUp, Coins, Globe, Lightning, Headset, Lock,
   CreditCard, ArrowRight, ArrowUpRight, List, X, CaretRight,
-  ChartLineUp, Cube,
+  ChartLineUp, Cube, EnvelopeSimple,
 } from '@phosphor-icons/react'
 
 const heroImg = '/uploads/hero-trading-chart.jpg'
@@ -590,6 +590,25 @@ export default function LandingPage() {
       {/* FAQ */}
       <FAQ />
 
+      {/* CONTACT SUPPORT */}
+      <section id="support" style={{ position: 'relative', padding: 'clamp(78px,10vh,124px) clamp(18px,5vw,72px)', background: C.surface, borderTop: `1px solid ${C.line}` }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div data-reveal style={{ border: `1px solid ${C.line}`, background: C.white, padding: 'clamp(32px,5vw,56px)', display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 40, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 11.5, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 700, color: C.primary, marginBottom: 16 }}>Support</div>
+              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(30px,4vw,50px)', lineHeight: 1.08, margin: '0 0 16px', color: C.ink }}>Need help? Our team is here for you.</h2>
+              <p style={{ fontSize: 16.5, lineHeight: 1.7, color: C.body, margin: 0, maxWidth: 480 }}>Have a question about your account, an investment plan, or a withdrawal? Reach out to our support team and we'll get back to you promptly.</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 16 }}>
+              <a href="mailto:contact@keelstone-trust.com" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 30px', background: C.primary, borderRadius: RAD, boxShadow: '0 4px 20px rgba(109,40,217,.25)' }}>
+                <EnvelopeSimple size={18} weight="bold" /> Contact Support
+              </a>
+              <a href="mailto:contact@keelstone-trust.com" style={{ textDecoration: 'none', fontSize: 14.5, fontWeight: 600, color: C.muted }}>contact@keelstone-trust.com</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FINAL CTA */}
       <section style={{ position: 'relative', padding: 'clamp(84px,12vh,140px) clamp(18px,5vw,72px)', background: C.ink, color: '#fff', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '-30%', right: '-8%', width: 580, height: 580, borderRadius: '50%', background: 'radial-gradient(circle, rgba(109,40,217,.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
@@ -634,7 +653,7 @@ export default function LandingPage() {
           {[
             { title: 'Strategies', links: [['Growth Strategy', '#strategies'], ['Balanced Strategy', '#strategies'], ['Conservative Strategy', '#strategies'], ['Private Mandate', '#strategies']] },
             { title: 'Company', links: [['Our Philosophy', '#story'], ['Performance', '#performance'], ['Investment Plans', '#plans'], ['Client Login', '/login']] },
-            { title: 'Get Started', links: [['Open an Account', '/signup'], ['Speak with an Advisor', '/signup'], ['Terms of Service', '/terms'], ['Privacy Policy', '/privacy']] },
+            { title: 'Get Started', links: [['Open an Account', '/signup'], ['Contact Support', 'mailto:contact@keelstone-trust.com'], ['Terms of Service', '/terms'], ['Privacy Policy', '/privacy']] },
           ].map((col) => (
             <div key={col.title}>
               <div style={{ fontWeight: 700, color: '#fff', fontSize: 13, marginBottom: 16 }}>{col.title}</div>
