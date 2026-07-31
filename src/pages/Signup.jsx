@@ -75,8 +75,10 @@ export default function Signup() {
         email, password: pw,
         data: { first_name: firstName, last_name: lastName, full_name: `${firstName} ${lastName}`.trim() },
       })
-      // Send the verification email (fire-and-forget — won't block signup if email isn't configured)
+      // Verification + welcome email are fire-and-forget — a mail failure must
+      // never block someone from getting into their new account.
       db.auth.requestEmailVerification().catch(() => {})
+      db.functions.execute('send_welcome_email', { payload: {}, method: 'POST' }).catch(() => {})
       navigate('/dashboard')
     } catch (err) {
       setError(err?.message || 'Could not create your account. Please try again.')

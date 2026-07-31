@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../dashboard/dashboard.css'
 import { db } from '../lib/cocobase'
-import { createCheckout } from '../lib/chainflow'
+import { listDepositMethods, submitDeposit } from '../lib/deposits'
 import { useAuth } from '../hooks/useAuth'
 import BrandSplash from '../components/BrandSplash'
 import {
@@ -58,11 +58,10 @@ export default function Dashboard() {
   const [portfolio, setPortfolio] = useState(null)
   const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [availablePlans, setAvailablePlans] = useState([])
-  const [selectedPlan, setSelectedPlan] = useState(null)
 
   const loadPortfolio = async () => {
     try {
-      const res = await db.functions.execute('get-my-portfolio', { payload: {}, method: 'POST' })
+      const res = await db.functions.execute('get_my_portfolio', { payload: {}, method: 'POST' })
       // execute() may return the function result directly or wrapped in { result }
       setPortfolio(res?.result ?? res ?? null)
     } catch {
@@ -80,9 +79,12 @@ export default function Dashboard() {
         const rows = Array.isArray(res) ? res : (res?.data ?? [])
         const plans = rows.map((p) => ({ id: p.id, ...(p.data || {}) })).filter((p) => p.active !== false)
         setAvailablePlans(plans)
-        if (plans.length && !selectedPlan) setSelectedPlan(plans[0])
       })
       .catch(() => {})
+    listDepositMethods()
+      .then(setDepositMethods)
+      .catch(() => setDepositMethods([]))
+      .finally(() => setMethodsLoading(false))
   }, [loading, isAuthenticated])
 
   // Auth guard — redirect to login if session is not found after loading
@@ -179,13 +181,18 @@ export default function Dashboard() {
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
 
-  // Deposit (USDT BEP-20) flow: step 'form' -> 'pay' -> 'done'
+  // Manual deposit flow: 'form' (amount + destination) -> 'pay' (copy wallet,
+  // send funds) -> 'done' (request filed, awaiting admin confirmation)
   const [depositStep, setDepositStep] = useState('form')
-  const [checkoutUrl, setCheckoutUrl] = useState('')
-  const [depositGenerating, setDepositGenerating] = useState(false)
-  const [depositChecking, setDepositChecking] = useState(false)
-  const [depositDone, setDepositDone] = useState(false)
+  const [depositMethods, setDepositMethods] = useState([])
+  const [methodsLoading, setMethodsLoading] = useState(true)
+  const [selectedMethod, setSelectedMethod] = useState(null)
+  const [depositRef, setDepositRef] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [depositSubmitting, setDepositSubmitting] = useState(false)
   const [depositError, setDepositError] = useState('')
+  // null = deposit to available balance rather than into a plan
+  const [depositPlanId, setDepositPlanId] = useState(null)
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
   const [withdrawDone, setWithdrawDone] = useState(false)
   const [withdrawError, setWithdrawError] = useState('')
@@ -193,8 +200,8 @@ export default function Dashboard() {
   const [withdrawAddr, setWithdrawAddr] = useState('')
 
   const resetDeposit = () => {
-    setDepositStep('form'); setCheckoutUrl(''); setDepositError('')
-    setDepositDone(false)
+    setDepositStep('form'); setDepositError(''); setDepositRef('')
+    setSelectedMethod(null); setCopied(false)
   }
 
   // Build an account statement from the live portfolio and download it.
@@ -254,58 +261,61 @@ export default function Dashboard() {
     URL.revokeObjectURL(url)
   }
 
-  // Step 1: validate + create a ChainFlow checkout, then open the hosted pay page.
-  const handleGenerateAddress = async () => {
+  // The plan this deposit funds — null means "add to my available balance".
+  const depositPlan = depositPlanId ? availablePlans.find((p) => p.id === depositPlanId) : null
+
+  // Step 1: validate the amount + destination, then show the wallet to send to.
+  const handleContinueToPay = () => {
     setDepositError('')
-    if (!selectedPlan) { setDepositError('Please select an investment plan.'); return }
     const amt = parseFloat(depositAmt.replace(/,/g, ''))
     if (!amt || amt <= 0) { setDepositError('Enter a valid amount.'); return }
-    if (amt < (selectedPlan.min_usd || 0)) {
-      setDepositError(`Minimum for ${selectedPlan.name} is $${(selectedPlan.min_usd || 0).toLocaleString()}.`); return
+    if (depositPlan) {
+      if (amt < (depositPlan.min_usd || 0)) {
+        setDepositError(`Minimum for ${depositPlan.name} is $${(depositPlan.min_usd || 0).toLocaleString()}.`); return
+      }
+      if (depositPlan.max_usd > 0 && amt > depositPlan.max_usd) {
+        setDepositError(`Maximum for ${depositPlan.name} is $${depositPlan.max_usd.toLocaleString()}.`); return
+      }
     }
-    if (selectedPlan.max_usd > 0 && amt > selectedPlan.max_usd) {
-      setDepositError(`Maximum for ${selectedPlan.name} is $${selectedPlan.max_usd.toLocaleString()}.`); return
+    if (!selectedMethod) { setDepositError('Choose how you want to pay.'); return }
+    if (selectedMethod.min_amount > 0 && amt < selectedMethod.min_amount) {
+      setDepositError(`The minimum ${selectedMethod.name} deposit is $${Number(selectedMethod.min_amount).toLocaleString()}.`); return
     }
-    setDepositGenerating(true)
+    setDepositStep('pay')
+  }
+
+  const copyWallet = async () => {
+    if (!selectedMethod?.wallet_address) return
     try {
-      const checkout = await createCheckout({ plan: selectedPlan, amount: amt })
-      setCheckoutUrl(checkout.checkout_url)
-      setDepositStep('pay')
-      // Open the hosted checkout (amount, address, QR, live status) in a new tab.
-      window.open(checkout.checkout_url, '_blank', 'noopener,noreferrer')
-    } catch (err) {
-      setDepositError(err?.message || 'Could not start checkout. Please try again in a moment.')
-    } finally {
-      setDepositGenerating(false)
+      await navigator.clipboard.writeText(selectedMethod.wallet_address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    } catch {
+      setDepositError('Could not copy automatically — select the address above and copy it manually.')
     }
   }
 
-  // Step 2: investor returns from checkout and clicks "I've completed payment".
-  // ChainFlow credits the deposit via our webhook once it confirms on-chain, so
-  // we poll our own portfolio until the new investment appears.
-  const handleConfirmPayment = async () => {
+  // Step 2: the investor has sent the funds. File a pending request for an
+  // admin to confirm. Nothing is credited until they approve it.
+  const handleSubmitDeposit = async () => {
     setDepositError('')
-    setDepositChecking(true)
-    const before = portfolio?.investment_count ?? 0
+    const amt = parseFloat(depositAmt.replace(/,/g, ''))
+    if (!amt || amt <= 0) { setDepositError('Enter a valid amount.'); return }
+    if (!selectedMethod) { setDepositError('Choose a deposit method.'); return }
+    setDepositSubmitting(true)
     try {
-      let found = false
-      for (let i = 0; i < 12; i++) {
-        await new Promise((r) => setTimeout(r, 5000))
-        const res = await db.functions.execute('get-my-portfolio', { payload: {}, method: 'POST' })
-        const p = res?.result ?? res
-        if (p && p.investment_count > before) { setPortfolio(p); found = true; break }
-      }
-      if (found) {
-        setDepositDone(true)
-        setDepositStep('done')
-        setTimeout(() => { setModal(null); resetDeposit() }, 4000)
-      } else {
-        setDepositError("We haven't seen your payment confirm yet. It can take a minute after you pay — you can close this and your investment will appear automatically once confirmed.")
-      }
+      await submitDeposit({
+        amount: amt,
+        methodId: selectedMethod.id,
+        planId: depositPlanId,
+        reference: depositRef.trim(),
+      })
+      setDepositStep('done')
+      loadPortfolio()
     } catch (err) {
-      setDepositError(err?.message || 'Could not verify payment. Please try again in a moment.')
+      setDepositError(err?.message || 'Could not submit your deposit request. Please try again.')
     } finally {
-      setDepositChecking(false)
+      setDepositSubmitting(false)
     }
   }
 
@@ -319,7 +329,7 @@ export default function Dashboard() {
     if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount.'); return }
     setWithdrawSubmitting(true)
     try {
-      const res = await db.functions.execute('submit-withdrawal', {
+      const res = await db.functions.execute('submit_withdrawal', {
         payload: { amount: String(amt), bank_details: addr, network: 'USDT BEP-20' },
         method: 'POST',
       })
@@ -336,6 +346,32 @@ export default function Dashboard() {
   }
 
   if (loading) return <BrandSplash />
+
+  // Money that is in flight — submitted but not yet confirmed by an admin.
+  const pendingDeposits = (portfolio?.deposits || []).filter((d) => d.status === 'pending')
+  const pendingTotal = portfolio?.pending_total ?? pendingDeposits.reduce((s, d) => s + Number(d.amount || 0), 0)
+  const hasPending = pendingDeposits.length > 0
+  const availableBalance = portfolio?.available_balance || 0
+
+  // Onboarding — mirrors the three steps in the welcome email so the dashboard
+  // picks up exactly where that email left off.
+  // KYC has no backend yet; `kyc_status` is read if present and treated as
+  // not-started otherwise, so nobody is told they're verified when they aren't.
+  const kycStatus = user?.data?.kyc_status || 'not_started'
+  const kycStatusLabel = {
+    approved: '✓ Verified',
+    pending: '⏳ Under review',
+    rejected: '✕ Needs attention',
+  }[kycStatus] || 'Not started'
+  const kycDone = kycStatus === 'approved'
+  const hasInvested = (portfolio?.investment_count || 0) > 0 || hasPending
+  const onboardingSteps = [
+    { key: 'verify', label: 'Verify your email', desc: 'Secures your account and turns on activity alerts.', done: emailVerified },
+    { key: 'kyc', label: 'Complete identity verification', desc: 'Required before funds can move. Takes about five minutes.', done: kycDone },
+    { key: 'fund', label: 'Make your first deposit', desc: 'Returns accrue daily — earlier capital earns more.', done: hasInvested },
+  ]
+  const onboardingRemaining = onboardingSteps.filter((s) => !s.done).length
+  const showOnboarding = !portfolioLoading && onboardingRemaining > 0
 
 
   return (
@@ -477,26 +513,130 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* PENDING DEPOSIT BANNER — visible on every screen until confirmed */}
+        {hasPending && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.32)', borderRadius: 14, padding: '13px 18px', marginBottom: 20 }}>
+            <span style={{ fontSize: 20, flex: 'none' }}>⏳</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>
+                ${money(pendingTotal)} pending confirmation
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                {pendingDeposits.length === 1 ? 'Your deposit is' : `Your ${pendingDeposits.length} deposits are`} with our team for review.
+                We&apos;ll email you the moment {pendingDeposits.length === 1 ? 'it is' : 'they are'} confirmed — no action needed from you.
+              </div>
+            </div>
+            <button type="button" onClick={() => goScreen('activity')}
+              style={{ flex: 'none', padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(245,158,11,.4)', background: 'transparent', color: '#b45309', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              View activity
+            </button>
+          </div>
+        )}
+
         {/* ── OVERVIEW ── */}
         {screen === 'overview' && (
           <section data-pane="overview">
+            {/* ONBOARDING CHECKLIST — mirrors the welcome email's three steps */}
+            {showOnboarding && (
+              <div style={{ ...card(26, 26), marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+                  <div style={{ minWidth: 220, flex: 1 }}>
+                    <div style={{ fontFamily: serif, fontSize: 21, color: 'var(--text)', marginBottom: 5 }}>Finish setting up your account</div>
+                    <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                      {onboardingRemaining === 1 ? 'One step left' : `${onboardingRemaining} steps left`} before your capital can start working.
+                      Returns accrue daily, so the sooner this is done the better.
+                    </div>
+                  </div>
+                  <div style={{ flex: 'none', textAlign: 'right' }}>
+                    <div style={{ fontFamily: serif, fontSize: 26, color: '#6d28d9', lineHeight: 1 }}>
+                      {onboardingSteps.length - onboardingRemaining}<span style={{ fontSize: 16, color: 'var(--text-3)' }}>/{onboardingSteps.length}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 3 }}>Complete</div>
+                  </div>
+                </div>
+
+                {/* progress bar */}
+                <div style={{ height: 5, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden', marginBottom: 20 }}>
+                  <div style={{ height: '100%', width: `${((onboardingSteps.length - onboardingRemaining) / onboardingSteps.length) * 100}%`, background: 'linear-gradient(90deg,#6d28d9,#c026d3)', borderRadius: 999, transition: 'width .5s cubic-bezier(.16,1,.3,1)' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {onboardingSteps.map((s) => (
+                    <div key={s.key}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: 13, padding: '13px 15px', borderRadius: 12, border: '1px solid var(--border)', background: s.done ? 'transparent' : 'var(--surface-2)', opacity: s.done ? 0.6 : 1 }}>
+                      <span style={{ flex: 'none', width: 22, height: 22, borderRadius: '50%', background: s.done ? '#16a34a' : 'transparent', border: s.done ? 'none' : '2px solid var(--border)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                        {s.done ? '✓' : ''}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textDecoration: s.done ? 'line-through' : 'none' }}>{s.label}</div>
+                        {!s.done && <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.5 }}>{s.desc}</div>}
+                      </div>
+                      {!s.done && s.key === 'verify' && (
+                        <button type="button" onClick={handleResendVerification} disabled={resendState === 'sending' || resendState === 'sent'}
+                          style={{ flex: 'none', padding: '8px 14px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: '#6d28d9', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                          {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? '✓ Sent' : 'Resend link'}
+                        </button>
+                      )}
+                      {!s.done && s.key === 'kyc' && (
+                        <button type="button" onClick={() => goScreen('settings')}
+                          style={{ flex: 'none', padding: '8px 14px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: '#6d28d9', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                          Start
+                        </button>
+                      )}
+                      {!s.done && s.key === 'fund' && (
+                        <button type="button" onClick={() => setModal('deposit')}
+                          style={{ flex: 'none', padding: '8px 14px', borderRadius: 9, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                          Deposit
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* EMPTY STATE — no investments yet */}
             {!portfolioLoading && (!portfolio || portfolio.investment_count === 0) && (
               <div style={{ ...card(40), textAlign: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: 46, marginBottom: 14 }}>🌱</div>
-                <div style={{ fontFamily: serif, fontSize: 28, color: 'var(--text)', marginBottom: 8 }}>Start your first investment</div>
-                <div style={{ fontSize: 14.5, color: 'var(--text-3)', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
-                  You don't have any active investments yet. Choose a plan, deposit from $5,000, and the Keelstone Trust team will put your capital to work.
+                <div style={{ fontSize: 46, marginBottom: 14 }}>{hasPending ? '⏳' : '🌱'}</div>
+                <div style={{ fontFamily: serif, fontSize: 28, color: 'var(--text)', marginBottom: 8 }}>
+                  {hasPending ? 'Your deposit is being confirmed' : 'Start your first investment'}
                 </div>
-                {portfolio?.deposits?.some((d) => d.status === 'pending') ? (
-                  <div style={{ display: 'inline-block', padding: '12px 20px', borderRadius: 12, background: 'rgba(245,158,11,.12)', color: '#b45309', fontSize: 14, fontWeight: 700 }}>
-                    ⏳ You have a deposit pending review — we'll activate it shortly.
+                <div style={{ fontSize: 14.5, color: 'var(--text-3)', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
+                  {hasPending
+                    ? <>We&apos;ve received your <b style={{ color: 'var(--text)' }}>${money(pendingTotal)}</b> deposit request and our team is verifying the transfer. As soon as it clears, your balance updates automatically and we&apos;ll send you an email.</>
+                    : <>You don&apos;t have any active investments yet. Choose a plan, send your deposit, and the Keelstone Trust team will put your capital to work.</>}
+                </div>
+                {hasPending ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 999, background: 'rgba(245,158,11,.12)', color: '#b45309', fontSize: 13.5, fontWeight: 700 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', animation: 'pulse 1.8s ease-in-out infinite' }} />
+                      Awaiting confirmation
+                    </div>
+                    <button type="button" onClick={() => setModal('deposit')} style={{ ...linkBtn(), fontSize: 13.5 }}>
+                      + Make another deposit
+                    </button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => setModal('deposit')} style={{ padding: '13px 26px', borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(109,40,217,.28)' }}>
-                    Choose a plan & invest →
+                    Choose a plan &amp; invest →
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* AVAILABLE BALANCE — approved funds not yet allocated to a plan */}
+            {!portfolioLoading && availableBalance > 0 && (
+              <div style={{ ...card(24), marginBottom: 20, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-3)', fontWeight: 600, marginBottom: 6 }}>Available balance</div>
+                  <div style={{ fontFamily: serif, fontSize: 32, color: 'var(--text)', lineHeight: 1 }}>${money(availableBalance)}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 8 }}>Confirmed and ready to invest — it isn&apos;t earning returns until you put it into a plan.</div>
+                </div>
+                <button type="button" onClick={() => setModal('deposit')}
+                  style={{ flex: 'none', padding: '12px 22px', borderRadius: 6, border: 'none', background: '#6d28d9', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Invest it →
+                </button>
               </div>
             )}
 
@@ -513,6 +653,21 @@ export default function Dashboard() {
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 999, background: 'rgba(34,197,94,.12)', color: '#16a34a', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>▲ {portfolio.return_pct}%</div>
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 8 }}>+${money(portfolio.total_earnings)} earnings · Capital invested: ${money(portfolio.total_principal)}</div>
+                        {(hasPending || availableBalance > 0) && (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                            {hasPending && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, background: 'rgba(245,158,11,.12)', color: '#b45309', fontSize: 12.5, fontWeight: 700 }}>
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', animation: 'pulse 1.8s ease-in-out infinite' }} />
+                                ${money(pendingTotal)} pending
+                              </span>
+                            )}
+                            {availableBalance > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, background: 'rgba(109,40,217,.1)', color: '#6d28d9', fontSize: 12.5, fontWeight: 700 }}>
+                                ${money(availableBalance)} available
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <canvas ref={areaRef} style={{ width: '100%', height: 230, marginTop: 10 }} />
@@ -606,10 +761,10 @@ export default function Dashboard() {
                         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div style={{ width: 34, height: 34, borderRadius: 6, background: `${col}18`, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 14, fontWeight: 800 }}>{isDep ? '↓' : '↑'}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>{isDep ? `Deposit · ${t.plan_name || 'Plan'}` : 'Withdrawal'}</div>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>{isDep ? `Deposit · ${t.plan_name || 'To balance'}` : 'Withdrawal'}</div>
                             <div style={{ fontSize: 11.5, color: 'var(--text-3)' }}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : ''} · <span style={{ color: col, fontWeight: 700, textTransform: 'capitalize' }}>{t.status}</span></div>
                           </div>
-                          <div style={{ fontSize: 13.5, fontWeight: 700, color: isDep ? '#16a34a' : 'var(--text)', textAlign: 'right', flex: 'none' }}>{isDep ? '+' : '−'}${money(t.amount || 0)}</div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: t.status === 'rejected' ? 'var(--text-3)' : isDep ? '#16a34a' : 'var(--text)', textAlign: 'right', flex: 'none', textDecoration: t.status === 'rejected' ? 'line-through' : 'none' }}>{isDep ? '+' : '−'}${money(t.amount || 0)}</div>
                         </div>
                       )
                     })}
@@ -775,11 +930,21 @@ export default function Dashboard() {
                         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 6px', borderBottom: '1px solid var(--border)' }}>
                           <div style={{ width: 42, height: 42, borderRadius: 12, background: `${col}1e`, color: col, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', fontSize: 18, fontWeight: 800 }}>{isDep ? '↓' : '↑'}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{isDep ? `Deposit · ${t.plan_name || 'Plan'}` : 'Withdrawal'}</div>
-                            <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>USDT BEP-20 · <span style={{ color: col, fontWeight: 700, textTransform: 'capitalize' }}>{t.status}</span></div>
+                            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>
+                              {isDep ? `Deposit · ${t.plan_name || 'To balance'}` : 'Withdrawal'}
+                            </div>
+                            <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>
+                              {(isDep ? (t.method || t.method_name) : 'Withdrawal') || 'Transfer'} · <span style={{ color: col, fontWeight: 700, textTransform: 'capitalize' }}>{t.status}</span>
+                              {t.status === 'pending' && isDep && ' — awaiting confirmation'}
+                            </div>
+                            {t.status === 'rejected' && t.admin_note && (
+                              <div style={{ fontSize: 12, color: '#ef4444', marginTop: 3 }}>{t.admin_note}</div>
+                            )}
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 14.5, fontWeight: 700, color: isDep ? '#16a34a' : 'var(--text)' }}>{isDep ? '+' : '−'}${money(t.amount || 0)}</div>
+                            <div style={{ fontSize: 14.5, fontWeight: 700, color: t.status === 'rejected' ? 'var(--text-3)' : isDep ? '#16a34a' : 'var(--text)', textDecoration: t.status === 'rejected' ? 'line-through' : 'none' }}>
+                              {isDep ? '+' : '−'}${money(t.amount || 0)}
+                            </div>
                             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</div>
                           </div>
                         </div>
@@ -900,8 +1065,8 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {[
                     ['Full name', fullName || '—'],
-                    ['Email', userEmail || '—'],
-                    ['KYC status', '✓ Verified'],
+                    ['Email', userEmail ? `${userEmail}${emailVerified ? ' · ✓ Verified' : ' · Unverified'}` : '—'],
+                    ['Identity verification (KYC)', kycStatusLabel],
                     ['Member since', user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'],
                   ].map(([k, v]) => (
                     <div key={k}>
@@ -920,96 +1085,233 @@ export default function Dashboard() {
                 <button type="button" onClick={handleSignOut} style={{ width: '100%', textDecoration: 'none', display: 'block', textAlign: 'center', marginTop: 22, padding: 13, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: '#ef4444', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
               </div>
             </div>
+
+            {/* IDENTITY VERIFICATION */}
+            <div id="kyc" style={{ ...card(26), marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div style={{ minWidth: 240, flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 5 }}>Identity verification (KYC)</div>
+                  <div style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                    Every investor completes a short identity check before funds can move. It is a
+                    regulatory requirement and it protects your account from misuse.
+                  </div>
+                </div>
+                <span style={{ flex: 'none', fontSize: 12, fontWeight: 800, padding: '6px 12px', borderRadius: 999, background: kycDone ? 'rgba(34,197,94,.12)' : kycStatus === 'pending' ? 'rgba(245,158,11,.12)' : 'var(--surface-2)', color: kycDone ? '#16a34a' : kycStatus === 'pending' ? '#b45309' : 'var(--text-3)' }}>
+                  {kycStatusLabel}
+                </span>
+              </div>
+
+              {!kycDone && (
+                <>
+                  <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10 }}>What you&apos;ll need</div>
+                    {[
+                      'A government-issued photo ID — passport, driving licence or national ID',
+                      'A recent proof of address dated within the last three months',
+                    ].map((t) => (
+                      <div key={t} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', marginBottom: 6 }}>
+                        <span style={{ flex: 'none', color: '#6d28d9', fontSize: 13, marginTop: 1 }}>•</span>
+                        <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.55 }}>{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <a href="mailto:contact@keelstone-trust.com?subject=Identity%20verification"
+                    style={{ display: 'inline-block', textDecoration: 'none', padding: '12px 22px', borderRadius: 8, background: '#6d28d9', color: '#fff', fontSize: 14, fontWeight: 700 }}>
+                    Start verification →
+                  </a>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 10, lineHeight: 1.55 }}>
+                    Secure document upload is being rolled out. In the meantime an advisor will
+                    verify you directly — email us and we&apos;ll take it from there, usually the same day.
+                  </div>
+                </>
+              )}
+            </div>
           </section>
         )}
       </main>
 
 
-      {/* DEPOSIT MODAL — USDT BEP-20 */}
+      {/* DEPOSIT MODAL — manual, admin-confirmed */}
       {modal === 'deposit' && (
         <Modal onClose={() => { setModal(null); resetDeposit() }}>
-          <ModalHeader title={depositStep === 'pay' ? 'Send USDT (BEP-20)' : 'Fund Portfolio'} onClose={() => { setModal(null); resetDeposit() }} />
+          <ModalHeader
+            title={depositStep === 'pay' ? `Send ${selectedMethod?.name || 'funds'}` : depositStep === 'done' ? 'Request submitted' : 'Fund Portfolio'}
+            onClose={() => { setModal(null); resetDeposit() }}
+          />
 
-          {/* STEP: success */}
+          {/* STEP: done — the request is filed and waiting on an admin */}
           {depositStep === 'done' ? (
-            <div style={{ textAlign: 'center', padding: '24px 0' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Payment confirmed</div>
-              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6 }}>Your USDT was received on-chain and your {selectedPlan?.name} investment is now active and earning returns.</div>
+            <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+              <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 10 }}>Deposit request submitted</div>
+              <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.65, marginBottom: 18 }}>
+                We&apos;ve told our team about your <b style={{ color: 'var(--text)' }}>${money(parseFloat(depositAmt.replace(/,/g, '')) || 0)}</b> {selectedMethod?.name} deposit.
+                It&apos;s showing as <b style={{ color: '#f59e0b' }}>pending</b> on your dashboard and will be credited
+                {depositPlan ? <> into <b style={{ color: 'var(--text)' }}>{depositPlan.name}</b></> : ' to your available balance'} as soon as we&apos;ve confirmed the funds arrived.
+              </div>
+              <div style={{ textAlign: 'left', background: 'var(--surface-2)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10 }}>What happens next</div>
+                {[
+                  ['1', 'Our team verifies the transfer arrived.'],
+                  ['2', 'You will get an email the moment it is confirmed.'],
+                  ['3', depositPlan ? 'Your investment starts earning immediately after that.' : 'The funds become available to invest.'],
+                ].map(([n, text]) => (
+                  <div key={n} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
+                    <span style={{ flex: 'none', width: 18, height: 18, borderRadius: '50%', background: '#6d28d9', color: '#fff', fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{n}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.55 }}>{text}</span>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => { setModal(null); resetDeposit() }} style={modalBtn()}>Back to my dashboard</button>
             </div>
           ) : depositStep === 'pay' ? (
-            /* STEP: pay — investor is sent to ChainFlow's hosted checkout */
+            /* STEP: pay — copy the wallet, send the funds, then confirm */
             <>
-              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-                <div style={{ fontSize: 42, marginBottom: 14 }}>🔗</div>
-                <div style={{ fontFamily: serif, fontSize: 22, color: 'var(--text)', marginBottom: 8 }}>Complete your payment</div>
-                <div style={{ fontSize: 14, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 20 }}>
-                  We opened a secure checkout for your <b style={{ color: 'var(--text)' }}>${money(parseFloat(depositAmt.replace(/,/g, '')) || 0)}</b> {selectedPlan?.name} deposit in a new tab. Pay USDT (BEP-20) there — your investment activates automatically once it confirms.
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-2)', borderRadius: 12, padding: '13px 16px', marginBottom: 18 }}>
+                <div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>You are sending</div>
+                  <div style={{ fontFamily: serif, fontSize: 24, color: 'var(--text)', marginTop: 2 }}>${money(parseFloat(depositAmt.replace(/,/g, '')) || 0)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Goes to</div>
+                  <div style={{ fontSize: 13.5, color: 'var(--text)', fontWeight: 700, marginTop: 4 }}>{depositPlan ? depositPlan.name : 'My balance'}</div>
                 </div>
               </div>
 
-              <a href={checkoutUrl} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', boxSizing: 'border-box', textDecoration: 'none', padding: 15, borderRadius: 14, background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
-                Open checkout ↗
-              </a>
-
-              <div style={{ display: 'flex', gap: 10, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 12, padding: '11px 14px', marginBottom: 18, fontSize: 12, color: '#b45309', lineHeight: 1.5 }}>
-                <span style={{ flex: 'none' }}>⚠️</span>
-                <span>Pay <b>USDT on BNB Smart Chain (BEP-20)</b> only. Using another token or network will result in permanent loss of funds.</span>
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+                Send exactly this amount to
               </div>
+              <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontFamily: serif, fontSize: 17, color: 'var(--text)' }}>{selectedMethod?.name}</span>
+                  {selectedMethod?.symbol && (
+                    <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: 'rgba(109,40,217,.12)', color: '#6d28d9', letterSpacing: '.06em' }}>{selectedMethod.symbol}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
+                  {selectedMethod?.wallet_address}
+                </div>
+                <button type="button" onClick={copyWallet}
+                  style={{ width: '100%', padding: 12, borderRadius: 10, border: 'none', background: copied ? '#16a34a' : '#6d28d9', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background .2s' }}>
+                  {copied ? '✓ Address copied' : '⧉ Copy wallet address'}
+                </button>
+              </div>
+
+              {selectedMethod?.network && (
+                <div style={{ display: 'flex', gap: 10, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 12, padding: '11px 14px', marginBottom: 14, fontSize: 12, color: '#b45309', lineHeight: 1.55 }}>
+                  <span style={{ flex: 'none' }}>⚠️</span>
+                  <span>Send <b>{selectedMethod.name}</b> on the <b>{selectedMethod.network}</b> network only. Funds sent on another network cannot be recovered.</span>
+                </div>
+              )}
+
+              {selectedMethod?.instructions && (
+                <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 14px', marginBottom: 16, fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                  {selectedMethod.instructions}
+                </div>
+              )}
+
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>
+                Transaction hash or reference <span style={{ fontWeight: 500 }}>(optional — helps us confirm faster)</span>
+              </div>
+              <input value={depositRef} onChange={(e) => setDepositRef(e.target.value)} placeholder="0x… or your exchange reference"
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '13px 14px', fontSize: 13, fontFamily: 'monospace', color: 'var(--text)', outline: 'none', marginBottom: 16, boxSizing: 'border-box' }} />
 
               {depositError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 14 }}>{depositError}</div>}
 
-              <button type="button" onClick={handleConfirmPayment} disabled={depositChecking} style={{ ...modalBtn(), opacity: depositChecking ? 0.75 : 1, cursor: depositChecking ? 'wait' : 'pointer' }}>
-                {depositChecking ? 'Confirming your payment…' : "I've completed payment"}
+              <button type="button" onClick={handleSubmitDeposit} disabled={depositSubmitting}
+                style={{ ...modalBtn(), opacity: depositSubmitting ? 0.75 : 1, cursor: depositSubmitting ? 'wait' : 'pointer' }}>
+                {depositSubmitting ? 'Submitting…' : 'I have made the deposit'}
               </button>
-              <button type="button" onClick={resetDeposit} style={{ width: '100%', marginTop: 10, padding: 12, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                ← Change plan or amount
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
+                Only tap this once you have actually sent the funds. Our team confirms every deposit by hand.
+              </div>
+              <button type="button" onClick={() => { setDepositStep('form'); setDepositError('') }}
+                style={{ width: '100%', marginTop: 10, padding: 12, borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ← Change amount or method
               </button>
             </>
           ) : (
-            /* STEP: form — choose plan + amount */
+            /* STEP: form — amount, destination, payment method */
             <>
-              <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
-                Choose a plan and amount, then send USDT (BEP-20). Your investment activates automatically once the transfer confirms on-chain.
-              </div>
-
-              {/* PLAN PICKER — uses plan card design */}
-              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Choose your plan</div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(availablePlans.length, 2)},1fr)`, gap: 8, marginBottom: 18 }}>
-                {availablePlans.map((p) => {
-                  const active = selectedPlan?.id === p.id
-                  const isPrivate = p.slug === 'private' || p.annual_return_pct === 0
-                  return (
-                    <button key={p.id} type="button" onClick={() => { setSelectedPlan(p); setDepositAmt((p.min_usd || 0).toLocaleString()) }}
-                      style={{ textAlign: 'left', padding: 0, border: `2px solid ${active ? '#6d28d9' : 'var(--border)'}`, background: active ? 'linear-gradient(135deg,#6d28d9,#c026d3)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', overflow: 'hidden', boxShadow: active ? '0 8px 24px rgba(109,40,217,.35)' : 'none' }}>
-                      <div style={{ height: 2, background: active ? 'rgba(255,255,255,.3)' : 'linear-gradient(90deg,#6d28d9,#c026d3)' }} />
-                      <div style={{ padding: '12px 14px' }}>
-                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: active ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginBottom: 4 }}>{p.risk} risk</div>
-                        <div style={{ fontFamily: serif, fontSize: 14, color: active ? '#fff' : 'var(--text)', marginBottom: 6 }}>{p.name}</div>
-                        <div style={{ fontFamily: serif, fontSize: 22, color: active ? '#fff' : '#6d28d9', lineHeight: 1 }}>{isPrivate ? 'Custom' : `${p.annual_return_pct}%`}</div>
-                        {!isPrivate && <div style={{ fontSize: 10, fontWeight: 700, color: active ? 'rgba(255,255,255,.6)' : 'var(--text-3)', marginTop: 2 }}>p.a. · Min ${(p.min_usd || 0).toLocaleString()}</div>}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USDT)</div>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+              {/* AMOUNT */}
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USD)</div>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
                 <span style={{ fontFamily: serif, fontSize: 26, color: 'var(--text-3)' }}>$</span>
-                <input value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)' }}>USDT</span>
+                <input value={depositAmt} onChange={(e) => setDepositAmt(e.target.value)} inputMode="decimal"
+                  style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 26, color: 'var(--text)', width: '100%', marginLeft: 4 }} />
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 {[['10,000', '$10k'], ['25,000', '$25k'], ['50,000', '$50k'], ['100,000', '$100k']].map(([v, l]) => (
-                  <button key={v} type="button" onClick={() => setDepositAmt(v)} style={{ flex: 1, padding: 9, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{l}</button>
+                  <button key={v} type="button" onClick={() => setDepositAmt(v)}
+                    style={{ flex: 1, padding: 9, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{l}</button>
                 ))}
               </div>
 
+              {/* DESTINATION — a plan, or just the balance */}
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 10 }}>Where should it go?</div>
+              <button type="button" onClick={() => setDepositPlanId(null)}
+                style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 15px', borderRadius: 12, marginBottom: 8, border: `2px solid ${depositPlanId === null ? '#6d28d9' : 'var(--border)'}`, background: depositPlanId === null ? 'rgba(109,40,217,.08)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <span style={{ flex: 'none', width: 18, height: 18, borderRadius: '50%', border: `2px solid ${depositPlanId === null ? '#6d28d9' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {depositPlanId === null && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6d28d9' }} />}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>My available balance</span>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Hold it in your account and choose a plan later.</span>
+                </span>
+              </button>
+
+              {availablePlans.map((p) => {
+                const on = depositPlanId === p.id
+                const isPrivate = p.slug === 'private' || p.annual_return_pct === 0
+                return (
+                  <button key={p.id} type="button" onClick={() => { setDepositPlanId(p.id); if (p.min_usd) setDepositAmt((p.min_usd).toLocaleString()) }}
+                    style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 15px', borderRadius: 12, marginBottom: 8, border: `2px solid ${on ? '#6d28d9' : 'var(--border)'}`, background: on ? 'rgba(109,40,217,.08)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <span style={{ flex: 'none', width: 18, height: 18, borderRadius: '50%', border: `2px solid ${on ? '#6d28d9' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {on && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6d28d9' }} />}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{p.name}</span>
+                      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
+                        {isPrivate ? 'Custom return' : `${p.annual_return_pct}% p.a.`}{p.min_usd > 0 && ` · Min $${p.min_usd.toLocaleString()}`}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+
+              {/* PAYMENT METHOD */}
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', margin: '18px 0 10px' }}>How are you paying?</div>
+              {methodsLoading ? (
+                <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '16px', fontSize: 13.5, color: 'var(--text-3)', textAlign: 'center', marginBottom: 16 }}>
+                  Loading payment methods…
+                </div>
+              ) : depositMethods.length === 0 ? (
+                <div style={{ display: 'flex', gap: 10, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 12, padding: '13px 15px', marginBottom: 16, fontSize: 12.5, color: '#b45309', lineHeight: 1.55 }}>
+                  <span style={{ flex: 'none' }}>⚠️</span>
+                  <span>No deposit methods are available right now. Please contact your advisor and we will set one up for you.</span>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8, marginBottom: 18 }}>
+                  {depositMethods.map((m) => {
+                    const on = selectedMethod?.id === m.id
+                    return (
+                      <button key={m.id} type="button" onClick={() => setSelectedMethod(m)}
+                        style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 12, border: `2px solid ${on ? '#6d28d9' : 'var(--border)'}`, background: on ? 'linear-gradient(135deg,#6d28d9,#c026d3)' : 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: on ? '#fff' : 'var(--text)' }}>{m.name}</div>
+                        <div style={{ fontSize: 11, color: on ? 'rgba(255,255,255,.7)' : 'var(--text-3)', marginTop: 3 }}>
+                          {m.symbol || m.network || 'Tap to select'}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
               {depositError && <div style={{ background: '#fff5f5', border: '1px solid #f6cccc', color: '#b91c1c', fontSize: 12.5, fontWeight: 600, padding: '10px 14px', borderRadius: 10, marginBottom: 16 }}>{depositError}</div>}
-              <button type="button" onClick={handleGenerateAddress} disabled={depositGenerating} style={{ ...modalBtn(), opacity: depositGenerating ? 0.7 : 1, cursor: depositGenerating ? 'wait' : 'pointer' }}>
-                {depositGenerating ? 'Preparing…' : 'Continue to payment →'}
+
+              <button type="button" onClick={handleContinueToPay} disabled={depositMethods.length === 0}
+                style={{ ...modalBtn(), opacity: depositMethods.length === 0 ? 0.5 : 1, cursor: depositMethods.length === 0 ? 'not-allowed' : 'pointer' }}>
+                Continue →
               </button>
             </>
           )}
@@ -1031,9 +1333,16 @@ export default function Dashboard() {
               <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6 }}>
                 Withdrawals are paid in <b style={{ color: 'var(--text)' }}>USDT on the BNB Smart Chain (BEP-20)</b> to your wallet, after team review.
               </div>
-              <div style={{ background: 'var(--surface-2)', borderRadius: 14, padding: 16, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Available to withdraw</span>
-                <span style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)' }}>${money(portfolio?.total_value || 0)}</span>
+              <div style={{ background: 'var(--surface-2)', borderRadius: 14, padding: 16, marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Available to withdraw</span>
+                  <span style={{ fontFamily: serif, fontSize: 20, color: 'var(--text)' }}>${money((portfolio?.total_value || 0) + availableBalance)}</span>
+                </div>
+                {hasPending && (
+                  <div style={{ fontSize: 11.5, color: '#b45309', marginTop: 8, lineHeight: 1.5 }}>
+                    ${money(pendingTotal)} of your deposits is still pending confirmation and isn&apos;t included here yet.
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>Amount (USDT)</div>
               <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>

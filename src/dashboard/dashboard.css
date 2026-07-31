@@ -13,3 +13,6 @@
   --primary-glow: rgba(109,40,217,.28);
 }
 [data-pane] { animation: paneIn .5s cubic-bezier(.16,1,.3,1); }
+
+/* Pending-deposit indicator dot */
+@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .45; transform: scale(.82) } }

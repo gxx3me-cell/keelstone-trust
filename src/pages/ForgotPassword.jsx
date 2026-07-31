@@ -26,7 +26,13 @@ export default function ForgotPassword() {
     if (!email) { setError('Please enter your email address.'); return }
     setSubmitting(true)
     try {
-      await db.auth.requestPasswordReset(email)
+      // Our own cloud function — issues the token and sends the branded email.
+      // CocoBase's built-in forgot-password is not used (it sends its own email
+      // and never returns the token to us).
+      await db.functions.execute('request_password_reset', {
+        payload: { email },
+        method: 'POST',
+      })
       setDone(true)
     } catch (err) {
       // Always show success even on error to avoid email enumeration

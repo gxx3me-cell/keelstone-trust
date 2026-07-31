@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { db } from '../lib/cocobase'
-import { sendPayout, getBalance } from '../lib/chainflow'
+import { listAllDepositMethods, saveDepositMethod, deleteDepositMethod } from '../lib/deposits'
 import { useAuth } from '../hooks/useAuth'
 import BrandSplash from '../components/BrandSplash'
 
@@ -69,11 +69,17 @@ const NAV = [
   ['overview', 'Overview'],
   ['investors', 'Investors'],
   ['deposits', 'Deposits'],
+  ['methods', 'Deposit Methods'],
   ['withdrawals', 'Withdrawals'],
   ['plans', 'Plans'],
   ['portfolio', 'Portfolio Mgmt'],
   ['messages', 'Messages'],
 ]
+
+const BLANK_METHOD = {
+  name: '', symbol: '', network: '', wallet_address: '',
+  instructions: '', min_amount: 0, active: true, sort_order: 0,
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -104,39 +110,70 @@ export default function AdminDashboard() {
   const [fundAmount, setFundAmount] = useState('')
   const [fundPlanId, setFundPlanId] = useState('')
   const [fundBusy, setFundBusy] = useState(false)
-  // ChainFlow balance + payout
-  const [balance, setBalance] = useState(null)
-  const [balanceLoading, setBalanceLoading] = useState(false)
-  const [payoutForm, setPayoutForm] = useState({ to: '', amount: '', token: 'USDT', source: 'master' })
-  const [payoutBusy, setPayoutBusy] = useState(false)
+  // Deposit methods (the wallets investors send funds to)
+  const [methods, setMethods] = useState([])
+  const [editingMethod, setEditingMethod] = useState(null)
+  const [methodSaving, setMethodSaving] = useState(false)
+  const [methodBusy, setMethodBusy] = useState(null)
+  const [copiedAddr, setCopiedAddr] = useState('')
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
 
-  const loadBalance = async () => {
-    setBalanceLoading(true)
+  const loadMethods = useCallback(async () => {
     try {
-      const b = await getBalance()
-      setBalance(b)
+      setMethods(await listAllDepositMethods())
     } catch {
-      setBalance(null)
+      setMethods([])
     }
-    setBalanceLoading(false)
+  }, [])
+
+  const saveMethod = async () => {
+    if (!editingMethod) return
+    if (!editingMethod.name?.trim()) { showToast('Give the method a name (e.g. Bitcoin)'); return }
+    if (!editingMethod.wallet_address?.trim()) { showToast('A wallet address is required'); return }
+    setMethodSaving(true)
+    try {
+      await saveDepositMethod({
+        id: editingMethod.id,
+        name: editingMethod.name.trim(),
+        symbol: (editingMethod.symbol || '').trim(),
+        network: (editingMethod.network || '').trim(),
+        wallet_address: editingMethod.wallet_address.trim(),
+        instructions: (editingMethod.instructions || '').trim(),
+        min_amount: Number(editingMethod.min_amount) || 0,
+        active: editingMethod.active !== false,
+        sort_order: Number(editingMethod.sort_order) || methods.length + 1,
+      })
+      showToast(editingMethod.id ? 'Deposit method updated' : 'Deposit method added')
+      setEditingMethod(null)
+      await loadMethods()
+    } catch (err) {
+      showToast(err?.message || 'Could not save the deposit method')
+    }
+    setMethodSaving(false)
   }
 
-  const handlePayout = async () => {
-    const amt = parseFloat(String(payoutForm.amount).replace(/,/g, ''))
-    if (!/^0x[a-fA-F0-9]{40}$/.test(payoutForm.to.trim())) { showToast('Enter a valid BEP-20 (0x…) address'); return }
-    if (!amt || amt <= 0) { showToast('Enter a valid amount'); return }
-    setPayoutBusy(true)
+  const removeMethod = async (m) => {
+    if (!window.confirm(`Delete "${m.name}"? Investors will no longer be able to deposit with it.`)) return
+    setMethodBusy(m.id)
     try {
-      const res = await sendPayout({ toAddress: payoutForm.to.trim(), amount: amt, token: payoutForm.token, source: payoutForm.source })
-      showToast(res?.tx_hash ? `Payout sent · ${res.tx_hash.slice(0, 12)}…` : 'Payout sent')
-      setPayoutForm((f) => ({ ...f, to: '', amount: '' }))
-      loadBalance()
+      await deleteDepositMethod(m.id)
+      showToast('Deposit method deleted')
+      await loadMethods()
     } catch (err) {
-      showToast(err?.message || 'Payout failed')
+      showToast(err?.message || 'Could not delete the deposit method')
     }
-    setPayoutBusy(false)
+    setMethodBusy(null)
+  }
+
+  const copyAddress = async (addr) => {
+    try {
+      await navigator.clipboard.writeText(addr)
+      setCopiedAddr(addr)
+      setTimeout(() => setCopiedAddr(''), 2000)
+    } catch {
+      showToast('Could not copy — select the address and copy manually')
+    }
   }
 
   const loadAll = useCallback(async () => {
@@ -220,7 +257,7 @@ export default function AdminDashboard() {
     if (!fundPlanId) { showToast('Select a plan'); return }
     setFundBusy(true)
     try {
-      const res = await db.functions.execute('admin-fund', {
+      const res = await db.functions.execute('admin_fund', {
         payload: {
           action: 'fund',
           user_id: managing.id,
@@ -245,7 +282,7 @@ export default function AdminDashboard() {
   const handleDefund = async (investmentId) => {
     setFundBusy(true)
     try {
-      const res = await db.functions.execute('admin-fund', {
+      const res = await db.functions.execute('admin_fund', {
         payload: { action: 'defund', investment_id: investmentId },
         method: 'POST',
       })
@@ -271,7 +308,7 @@ export default function AdminDashboard() {
     if (!replyBody.trim()) { showToast('Write a reply first'); return }
     setReplyBusy(true)
     try {
-      const res = await db.functions.execute('support-email', {
+      const res = await db.functions.execute('support_email', {
         payload: {
           action: 'reply',
           message_id: activeMsg.id,
@@ -300,7 +337,7 @@ export default function AdminDashboard() {
     if (!compose.body.trim()) { showToast('Write a message'); return }
     setComposeBusy(true)
     try {
-      const res = await db.functions.execute('support-email', {
+      const res = await db.functions.execute('support_email', {
         payload: { action: 'send', to_email: to, subject: compose.subject, body: compose.body },
         method: 'POST',
       })
@@ -355,27 +392,21 @@ export default function AdminDashboard() {
     : []
 
   useEffect(() => {
-    if (!loading && isAdmin) { loadAll(); loadBalance() }
-  }, [loading, isAdmin, loadAll])
+    if (!loading && isAdmin) { loadAll(); loadMethods() }
+  }, [loading, isAdmin, loadAll, loadMethods])
 
   const handleAction = async (type, recordId, action, note = '') => {
+    // Approving a withdrawal only marks it paid — send the funds by hand first.
+    if (type === 'withdrawal' && action === 'approve') {
+      const d = withdrawals.find((w) => w.id === recordId)?.data || {}
+      const ok = window.confirm(
+        `Confirm you have already sent $${parseFloat(d.amount || 0).toLocaleString()} to:\n\n${d.bank_details || '(no address on file)'}\n\nApproving only records the payout — it does not move any funds.`
+      )
+      if (!ok) return
+    }
     setActionLoading(recordId)
     try {
-      // For an approved withdrawal, send the USDT via ChainFlow FIRST.
-      // Only mark approved in CocoBase if the payout succeeds.
-      if (type === 'withdrawal' && action === 'approve') {
-        const rec = withdrawals.find((w) => w.id === recordId)
-        const d = rec?.data || {}
-        const toAddress = d.bank_details
-        const amount = Number(d.amount || 0)
-        if (!/^0x[a-fA-F0-9]{40}$/.test(toAddress || '')) {
-          throw new Error('This withdrawal has no valid BEP-20 address on file.')
-        }
-        const sent = await sendPayout({ toAddress, amount })
-        const txHash = sent?.tx_hash ? `Sent via ChainFlow: ${sent.tx_hash}` : ''
-        note = [note, txHash].filter(Boolean).join(' · ')
-      }
-      await db.functions.execute('admin-action', {
+      await db.functions.execute('admin_action', {
         payload: { type, record_id: recordId, action, note },
         method: 'POST',
       })
@@ -465,66 +496,38 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {/* ChainFlow balance + payout */}
+            {/* Deposit methods at a glance */}
             <div style={{ ...card(24), marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>ChainFlow balance</div>
-                <button type="button" onClick={loadBalance} disabled={balanceLoading}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Deposit methods</div>
+                  <div style={{ fontSize: 12.5, color: C.muted, marginTop: 2 }}>The wallets investors are told to send funds to.</div>
+                </div>
+                <button type="button" onClick={() => setScreen('methods')}
                   style={{ border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {balanceLoading ? 'Refreshing…' : '↻ Refresh'}
+                  Manage →
                 </button>
               </div>
 
-              {!balance ? (
-                <div style={{ fontSize: 13.5, color: C.muted }}>{balanceLoading ? 'Loading…' : 'Balance unavailable.'}</div>
-              ) : !balance.payouts_enabled ? (
+              {methods.length === 0 ? (
                 <div style={{ display: 'flex', gap: 10, background: 'rgba(243,186,47,.08)', border: '1px solid rgba(243,186,47,.3)', borderRadius: 12, padding: '13px 16px', fontSize: 13.5, color: '#8a6d1f', lineHeight: 1.55 }}>
                   <span style={{ flex: 'none' }}>⚠️</span>
-                  <span>Payouts aren't activated for this project yet. Turn them on in the ChainFlow dashboard → <b>Balances &amp; Payouts</b> to see your balance and send payouts.</span>
+                  <span>No deposit methods yet — <b>investors cannot deposit</b> until you add at least one. Go to <b>Deposit Methods</b> and add a wallet.</span>
                 </div>
               ) : (
-                <>
-                  {balance.master_address && (
-                    <a href={`https://bscscan.com/address/${balance.master_address}`} target="_blank" rel="noreferrer"
-                      style={{ fontSize: 11.5, color: C.primary, fontFamily: 'monospace', textDecoration: 'none', display: 'inline-block', marginBottom: 14 }}>
-                      Master wallet: {balance.master_address} ↗
-                    </a>
-                  )}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 4 }}>
-                    {(balance.balances || []).length === 0 ? (
-                      <div style={{ fontSize: 13.5, color: C.muted }}>No balances yet.</div>
-                    ) : balance.balances.map((b) => (
-                      <div key={b.token} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, marginBottom: 6 }}>{b.token}</div>
-                        <div style={{ fontFamily: serif, fontSize: 22, color: C.ink }}>{b.total ?? b.master_balance}</div>
-                        <div style={{ fontSize: 11.5, color: C.muted, marginTop: 4 }}>
-                          Master {b.master_balance} · ChainFlow {b.chainflow_balance ?? '0'}
-                        </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+                  {methods.map((m) => (
+                    <div key={m.id} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px', opacity: m.active ? 1 : 0.55 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, color: C.ink, fontWeight: 700 }}>{m.name}</span>
+                        {m.symbol && <span style={{ fontSize: 10.5, fontWeight: 800, color: C.primary }}>{m.symbol}</span>}
+                        {!m.active && <span style={{ fontSize: 10, fontWeight: 800, color: C.red, textTransform: 'uppercase' }}>Hidden</span>}
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Send payout */}
-                  <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 18, paddingTop: 18 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Send a payout</div>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'stretch' }}>
-                      <input value={payoutForm.to} onChange={(e) => setPayoutForm((f) => ({ ...f, to: e.target.value }))} placeholder="0x… destination address"
-                        style={{ flex: '2 1 240px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13.5, fontFamily: 'monospace', outline: 'none', color: C.ink, background: '#faf7ff' }} />
-                      <input value={payoutForm.amount} onChange={(e) => setPayoutForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Amount"
-                        style={{ flex: '1 1 110px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff' }} />
-                      <select value={payoutForm.source} onChange={(e) => setPayoutForm((f) => ({ ...f, source: e.target.value }))}
-                        style={{ flex: '1 1 130px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff' }}>
-                        <option value="master">From master wallet</option>
-                        <option value="chainflow">From ChainFlow balance</option>
-                      </select>
-                      <button type="button" onClick={handlePayout} disabled={payoutBusy}
-                        style={{ flex: '0 0 auto', padding: '11px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: payoutBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: payoutBusy ? 0.7 : 1 }}>
-                        {payoutBusy ? 'Sending…' : 'Send payout'}
-                      </button>
+                      {m.network && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>{m.network}</div>}
+                      <div style={{ fontSize: 11, color: C.body, fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>{m.wallet_address}</div>
                     </div>
-                    <div style={{ fontSize: 11.5, color: C.muted, marginTop: 8 }}>Sends USDT (BEP-20). Payouts are free — the 0.4% fee is only taken when a payment is swept.</div>
-                  </div>
-                </>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -611,6 +614,71 @@ export default function AdminDashboard() {
                   <div>Investor</div><div>Amount</div><div>Method</div><div>Status</div><div>Actions</div>
                 </div>
                 <RequestRows items={deposits} type="deposit" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} showAll />
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── DEPOSIT METHODS ── */}
+        {screen === 'methods' && (
+          <section>
+            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Deposit methods</h1>
+                <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>The wallets investors send funds to. Anything active here appears in their deposit screen immediately.</p>
+              </div>
+              <button type="button" onClick={() => setEditingMethod({ ...BLANK_METHOD, sort_order: methods.length + 1 })}
+                style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                + Add method
+              </button>
+            </div>
+
+            {methods.length === 0 ? (
+              <div style={{ ...card(36), textAlign: 'center' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
+                <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 6 }}>No deposit methods yet</div>
+                <div style={{ fontSize: 14, color: C.muted, maxWidth: 440, margin: '0 auto 20px', lineHeight: 1.6 }}>
+                  Investors can't deposit until you add at least one. Add the coin or currency name and the wallet address they should send to.
+                </div>
+                <button type="button" onClick={() => setEditingMethod({ ...BLANK_METHOD, sort_order: 1 })}
+                  style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Add your first method
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {methods.map((m) => (
+                  <div key={m.id} style={{ ...card(20), opacity: m.active ? 1 : 0.6 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 240 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{m.name}</span>
+                          {m.symbol && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: 'rgba(109,40,217,.1)', color: C.primary, letterSpacing: '.06em' }}>{m.symbol}</span>}
+                          {!m.active && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: '#fef2f2', color: C.red, textTransform: 'uppercase', letterSpacing: '.06em' }}>Hidden</span>}
+                        </div>
+                        {m.network && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Network: <b style={{ color: C.body }}>{m.network}</b>{m.min_amount > 0 && <> · Min ${Number(m.min_amount).toLocaleString()}</>}</div>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', marginBottom: m.instructions ? 10 : 0 }}>
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.body, fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>{m.wallet_address}</span>
+                          <button type="button" onClick={() => copyAddress(m.wallet_address)}
+                            style={{ flex: 'none', padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: copiedAddr === m.wallet_address ? C.green : C.primary, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {copiedAddr === m.wallet_address ? '✓ Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        {m.instructions && <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.6 }}>{m.instructions}</div>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
+                        <button type="button" onClick={() => setEditingMethod({ ...m })}
+                          style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => removeMethod(m)} disabled={methodBusy === m.id}
+                          style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${C.border}`, background: '#fef2f2', color: C.red, fontSize: 13.5, fontWeight: 700, cursor: methodBusy === m.id ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                          {methodBusy === m.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -847,6 +915,60 @@ export default function AdminDashboard() {
 
       </main>
 
+      {/* ── ADD / EDIT DEPOSIT METHOD ── */}
+      {editingMethod && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={() => setEditingMethod(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
+          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>
+              {editingMethod.id ? `Edit — ${editingMethod.name}` : 'New deposit method'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                { key: 'name', label: 'Name', placeholder: 'Bitcoin', type: 'text' },
+                { key: 'symbol', label: 'Symbol', placeholder: 'BTC', type: 'text' },
+                { key: 'network', label: 'Network / chain', placeholder: 'Bitcoin mainnet', type: 'text' },
+                { key: 'wallet_address', label: 'Wallet address', placeholder: 'bc1q…', type: 'text', mono: true },
+                { key: 'min_amount', label: 'Minimum deposit (0 = none)', placeholder: '0', type: 'number' },
+              ].map(({ key, label, placeholder, type, mono }) => (
+                <label key={key} style={{ display: 'block' }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+                  <input
+                    type={type} value={editingMethod[key] ?? ''} placeholder={placeholder}
+                    onChange={(e) => setEditingMethod((m) => ({ ...m, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: mono ? 13 : 14, fontFamily: mono ? 'monospace' : 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', boxSizing: 'border-box' }}
+                  />
+                </label>
+              ))}
+              <label style={{ display: 'block' }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>Instructions for the investor</div>
+                <textarea
+                  value={editingMethod.instructions ?? ''} rows={3}
+                  placeholder="e.g. Send only BTC on the Bitcoin network. Deposits confirm after 3 blocks."
+                  onChange={(e) => setEditingMethod((m) => ({ ...m, instructions: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.body, cursor: 'pointer' }}>
+                <input type="checkbox" checked={editingMethod.active !== false} onChange={(e) => setEditingMethod((m) => ({ ...m, active: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+                Active (investors can deposit with this method)
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+              <button type="button" onClick={saveMethod} disabled={methodSaving}
+                style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: methodSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: methodSaving ? 0.7 : 1 }}>
+                {methodSaving ? 'Saving…' : editingMethod.id ? 'Save changes' : 'Add method'}
+              </button>
+              <button type="button" onClick={() => setEditingMethod(null)}
+                style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── FUND / DEFUND MANAGER ── */}
       {managing && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -1021,18 +1143,30 @@ function RequestRows({ items, type, actionLoading, onAction, actionNote, setActi
               <div style={{ fontSize: 14, fontWeight: 700, color: '#221a33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user_name || d.user_email || '—'}</div>
               <div style={{ fontSize: 12, color: '#a89cc4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user_email}</div>
             </div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#221a33' }}>${parseFloat(d.amount || 0).toLocaleString()}</div>
+            <div>
+              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#221a33' }}>${parseFloat(d.amount || 0).toLocaleString()}</div>
+              {type === 'deposit' && (
+                <div style={{ fontSize: 11, color: d.plan_name ? '#6d28d9' : '#a89cc4', fontWeight: 700, marginTop: 2 }}>
+                  {d.plan_name || 'To balance'}
+                </div>
+              )}
+            </div>
             <div style={{ fontSize: 12, color: '#5b5172', minWidth: 0 }}>
+              {type === 'deposit' && <div style={{ fontWeight: 700, color: '#221a33', marginBottom: 2 }}>{d.method || '—'}</div>}
               {d.tx_hash ? (
                 <a href={`https://bscscan.com/tx/${d.tx_hash}`} target="_blank" rel="noreferrer" style={{ color: '#6d28d9', fontWeight: 700, fontFamily: 'monospace', textDecoration: 'none' }}>
                   {d.tx_hash.slice(0, 8)}…{d.tx_hash.slice(-6)} ↗
                 </a>
+              ) : d.reference ? (
+                <span style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{String(d.reference).slice(0, 22)}{String(d.reference).length > 22 ? '…' : ''}</span>
               ) : type === 'withdrawal' && d.bank_details ? (
                 <a href={`https://bscscan.com/address/${d.bank_details}`} target="_blank" rel="noreferrer" style={{ color: '#5b5172', fontFamily: 'monospace', textDecoration: 'none', wordBreak: 'break-all' }}>
                   {String(d.bank_details).slice(0, 10)}…{String(d.bank_details).slice(-6)}
                 </a>
+              ) : type === 'deposit' ? (
+                <span style={{ color: '#a89cc4' }}>No reference given</span>
               ) : (
-                <span style={{ fontFamily: 'monospace' }}>{d.method === 'usdt_bep20' ? 'USDT BEP-20' : (d.method || '—')}</span>
+                <span style={{ fontFamily: 'monospace' }}>{d.method || '—'}</span>
               )}
             </div>
             <div><StatusBadge status={d.status || 'pending'} /></div>
