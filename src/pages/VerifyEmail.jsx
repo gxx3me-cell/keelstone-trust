@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAnim } from '../hooks/useReveal'
-import { db } from '../lib/cocobase'
+import { supabase } from '../lib/supabase'
 import { ArrowRight, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
@@ -11,20 +11,6 @@ const C = {
 }
 const RAD = 8
 
-// Pull the token from the query string or hash, tolerating a few param names.
-function readToken() {
-  try {
-    const search = new URLSearchParams(window.location.search)
-    const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
-    return (
-      search.get('token') || search.get('t') || search.get('code') ||
-      hash.get('token') || hash.get('t') || hash.get('code') || ''
-    )
-  } catch {
-    return ''
-  }
-}
-
 export default function VerifyEmail() {
   const rootRef = useRef(null)
   const navigate = useNavigate()
@@ -32,26 +18,34 @@ export default function VerifyEmail() {
   const [message, setMessage] = useState('')
   useAnim(rootRef)
 
+  // Supabase's client is created with detectSessionInUrl, so by the time this
+  // mounts the SDK has already exchanged the token in the URL for a session.
+  // We only need to report the outcome — there is no token to verify by hand.
   useEffect(() => {
-    const token = readToken()
-    if (!token) {
-      setStatus('error')
-      setMessage('This verification link is missing its token. Please use the link from your email, or request a new one.')
-      return
-    }
     let active = true
-    db.auth
-      .verifyEmail(token)
-      .then(() => {
-        if (!active) return
+
+    const settle = (session) => {
+      if (!active) return
+      if (session?.user) {
         setStatus('success')
-      })
-      .catch((err) => {
-        if (!active) return
+      } else {
         setStatus('error')
-        setMessage(err?.message || 'This verification link is invalid or has expired.')
-      })
-    return () => { active = false }
+        setMessage('This verification link is invalid or has expired. Request a new one from your dashboard.')
+      }
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      // A confirmation link that has just been consumed produces a session
+      // immediately; give the SDK a beat if the URL is still being processed.
+      if (data.session) return settle(data.session)
+      setTimeout(() => supabase.auth.getSession().then(({ data: d2 }) => settle(d2.session)), 1200)
+    })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) settle(session)
+    })
+
+    return () => { active = false; sub.subscription.unsubscribe() }
   }, [])
 
   return (

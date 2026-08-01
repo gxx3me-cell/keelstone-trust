@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
-import { db } from '../lib/cocobase'
+import { supabase } from '../lib/supabase'
 import { ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
@@ -59,6 +59,8 @@ export default function Signup() {
   const [agreed, setAgreed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false)
+  const [resent, setResent] = useState(false)
   useAnim(rootRef)
 
   const score = scorePassword(pw)
@@ -71,14 +73,30 @@ export default function Signup() {
     if (!agreed) { setError('Please agree to the Terms & Privacy Policy.'); return }
     setSubmitting(true)
     try {
-      await db.auth.register({
-        email, password: pw,
-        data: { first_name: firstName, last_name: lastName, full_name: `${firstName} ${lastName}`.trim() },
+      // `options.data` lands in raw_user_meta_data, which the handle_new_user
+      // trigger reads to populate the profiles row.
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: pw,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            full_name: `${firstName} ${lastName}`.trim(),
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
       })
-      // Verification + welcome email are fire-and-forget — a mail failure must
-      // never block someone from getting into their new account.
-      db.auth.requestEmailVerification().catch(() => {})
-      db.functions.execute('send_welcome_email', { payload: {}, method: 'POST' }).catch(() => {})
+      // supabase-js returns errors rather than throwing.
+      if (signUpError) throw signUpError
+
+      // Welcome email is fire-and-forget — a mail failure must never block
+      // someone from getting into their new account.
+      supabase.functions.invoke('send-welcome-email').catch(() => {})
+
+      // With email confirmation enabled, signUp returns a user but NO session.
+      // Navigating to /dashboard here would bounce straight back to /login.
+      if (!data.session) { setAwaitingConfirm(true); return }
       navigate('/dashboard')
     } catch (err) {
       setError(err?.message || 'Could not create your account. Please try again.')
@@ -102,6 +120,45 @@ export default function Signup() {
             </div>
           </Link>
 
+          {awaitingConfirm ? (
+            <>
+              <div style={{ fontSize: 42, marginBottom: 16 }}>✉️</div>
+              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 31, margin: '0 0 10px', color: C.ink }}>Confirm your email</h2>
+              <p style={{ fontSize: 15, color: C.body, lineHeight: 1.65, margin: '0 0 8px' }}>
+                We sent a confirmation link to <strong style={{ color: C.ink }}>{email}</strong>.
+                Click it to activate your account and sign in.
+              </p>
+              <p style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: '0 0 26px' }}>
+                Nothing in your inbox after a minute or two? Check your spam folder —
+                confirmation emails occasionally land there.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setError('')
+                    const { error: resendError } = await supabase.auth.resend({ type: 'signup', email })
+                    setError(resendError ? resendError.message : '')
+                    if (!resendError) setResent(true)
+                  }}
+                  disabled={resent}
+                  style={{ padding: '13px 22px', border: `1px solid ${C.line}`, background: resent ? C.surface : '#fff', color: resent ? C.muted : C.ink, fontSize: 14, fontWeight: 700, cursor: resent ? 'default' : 'pointer', fontFamily: 'inherit', borderRadius: RAD }}
+                >
+                  {resent ? '✓ Link resent' : 'Resend link'}
+                </button>
+                <Link
+                  to="/login"
+                  style={{ padding: '13px 22px', background: C.ink, color: '#fff', fontSize: 14, fontWeight: 700, textDecoration: 'none', borderRadius: RAD, display: 'inline-flex', alignItems: 'center' }}
+                >
+                  Go to sign in
+                </Link>
+              </div>
+              {error && (
+                <div style={{ marginTop: 16, fontSize: 13, color: '#b91c1c', background: '#fff5f5', border: '1px solid #f6cccc', padding: '10px 14px' }}>{error}</div>
+              )}
+            </>
+          ) : (
+          <>
           <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Open your account</div>
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Begin your investment</h2>
           <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px' }}>Already a client? <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Sign in</Link></p>
@@ -148,6 +205,8 @@ export default function Signup() {
               {submitting ? 'Creating account…' : <>Open my Keelstone Trust account <ArrowRight size={16} weight="bold" /></>}
             </button>
           </form>
+          </>
+          )}
         </div>
       </div>
 

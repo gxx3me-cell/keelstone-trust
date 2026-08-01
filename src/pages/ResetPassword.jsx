@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAnim } from '../hooks/useReveal'
-import { db } from '../lib/cocobase'
+import { supabase } from '../lib/supabase'
 import { ArrowRight, Eye, EyeSlash, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
@@ -12,19 +12,10 @@ const C = {
 const RAD = 0
 const MIN_LENGTH = 8
 
-// Same tolerant parser used by VerifyEmail — accepts token/t/code in query or hash.
-function readToken() {
-  try {
-    const search = new URLSearchParams(window.location.search)
-    const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
-    return (
-      search.get('token') || search.get('t') || search.get('code') ||
-      hash.get('token') || hash.get('t') || hash.get('code') || ''
-    )
-  } catch {
-    return ''
-  }
-}
+// Supabase's recovery link carries the token in the URL fragment. The client is
+// created with detectSessionInUrl, so the SDK consumes it and emits a
+// PASSWORD_RECOVERY event — we just wait for the resulting session rather than
+// parsing anything ourselves.
 
 const barColors = ['#ef4444', '#f97316', '#eab308', '#16a34a']
 const words = ['Weak', 'Fair', 'Good', 'Strong']
@@ -41,7 +32,8 @@ function scorePassword(v) {
 export default function ResetPassword() {
   const rootRef = useRef(null)
   const navigate = useNavigate()
-  const [token, setToken] = useState('')
+  const [ready, setReady] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [pw, setPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -51,7 +43,27 @@ export default function ResetPassword() {
   const [error, setError] = useState('')
   useAnim(rootRef)
 
-  useEffect(() => { setToken(readToken()) }, [])
+  // The recovery link puts us in a temporary authenticated session. Until that
+  // resolves we can't tell a bad link from one still being processed, so hold
+  // the form in a "checking" state rather than flashing an error.
+  useEffect(() => {
+    let active = true
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) setReady(true)
+      if (active) setChecking(false)
+    })
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return
+      if (event === 'PASSWORD_RECOVERY' || session) {
+        setReady(true)
+        setChecking(false)
+      }
+    })
+
+    return () => { active = false; sub.subscription.unsubscribe() }
+  }, [])
 
   const score = scorePassword(pw)
   const activeColor = barColors[Math.min(score, 4) - 1] || '#ef4444'
@@ -64,13 +76,15 @@ export default function ResetPassword() {
     if (pw !== confirmPw) { setError('The two passwords do not match.'); return }
     setSubmitting(true)
     try {
-      const res = await db.functions.execute('complete_password_reset', {
-        payload: { token, new_password: pw },
-        method: 'POST',
-      })
-      const r = res?.result ?? res
-      if (r?.error) throw new Error(r.error)
+      // The recovery link already signed us in, so this updates the password
+      // on the current session.
+      const { error: updateError } = await supabase.auth.updateUser({ password: pw })
+      if (updateError) throw updateError
+
       setDone(true)
+      // Sign out so the temporary recovery session can't linger, then send them
+      // back to sign in with the new password.
+      await supabase.auth.signOut()
       setTimeout(() => navigate('/login'), 3200)
     } catch (err) {
       setError(err?.message || 'Could not reset your password. Please request a new link.')
@@ -103,15 +117,19 @@ export default function ResetPassword() {
         </Link>
 
         <div style={{ background: '#fff', borderRadius: 24, padding: 36, boxShadow: '0 40px 90px rgba(0,0,0,.4)' }}>
-          {/* No token in the URL at all */}
-          {!token ? (
+          {/* Still resolving the recovery session from the URL */}
+          {checking ? (
+            <div style={{ textAlign: 'center', padding: '36px 0' }}>
+              <div style={{ fontSize: 14.5, color: C.muted }}>Checking your reset link…</div>
+            </div>
+          ) : !ready ? (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fff5f5', border: '1px solid #f6cccc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                 <WarningCircle size={30} color="#b91c1c" weight="fill" />
               </div>
-              <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, marginBottom: 12 }}>Link incomplete</div>
+              <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, marginBottom: 12 }}>Link expired or invalid</div>
               <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.6, margin: '0 0 28px' }}>
-                This reset link is missing its token. Please open the link directly from your email, or request a new one.
+                Reset links can only be used once and expire after a short while. Request a fresh one and we&apos;ll email it straight over.
               </p>
               <Link to="/forgot-password" style={{ display: 'block', padding: 14, borderRadius: RAD, background: C.ink, color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
                 Request a new link

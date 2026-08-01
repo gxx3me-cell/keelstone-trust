@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { db } from '../lib/cocobase'
+import { listPlans } from '../lib/deposits'
+import { subscribe } from '../lib/newsletter'
 import ImageSlot from '../components/ImageSlot'
 import { useReveal, useCountUp } from '../hooks/useReveal'
 import {
@@ -108,8 +109,10 @@ export default function LandingPage() {
   useCountUp(rootRef)
 
   useEffect(() => {
-    db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 10 })
-      .then((res) => { const rows = Array.isArray(res) ? res : (res?.data ?? []); if (rows.length) setPlans(rows) })
+    // Active plans are readable without a session — the RLS policy allows anon
+    // select where active = true, which is what makes this page work signed out.
+    listPlans()
+      .then((rows) => { if (rows.length) setPlans(rows) })
       .catch(() => {})
   }, [])
 
@@ -631,10 +634,7 @@ export default function LandingPage() {
             <h3 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(26px,3.2vw,38px)', lineHeight: 1.1, color: '#fff', margin: '0 0 10px' }}>The Keelstone Trust Investor Letter</h3>
             <p style={{ fontSize: 15.5, lineHeight: 1.6, color: 'rgba(255,255,255,.55)', margin: 0, maxWidth: 420 }}>A monthly brief on digital asset strategy, market insights, and portfolio commentary — from the Keelstone Trust investment team.</p>
           </div>
-          <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input type="email" placeholder="you@example.com" style={{ flex: 1, minWidth: 180, padding: '14px 16px', border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 14.5, outline: 'none', fontFamily: 'inherit' }} />
-            <button type="submit" style={{ padding: '14px 24px', border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 20px rgba(109,40,217,.4)' }}>Subscribe</button>
-          </form>
+          <NewsletterForm />
         </div>
 
         <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.7fr 1fr 1fr 1fr', gap: 36, paddingBottom: 44, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
@@ -740,6 +740,64 @@ const FALLBACK_PLANS = [
   { data: { name: 'Growth', slug: 'growth', min_usd: 100000, max_usd: 499999, annual_return_pct: 22, risk: 'High', strategy: 'Concentrated Bitcoin and Ethereum for maximum long-term appreciation.', assets: 'Bitcoin 70% · Ethereum 30%', perks: ['Everything in Balanced', 'Dedicated portfolio manager', 'Monthly 1-on-1 review call', 'Priority withdrawals', 'Custom strategy adjustments'], featured: false, active: true } },
   { data: { name: 'Private Mandate', slug: 'private', min_usd: 500000, max_usd: 0, annual_return_pct: 0, risk: 'Tailored', strategy: 'Fully bespoke portfolio construction for your specific objectives.', assets: 'Custom allocation', perks: ['Everything in Growth', 'Bespoke portfolio construction', 'In-person advisory meetings', 'Family office services', 'Direct investment desk access'], featured: false, active: true } },
 ]
+
+function NewsletterForm() {
+  const [email, setEmail] = useState('')
+  const [state, setState] = useState('idle')   // idle | sending | done | error
+  const [message, setMessage] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (state === 'sending') return
+    setState('sending')
+    setMessage('')
+    try {
+      await subscribe(email, 'landing')
+      setState('done')
+      setEmail('')
+    } catch (err) {
+      setState('error')
+      setMessage(err?.message || 'Something went wrong. Please try again.')
+    }
+  }
+
+  if (state === 'done') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 18px', border: '1px solid rgba(109,40,217,.4)', background: 'rgba(109,40,217,.12)' }}>
+        <span style={{ fontSize: 20, lineHeight: 1, flex: 'none' }}>✓</span>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 3 }}>You&apos;re on the list</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.55, color: 'rgba(255,255,255,.6)' }}>
+            The next Investor Letter lands in your inbox at the start of the month.
+            You can unsubscribe from any issue.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 180 }}>
+        <input
+          type="email" value={email} required
+          onChange={(e) => { setEmail(e.target.value); if (state === 'error') setState('idle') }}
+          placeholder="you@example.com" aria-label="Email address"
+          style={{ width: '100%', padding: '14px 16px', border: `1px solid ${state === 'error' ? 'rgba(248,113,113,.6)' : 'rgba(255,255,255,.15)'}`, background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 14.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+        />
+        {state === 'error' && (
+          <div style={{ fontSize: 12.5, color: '#fca5a5', marginTop: 7 }}>{message}</div>
+        )}
+      </div>
+      <button
+        type="submit" disabled={state === 'sending'}
+        style={{ padding: '14px 24px', border: 'none', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: state === 'sending' ? 'wait' : 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 20px rgba(109,40,217,.4)', opacity: state === 'sending' ? 0.7 : 1, alignSelf: 'flex-start' }}
+      >
+        {state === 'sending' ? 'Subscribing…' : 'Subscribe'}
+      </button>
+    </form>
+  )
+}
 
 function PlanCard({ plan, delay }) {
   const [hover, setHover] = useState(false)

@@ -6,3 +6,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Agent skills (installed via `npx skills add`)
+.agents/
+.claude/skills/
+
+# Local secrets — never commit
+.supabase-secrets.local.sh

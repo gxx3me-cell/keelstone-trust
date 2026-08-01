@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
-import { db } from '../lib/cocobase'
+import { supabase } from '../lib/supabase'
 import { ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
@@ -52,10 +52,20 @@ export default function Login() {
     if (!email || !pw) { setError('Enter your email and password.'); return }
     setSubmitting(true)
     try {
-      const result = await db.auth.login({ email, password: pw })
-      if (result?.requires_2fa) { setError('Two-factor authentication is required for this account.'); return }
-      const isAdmin = (result?.user?.roles || []).includes('admin')
-      navigate(isAdmin ? '/admin' : '/dashboard')
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: pw,
+      })
+      // supabase-js returns errors rather than throwing — checking this is not optional.
+      if (signInError) throw signInError
+
+      // Role lives in profiles, not on the auth user. Route admins to the console.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .maybeSingle()
+      navigate(profile?.role === 'admin' ? '/admin' : '/dashboard')
     } catch (err) {
       setError(err?.message || 'Invalid email or password.')
     } finally {

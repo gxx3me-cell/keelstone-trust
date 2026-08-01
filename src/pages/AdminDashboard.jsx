@@ -1,1224 +1,1153 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { db } from '../lib/cocobase'
-import { listAllDepositMethods, saveDepositMethod, deleteDepositMethod } from '../lib/deposits'
+import '../dashboard/dashboard.css'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import BrandSplash from '../components/BrandSplash'
+import {
+  loadAdminData, displayName, initialsOf, investorTotals,
+  savePlan, sendEmail, deleteMessage, fundInvestor, closeInvestment,
+} from '../lib/admin'
+import { reviewRequest, listAllDepositMethods, saveDepositMethod, deleteDepositMethod } from '../lib/deposits'
+import { listKycSubmissions, reviewKyc, getDocumentUrl, ID_TYPES } from '../lib/kyc'
+import {
+  fetchNotifications, markRead, markAllRead, unreadCount,
+  subscribeToNotifications, KINDS, KIND_FILTERS,
+} from '../lib/notifications'
+import {
+  serif, money0, timeAgo, shortDate,
+  Card, Button, Pill, EmptyState, SkeletonCard,
+  Sheet, SheetHeader, Field, fieldStyle, Alert, Segmented, Toast, Icon,
+} from '../dashboard/ui'
 
-const serif = "'DM Serif Display',serif"
-const C = {
-  bg: '#f8f6fc', surface: '#fff', border: '#e8e3f0',
-  ink: '#111018', body: '#3d3450', muted: '#8a829a',
-  primary: '#6d28d9', pink: '#7c3aed',
-  green: '#16a34a', red: '#ef4444', amber: '#f59e0b',
-}
-
-const card = (pad = 24) => ({
-  background: C.surface, border: `1px solid ${C.border}`,
-  borderRadius: 8, padding: pad,
-  boxShadow: '0 2px 10px rgba(109,40,217,.05)',
-})
-
-function Avatar({ u, size = 38 }) {
-  const name = u?.data?.full_name || u?.data?.first_name || u?.email || '?'
-  return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontWeight: 700, fontSize: size * 0.36, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-      {name.trim().slice(0, 2).toUpperCase()}
-    </div>
-  )
-}
-
-function displayName(u) {
-  return u?.data?.full_name || [u?.data?.first_name, u?.data?.last_name].filter(Boolean).join(' ') || u?.email || 'Unknown'
-}
-
-function accrued(principal, annualPct, startIso) {
-  const start = new Date(startIso)
-  if (isNaN(start)) return 0
-  const days = Math.max((Date.now() - start.getTime()) / 86400000, 0)
-  return principal * (annualPct / 100) * (days / 365)
-}
-
-// Sum a single investor's active investments → { principal, earnings, value, count }
-function investorTotals(userId, investments) {
-  let principal = 0, earnings = 0, count = 0
-  for (const inv of investments) {
-    const d = inv.data || {}
-    if (d.user_id !== userId || d.status !== 'active') continue
-    const p = Number(d.principal || 0)
-    principal += p
-    earnings += accrued(p, Number(d.annual_return_pct || 0), d.start_date)
-    count++
-  }
-  return { principal, earnings, value: principal + earnings, count }
-}
-
-const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })
-
-function StatusBadge({ status }) {
-  const map = { pending: [C.amber, '#fffbeb', '⏳'], approved: [C.green, '#f0fdf4', '✓'], rejected: [C.red, '#fef2f2', '✕'] }
-  const [color, bg, icon] = map[status] || [C.muted, C.bg, '·']
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: bg, color }}>
-      {icon} {status}
-    </span>
-  )
-}
-
-const NAV = [
-  ['overview', 'Overview'],
-  ['investors', 'Investors'],
-  ['deposits', 'Deposits'],
-  ['methods', 'Deposit Methods'],
-  ['withdrawals', 'Withdrawals'],
-  ['plans', 'Plans'],
-  ['portfolio', 'Portfolio Mgmt'],
-  ['messages', 'Messages'],
+const TABS = [
+  ['overview', 'Overview', 'home'],
+  ['alerts', 'Alerts', 'bell'],
+  ['investors', 'Investors', 'users'],
+  ['requests', 'Requests', 'activity'],
+  ['kyc', 'KYC', 'shield'],
+  ['plans', 'Plans', 'plans'],
+  ['inbox', 'Inbox', 'mail'],
 ]
-
-const BLANK_METHOD = {
-  name: '', symbol: '', network: '', wallet_address: '',
-  instructions: '', min_amount: 0, active: true, sort_order: 0,
-}
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const { user, loading, isAuthenticated, isAdmin } = useAuth()
+  const { user, profile, loading, isAuthenticated, isAdmin } = useAuth()
 
-  const [screen, setScreen] = useState('overview')
-  const [users, setUsers] = useState([])
-  const [deposits, setDeposits] = useState([])
-  const [withdrawals, setWithdrawals] = useState([])
-  const [plans, setPlans] = useState([])
-  const [investments, setInvestments] = useState([])
-  const [messages, setMessages] = useState([])
-  const [activeMsg, setActiveMsg] = useState(null)      // message being viewed/replied to
-  const [deleteBusy, setDeleteBusy] = useState(false)
-  const [replyBody, setReplyBody] = useState('')
-  const [replyBusy, setReplyBusy] = useState(false)
-  const [composing, setComposing] = useState(false)     // compose new email modal
-  const [compose, setCompose] = useState({ to: '', subject: '', body: '' })
-  const [composeBusy, setComposeBusy] = useState(false)
-  const [listLoading, setListLoading] = useState(false)
-  const [actionLoading, setActionLoading] = useState(null)
-  const [actionNote, setActionNote] = useState({})
-  const [toast, setToast] = useState('')
-  const [editingPlan, setEditingPlan] = useState(null)
-  const [planSaving, setPlanSaving] = useState(false)
-  // Fund/defund manager
-  const [managing, setManaging] = useState(null)       // the investor being managed
-  const [fundAmount, setFundAmount] = useState('')
-  const [fundPlanId, setFundPlanId] = useState('')
-  const [fundBusy, setFundBusy] = useState(false)
-  // Deposit methods (the wallets investors send funds to)
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('lumen-theme') || 'light' } catch { return 'light' }
+  })
+  const [tab, setTab] = useState('overview')
+  const [data, setData] = useState({ profiles: [], deposits: [], withdrawals: [], plans: [], investments: [], messages: [] })
   const [methods, setMethods] = useState([])
-  const [editingMethod, setEditingMethod] = useState(null)
-  const [methodSaving, setMethodSaving] = useState(false)
-  const [methodBusy, setMethodBusy] = useState(null)
-  const [copiedAddr, setCopiedAddr] = useState('')
+  const [kyc, setKyc] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [busy, setBusy] = useState(true)
+  const [toast, setToast] = useState('')
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
+  const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3400) }
 
-  const loadMethods = useCallback(async () => {
-    try {
-      setMethods(await listAllDepositMethods())
-    } catch {
-      setMethods([])
-    }
-  }, [])
+  useEffect(() => { try { localStorage.setItem('lumen-theme', theme) } catch {} }, [theme])
 
-  const saveMethod = async () => {
-    if (!editingMethod) return
-    if (!editingMethod.name?.trim()) { showToast('Give the method a name (e.g. Bitcoin)'); return }
-    if (!editingMethod.wallet_address?.trim()) { showToast('A wallet address is required'); return }
-    setMethodSaving(true)
-    try {
-      await saveDepositMethod({
-        id: editingMethod.id,
-        name: editingMethod.name.trim(),
-        symbol: (editingMethod.symbol || '').trim(),
-        network: (editingMethod.network || '').trim(),
-        wallet_address: editingMethod.wallet_address.trim(),
-        instructions: (editingMethod.instructions || '').trim(),
-        min_amount: Number(editingMethod.min_amount) || 0,
-        active: editingMethod.active !== false,
-        sort_order: Number(editingMethod.sort_order) || methods.length + 1,
-      })
-      showToast(editingMethod.id ? 'Deposit method updated' : 'Deposit method added')
-      setEditingMethod(null)
-      await loadMethods()
-    } catch (err) {
-      showToast(err?.message || 'Could not save the deposit method')
-    }
-    setMethodSaving(false)
-  }
-
-  const removeMethod = async (m) => {
-    if (!window.confirm(`Delete "${m.name}"? Investors will no longer be able to deposit with it.`)) return
-    setMethodBusy(m.id)
-    try {
-      await deleteDepositMethod(m.id)
-      showToast('Deposit method deleted')
-      await loadMethods()
-    } catch (err) {
-      showToast(err?.message || 'Could not delete the deposit method')
-    }
-    setMethodBusy(null)
-  }
-
-  const copyAddress = async (addr) => {
-    try {
-      await navigator.clipboard.writeText(addr)
-      setCopiedAddr(addr)
-      setTimeout(() => setCopiedAddr(''), 2000)
-    } catch {
-      showToast('Could not copy — select the address and copy manually')
-    }
-  }
-
-  const loadAll = useCallback(async () => {
+  const reload = useCallback(async () => {
     if (!isAdmin) return
-    setListLoading(true)
-    try {
-      const [usersRes, depRes, wdRes, plansRes, invRes, msgRes] = await Promise.all([
-        db.auth.listUsers({ limit: 100 }),
-        db.listDocuments('lumen_deposits', { sort: 'created_at', order: 'desc', limit: 100 }).catch(() => []),
-        db.listDocuments('lumen_withdrawals', { sort: 'created_at', order: 'desc', limit: 100 }).catch(() => []),
-        db.listDocuments('lumen_plans', { sort: 'sort_order', order: 'asc', limit: 20 }).catch(() => []),
-        db.listDocuments('lumen_investments', { limit: 200 }).catch(() => []),
-        db.listDocuments('lumen_messages', { sort: 'created_at', order: 'desc', limit: 200 }).catch(() => []),
-      ])
-      // listUsers returns { data: [...] }; listDocuments returns a plain array
-      const rows = (r) => (Array.isArray(r) ? r : (r?.data ?? []))
-      setUsers(rows(usersRes))
-      setDeposits(rows(depRes))
-      setWithdrawals(rows(wdRes))
-      setPlans(rows(plansRes))
-      setInvestments(rows(invRes))
-      setMessages(rows(msgRes))
-    } catch {}
-    setListLoading(false)
+    const [core, m, k, n] = await Promise.all([
+      loadAdminData(),
+      listAllDepositMethods().catch(() => []),
+      listKycSubmissions().catch(() => []),
+      fetchNotifications().catch(() => []),
+    ])
+    setData(core)
+    setMethods(m)
+    setKyc(k)
+    setNotifications(n)
+    setBusy(false)
   }, [isAdmin])
 
-  const savePlan = async () => {
-    if (!editingPlan) return
-    if (!editingPlan.name?.trim()) { showToast('Plan name is required'); return }
-    setPlanSaving(true)
-    try {
-      const { id, ...fields } = editingPlan
-      // Normalize numeric fields
-      const data = {
-        name: fields.name,
-        slug: fields.slug || fields.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-        annual_return_pct: Number(fields.annual_return_pct) || 0,
-        min_usd: Number(fields.min_usd) || 0,
-        max_usd: Number(fields.max_usd) || 0,
-        risk: fields.risk || '',
-        assets: fields.assets || '',
-        strategy: fields.strategy || '',
-        perks: Array.isArray(fields.perks) ? fields.perks : [],
-        featured: !!fields.featured,
-        active: fields.active !== false,
-        sort_order: Number(fields.sort_order) || (plans.length + 1),
-      }
-      if (id) {
-        // updateDocument sends the 3rd arg as the PATCH body; the API wraps it in `data`.
-        await db.updateDocument('lumen_plans', id, data)
-        showToast('Plan updated')
-      } else {
-        await db.createDocument('lumen_plans', data)
-        showToast('Plan created')
-      }
-      setEditingPlan(null)
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Failed to save plan')
-    }
-    setPlanSaving(false)
-  }
+  useEffect(() => { if (!loading && isAdmin) reload() }, [loading, isAdmin, reload])
 
-  const newPlan = () => setEditingPlan({
-    name: '', annual_return_pct: 0, min_usd: 5000, max_usd: 0,
-    risk: 'Medium', assets: '', strategy: '', perks: [], featured: false, active: true,
-    sort_order: plans.length + 1,
-  })
-
-  const openManager = (u) => {
-    setManaging(u)
-    setFundAmount('')
-    const firstPlan = (plans[0]?.id) || ''
-    setFundPlanId(firstPlan)
-  }
-
-  const handleFund = async () => {
-    if (!managing) return
-    const amt = parseFloat(String(fundAmount).replace(/,/g, ''))
-    if (!amt || amt <= 0) { showToast('Enter a valid amount'); return }
-    if (!fundPlanId) { showToast('Select a plan'); return }
-    setFundBusy(true)
-    try {
-      const res = await db.functions.execute('admin_fund', {
-        payload: {
-          action: 'fund',
-          user_id: managing.id,
-          user_email: managing.email,
-          user_name: displayName(managing),
-          amount: amt,
-          plan_id: fundPlanId,
-        },
-        method: 'POST',
-      })
-      const r = res?.result ?? res
-      if (r?.error) throw new Error(r.error)
-      showToast(`Funded ${displayName(managing)} $${fmt(amt)}`)
-      setFundAmount('')
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Funding failed')
-    }
-    setFundBusy(false)
-  }
-
-  const handleDefund = async (investmentId) => {
-    setFundBusy(true)
-    try {
-      const res = await db.functions.execute('admin_fund', {
-        payload: { action: 'defund', investment_id: investmentId },
-        method: 'POST',
-      })
-      const r = res?.result ?? res
-      if (r?.error) throw new Error(r.error)
-      showToast('Investment closed')
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Defund failed')
-    }
-    setFundBusy(false)
-  }
-
-  const openMessage = (m) => {
-    setActiveMsg(m)
-    setReplyBody('')
-  }
-
-  const handleReply = async () => {
-    if (!activeMsg) return
-    const to = activeMsg.data?.email
-    if (!to) { showToast('This message has no reply-to email'); return }
-    if (!replyBody.trim()) { showToast('Write a reply first'); return }
-    setReplyBusy(true)
-    try {
-      const res = await db.functions.execute('support_email', {
-        payload: {
-          action: 'reply',
-          message_id: activeMsg.id,
-          to_email: to,
-          subject: activeMsg.data?.subject ? `Re: ${activeMsg.data.subject}` : 'Re: your message',
-          body: replyBody,
-        },
-        method: 'POST',
-      })
-      const r = res?.result ?? res
-      if (r?.error) throw new Error(r.error)
-      showToast(`Reply sent to ${to}`)
-      setReplyBody('')
-      setActiveMsg(null)
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Failed to send reply')
-    }
-    setReplyBusy(false)
-  }
-
-  const handleCompose = async () => {
-    const to = compose.to.trim()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { showToast('Enter a valid recipient email'); return }
-    if (!compose.subject.trim()) { showToast('Enter a subject'); return }
-    if (!compose.body.trim()) { showToast('Write a message'); return }
-    setComposeBusy(true)
-    try {
-      const res = await db.functions.execute('support_email', {
-        payload: { action: 'send', to_email: to, subject: compose.subject, body: compose.body },
-        method: 'POST',
-      })
-      const r = res?.result ?? res
-      if (r?.error) throw new Error(r.error)
-      showToast(`Email sent to ${to}`)
-      setCompose({ to: '', subject: '', body: '' })
-      setComposing(false)
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Failed to send email')
-    }
-    setComposeBusy(false)
-  }
-
-  const handleDeleteMessage = async (msg) => {
-    if (!msg) return
-    const label = msg.data?.subject || msg.data?.email || 'this message'
-    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return
-    setDeleteBusy(true)
-    try {
-      await db.deleteDocument('lumen_messages', msg.id)
-      setActiveMsg(null)
-      showToast('Message deleted')
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Failed to delete message')
-    }
-    setDeleteBusy(false)
-  }
-
-  const handleClearMessages = async () => {
-    if (messages.length === 0) return
-    if (!window.confirm(`Delete all ${messages.length} message${messages.length === 1 ? '' : 's'}? This cannot be undone.`)) return
-    setDeleteBusy(true)
-    try {
-      await db.deleteDocuments('lumen_messages', messages.map((m) => m.id))
-      setActiveMsg(null)
-      showToast('Inbox cleared')
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Failed to clear inbox')
-    }
-    setDeleteBusy(false)
-  }
-
-  const unreadMessages = messages.filter((m) => (m.data?.status || 'new') === 'new').length
-
-  // Active investments for the investor currently being managed
-  const managingInvestments = managing
-    ? investments.filter((i) => i.data?.user_id === managing.id && i.data?.status === 'active')
-    : []
-
+  // Live feed — new events arrive without a refresh.
   useEffect(() => {
-    if (!loading && isAdmin) { loadAll(); loadMethods() }
-  }, [loading, isAdmin, loadAll, loadMethods])
+    if (!isAdmin) return
+    return subscribeToNotifications((n) => setNotifications((prev) => [n, ...prev]))
+  }, [isAdmin])
 
-  const handleAction = async (type, recordId, action, note = '') => {
-    // Approving a withdrawal only marks it paid — send the funds by hand first.
-    if (type === 'withdrawal' && action === 'approve') {
-      const d = withdrawals.find((w) => w.id === recordId)?.data || {}
-      const ok = window.confirm(
-        `Confirm you have already sent $${parseFloat(d.amount || 0).toLocaleString()} to:\n\n${d.bank_details || '(no address on file)'}\n\nApproving only records the payout — it does not move any funds.`
-      )
-      if (!ok) return
-    }
-    setActionLoading(recordId)
-    try {
-      await db.functions.execute('admin_action', {
-        payload: { type, record_id: recordId, action, note },
-        method: 'POST',
-      })
-      showToast(`Request ${action}d successfully`)
-      await loadAll()
-    } catch (err) {
-      showToast(err?.message || 'Action failed')
-    }
-    setActionLoading(null)
-  }
+  const pendingDeposits = data.deposits.filter((d) => d.status === 'pending')
+  const pendingWithdrawals = data.withdrawals.filter((w) => w.status === 'pending')
+  const pendingKyc = kyc.filter((k) => k.status === 'submitted')
+  const newMessages = data.messages.filter((m) => m.direction === 'inbound' && m.status === 'new')
+  const activeInvestments = data.investments.filter((i) => i.status === 'active')
 
-  const handleSignOut = async () => { try { await db.auth.logout() } catch {} navigate('/login') }
+  const totals = useMemo(() => ({
+    aum: activeInvestments.reduce((s, i) => s + Number(i.principal || 0), 0),
+    earnings: activeInvestments.reduce((s, i) => s + Number(i.earnings || 0), 0),
+    investors: data.profiles.filter((p) => p.role === 'investor').length,
+  }), [activeInvestments, data.profiles])
+
+  const actionCount = pendingDeposits.length + pendingWithdrawals.length + pendingKyc.length
 
   if (loading) return <BrandSplash label="Verifying admin access" />
+  if (!isAuthenticated) return <Gate title="Sign in required" body="You need to be signed in to open the admin console." to="/login" cta="Go to sign in" />
+  if (!isAdmin) return <Gate title="Admins only" body={`${user?.email} doesn't have admin access.`} to="/dashboard" cta="Back to my dashboard" />
 
-  if (!isAuthenticated) return (
-    <Centered><AuthBlock title="Sign in required" sub="You need to be signed in to access the admin console." action={<Link to="/login" style={btnStyle()}>Go to sign in</Link>} /></Centered>
-  )
-
-  if (!isAdmin) return (
-    <Centered><AuthBlock title="Admins only" sub={`Your account (${user?.email}) does not have the admin role.`} action={<Link to="/dashboard" style={btnStyle()}>Back to my dashboard</Link>} /></Centered>
-  )
-
-  const pending = { deposits: deposits.filter(d => d.data?.status === 'pending'), withdrawals: withdrawals.filter(w => w.data?.status === 'pending') }
-  const activeInvestments = investments.filter(i => i.data?.status === 'active')
-  const totalAUM = activeInvestments.reduce((s, i) => s + Number(i.data?.principal || 0), 0)
-  const totalEarnings = activeInvestments.reduce((s, i) => s + accrued(Number(i.data?.principal || 0), Number(i.data?.annual_return_pct || 0), i.data?.start_date), 0)
-  const adminCount = users.filter(u => (u.roles || []).includes('admin')).length
+  const badges = {
+    alerts: unreadCount(notifications),
+    requests: pendingDeposits.length + pendingWithdrawals.length,
+    kyc: pendingKyc.length,
+    inbox: newMessages.length,
+  }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column' }}>
-      {/* Toast */}
-      {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: C.ink, color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: '0 20px 50px rgba(0,0,0,.3)', animation: 'paneIn .25s ease' }}>{toast}</div>
-      )}
+    <div data-root data-theme={theme} style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+      <Sidebar tab={tab} setTab={setTab} badges={badges} profile={profile} navigate={navigate} />
 
-      {/* HEADER */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px clamp(18px,4vw,52px)', borderBottom: `1px solid ${C.border}`, background: C.surface, position: 'sticky', top: 0, zIndex: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: 34, height: 34, objectFit: 'contain' }} />
-          <span style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Keelstone Trust</span>
-          <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: C.primary, background: 'rgba(109,40,217,.1)', padding: '3px 8px', borderRadius: 4 }}>Admin</span>
+      <main data-main style={{ flex: 1, marginLeft: 236, padding: '0 28px 40px', minWidth: 0, maxWidth: 1180 }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 40, display: 'flex', alignItems: 'center', gap: 12, padding: '18px 0 14px', background: 'var(--bg)' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--primary)' }}>Admin console</div>
+            <h1 data-pagetitle style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: '2px 0 0' }}>
+              {TABS.find(([k]) => k === tab)?.[1]}
+            </h1>
+          </div>
+          <button
+            type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle theme"
+            style={{ width: 40, height: 40, flex: 'none', borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+          </button>
         </div>
 
-        {/* NAV */}
-        <nav style={{ display: 'flex', gap: 2, marginLeft: 16, background: C.bg, padding: 3, borderRadius: 6, border: `1px solid ${C.border}` }}>
-          {NAV.map(([k, l]) => (
-            <button key={k} type="button" onClick={() => setScreen(k)}
-              style={{ padding: '7px 13px', borderRadius: 4, border: 'none', background: screen === k ? C.surface : 'transparent', color: screen === k ? C.primary : C.body, fontSize: 13, fontWeight: screen === k ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: screen === k ? '0 1px 4px rgba(109,40,217,.08)' : 'none', transition: 'all .2s', whiteSpace: 'nowrap' }}>
-              {l}{k === 'deposits' && pending.deposits.length > 0 ? ` (${pending.deposits.length})` : ''}{k === 'withdrawals' && pending.withdrawals.length > 0 ? ` (${pending.withdrawals.length})` : ''}{k === 'messages' && unreadMessages > 0 ? ` (${unreadMessages})` : ''}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar u={user} size={34} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.body }}>{displayName(user)}</span>
-        </div>
-        <Link to="/dashboard" style={{ fontSize: 13, fontWeight: 600, color: C.muted, textDecoration: 'none', padding: '7px 13px', borderRadius: 6, border: `1px solid ${C.border}` }}>Client view</Link>
-        <button type="button" onClick={handleSignOut} style={{ padding: '7px 14px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.red, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
-      </header>
-
-      <main style={{ flex: 1, maxWidth: 1160, margin: '0 auto', width: '100%', padding: '32px clamp(18px,4vw,52px) 60px' }}>
-
-        {/* ── OVERVIEW ── */}
-        {screen === 'overview' && (
-          <section>
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 8 }}>Admin console</div>
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, margin: '0 0 6px', color: C.ink }}>Platform overview</h1>
-              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>Real-time snapshot of the Keelstone Trust investment platform.</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16, marginBottom: 26 }}>
-              {[
-                { label: 'Assets under management', val: listLoading ? '—' : `$${fmt(totalAUM)}`, sub: `${activeInvestments.length} active investments`, color: C.green },
-                { label: 'Investor earnings accrued', val: listLoading ? '—' : `$${fmt(totalEarnings)}`, sub: 'Paid out over time', color: C.primary },
-                { label: 'Pending deposits', val: listLoading ? '—' : pending.deposits.length, sub: 'Awaiting approval', color: C.amber },
-                { label: 'Pending withdrawals', val: listLoading ? '—' : pending.withdrawals.length, sub: 'Awaiting processing', color: C.pink },
-              ].map((s) => (
-                <div key={s.label} style={card(22)}>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 10 }}>{s.label}</div>
-                  <div style={{ fontFamily: serif, fontSize: 32, color: s.color, marginBottom: 4 }}>{s.val}</div>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{s.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Deposit methods at a glance */}
-            <div style={{ ...card(24), marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Deposit methods</div>
-                  <div style={{ fontSize: 12.5, color: C.muted, marginTop: 2 }}>The wallets investors are told to send funds to.</div>
-                </div>
-                <button type="button" onClick={() => setScreen('methods')}
-                  style={{ border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Manage →
-                </button>
-              </div>
-
-              {methods.length === 0 ? (
-                <div style={{ display: 'flex', gap: 10, background: 'rgba(243,186,47,.08)', border: '1px solid rgba(243,186,47,.3)', borderRadius: 12, padding: '13px 16px', fontSize: 13.5, color: '#8a6d1f', lineHeight: 1.55 }}>
-                  <span style={{ flex: 'none' }}>⚠️</span>
-                  <span>No deposit methods yet — <b>investors cannot deposit</b> until you add at least one. Go to <b>Deposit Methods</b> and add a wallet.</span>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
-                  {methods.map((m) => (
-                    <div key={m.id} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px', opacity: m.active ? 1 : 0.55 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, color: C.ink, fontWeight: 700 }}>{m.name}</span>
-                        {m.symbol && <span style={{ fontSize: 10.5, fontWeight: 800, color: C.primary }}>{m.symbol}</span>}
-                        {!m.active && <span style={{ fontSize: 10, fontWeight: 800, color: C.red, textTransform: 'uppercase' }}>Hidden</span>}
-                      </div>
-                      {m.network && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>{m.network}</div>}
-                      <div style={{ fontSize: 11, color: C.body, fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>{m.wallet_address}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Quick action tables */}
-            {pending.deposits.length > 0 && (
-              <div style={{ ...card(0), marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Pending deposits</div>
-                  <button type="button" onClick={() => setScreen('deposits')} style={{ border: 'none', background: 'transparent', color: C.primary, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>
-                </div>
-                <RequestRows items={pending.deposits} type="deposit" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} />
-              </div>
+        {busy ? (
+          <div style={{ display: 'grid', gap: 14 }}><SkeletonCard rows={3} /><SkeletonCard rows={4} /></div>
+        ) : (
+          <>
+            {tab === 'overview' && (
+              <section data-pane>
+                <Overview
+                  totals={totals} actionCount={actionCount}
+                  pendingDeposits={pendingDeposits} pendingWithdrawals={pendingWithdrawals}
+                  pendingKyc={pendingKyc} notifications={notifications}
+                  activeCount={activeInvestments.length} goTab={setTab}
+                />
+              </section>
             )}
-
-            {pending.withdrawals.length > 0 && (
-              <div style={card(0)}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Pending withdrawals</div>
-                  <button type="button" onClick={() => setScreen('withdrawals')} style={{ border: 'none', background: 'transparent', color: C.primary, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>
-                </div>
-                <RequestRows items={pending.withdrawals} type="withdrawal" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} />
-              </div>
+            {tab === 'alerts' && (
+              <section data-pane>
+                <Alerts notifications={notifications} setNotifications={setNotifications} showToast={showToast} goTab={setTab} />
+              </section>
             )}
-
-            {pending.deposits.length === 0 && pending.withdrawals.length === 0 && !listLoading && (
-              <div style={{ ...card(32), textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-                <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 6 }}>All clear</div>
-                <div style={{ fontSize: 14, color: C.muted }}>No pending deposits or withdrawals. Check back later.</div>
-              </div>
+            {tab === 'investors' && (
+              <section data-pane>
+                <Investors data={data} reload={reload} showToast={showToast} />
+              </section>
             )}
-          </section>
-        )}
-
-        {/* ── INVESTORS ── */}
-        {screen === 'investors' && (
-          <section>
-            <div style={{ marginBottom: 24 }}>
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Investor management</h1>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${users.length} total accounts`}</p>
-            </div>
-            <div style={card(0)}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 0.8fr 1fr 1fr 1fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
-                <div>Investor</div><div>Email</div><div>Plans</div><div style={{ textAlign: 'right' }}>Invested</div><div style={{ textAlign: 'right' }}>Earnings</div><div style={{ textAlign: 'right' }}>Manage</div>
-              </div>
-              {listLoading ? <LoadingRow /> : users.map((u) => {
-                const t = investorTotals(u.id, investments)
-                const isAdminUser = (u.roles || []).includes('admin')
-                return (
-                  <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 0.8fr 1fr 1fr 1fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: `1px solid #f6f1fe` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-                      <Avatar u={u} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(u)}</div>
-                        {isAdminUser && <span style={{ fontSize: 10.5, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em' }}>Admin</span>}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 13, color: C.body, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: t.count ? C.ink : C.muted }}>{t.count || '—'}</div>
-                    <div style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: C.ink }}>{t.principal ? `$${fmt(t.principal)}` : '—'}</div>
-                    <div style={{ textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: t.earnings ? C.green : C.muted }}>{t.earnings ? `+$${fmt(t.earnings)}` : '—'}</div>
-                    <div style={{ textAlign: 'right' }}>
-                      <button type="button" onClick={() => openManager(u)} style={{ padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Manage</button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* ── DEPOSITS ── */}
-        {screen === 'deposits' && (
-          <section>
-            <div style={{ marginBottom: 24 }}>
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Deposit requests</h1>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${deposits.length} total · ${pending.deposits.length} pending`}</p>
-            </div>
-            {listLoading ? <div style={card(32)}><LoadingRow /></div> : deposits.length === 0 ? (
-              <div style={{ ...card(32), textAlign: 'center', color: C.muted }}>No deposit requests yet.</div>
-            ) : (
-              <div style={card(0)}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1.2fr 1fr 1.6fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
-                  <div>Investor</div><div>Amount</div><div>Method</div><div>Status</div><div>Actions</div>
-                </div>
-                <RequestRows items={deposits} type="deposit" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} showAll />
-              </div>
+            {tab === 'requests' && (
+              <section data-pane>
+                <Requests deposits={data.deposits} withdrawals={data.withdrawals} profiles={data.profiles} reload={reload} showToast={showToast} />
+              </section>
             )}
-          </section>
-        )}
-
-        {/* ── DEPOSIT METHODS ── */}
-        {screen === 'methods' && (
-          <section>
-            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-              <div>
-                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Deposit methods</h1>
-                <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>The wallets investors send funds to. Anything active here appears in their deposit screen immediately.</p>
-              </div>
-              <button type="button" onClick={() => setEditingMethod({ ...BLANK_METHOD, sort_order: methods.length + 1 })}
-                style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                + Add method
-              </button>
-            </div>
-
-            {methods.length === 0 ? (
-              <div style={{ ...card(36), textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
-                <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 6 }}>No deposit methods yet</div>
-                <div style={{ fontSize: 14, color: C.muted, maxWidth: 440, margin: '0 auto 20px', lineHeight: 1.6 }}>
-                  Investors can't deposit until you add at least one. Add the coin or currency name and the wallet address they should send to.
-                </div>
-                <button type="button" onClick={() => setEditingMethod({ ...BLANK_METHOD, sort_order: 1 })}
-                  style={{ padding: '12px 24px', borderRadius: 8, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Add your first method
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {methods.map((m) => (
-                  <div key={m.id} style={{ ...card(20), opacity: m.active ? 1 : 0.6 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 240 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{m.name}</span>
-                          {m.symbol && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: 'rgba(109,40,217,.1)', color: C.primary, letterSpacing: '.06em' }}>{m.symbol}</span>}
-                          {!m.active && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: '#fef2f2', color: C.red, textTransform: 'uppercase', letterSpacing: '.06em' }}>Hidden</span>}
-                        </div>
-                        {m.network && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Network: <b style={{ color: C.body }}>{m.network}</b>{m.min_amount > 0 && <> · Min ${Number(m.min_amount).toLocaleString()}</>}</div>}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', marginBottom: m.instructions ? 10 : 0 }}>
-                          <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: C.body, fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>{m.wallet_address}</span>
-                          <button type="button" onClick={() => copyAddress(m.wallet_address)}
-                            style={{ flex: 'none', padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: copiedAddr === m.wallet_address ? C.green : C.primary, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                            {copiedAddr === m.wallet_address ? '✓ Copied' : 'Copy'}
-                          </button>
-                        </div>
-                        {m.instructions && <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.6 }}>{m.instructions}</div>}
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
-                        <button type="button" onClick={() => setEditingMethod({ ...m })}
-                          style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                          Edit
-                        </button>
-                        <button type="button" onClick={() => removeMethod(m)} disabled={methodBusy === m.id}
-                          style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${C.border}`, background: '#fef2f2', color: C.red, fontSize: 13.5, fontWeight: 700, cursor: methodBusy === m.id ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                          {methodBusy === m.id ? '…' : 'Delete'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {tab === 'kyc' && (
+              <section data-pane>
+                <KycQueue kyc={kyc} profiles={data.profiles} reload={reload} showToast={showToast} />
+              </section>
             )}
-          </section>
-        )}
-
-        {/* ── WITHDRAWALS ── */}
-        {screen === 'withdrawals' && (
-          <section>
-            <div style={{ marginBottom: 24 }}>
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Withdrawal requests</h1>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${withdrawals.length} total · ${pending.withdrawals.length} pending`}</p>
-            </div>
-            {listLoading ? <div style={card(32)}><LoadingRow /></div> : withdrawals.length === 0 ? (
-              <div style={{ ...card(32), textAlign: 'center', color: C.muted }}>No withdrawal requests yet.</div>
-            ) : (
-              <div style={card(0)}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1.2fr 1fr 1.6fr', gap: 14, padding: '14px 22px', fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, fontWeight: 700, borderBottom: `1px solid ${C.border}` }}>
-                  <div>Investor</div><div>Amount</div><div>Bank ref</div><div>Status</div><div>Actions</div>
-                </div>
-                <RequestRows items={withdrawals} type="withdrawal" actionLoading={actionLoading} onAction={handleAction} actionNote={actionNote} setActionNote={setActionNote} showAll />
-              </div>
+            {tab === 'plans' && (
+              <section data-pane>
+                <Plans plans={data.plans} methods={methods} reload={reload} showToast={showToast} />
+              </section>
             )}
-          </section>
-        )}
-
-        {/* ── PLANS ── */}
-        {screen === 'plans' && (
-          <section>
-            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-              <div>
-                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Investment plans</h1>
-                <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>Edit plans shown on the public website. Changes go live immediately.</p>
-              </div>
-              <button type="button" onClick={newPlan}
-                style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                + Add plan
-              </button>
-            </div>
-
-            {editingPlan && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                <div onClick={() => setEditingPlan(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-                <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-                  <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>{editingPlan.id ? `Edit — ${editingPlan.name}` : 'New investment plan'}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {[
-                      { key: 'name', label: 'Plan name', type: 'text' },
-                      { key: 'annual_return_pct', label: 'Target annual return (%)', type: 'number' },
-                      { key: 'min_usd', label: 'Minimum investment (USD)', type: 'number' },
-                      { key: 'max_usd', label: 'Maximum investment (0 = no limit)', type: 'number' },
-                      { key: 'risk', label: 'Risk level', type: 'text' },
-                      { key: 'assets', label: 'Assets / allocation', type: 'text' },
-                      { key: 'strategy', label: 'Strategy description', type: 'text' },
-                    ].map(({ key, label, type }) => (
-                      <label key={key} style={{ display: 'block' }}>
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
-                        <input
-                          type={type} value={editingPlan[key] ?? ''}
-                          onChange={(e) => setEditingPlan((p) => ({ ...p, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
-                          style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff' }}
-                        />
-                      </label>
-                    ))}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.body, cursor: 'pointer', marginTop: 4 }}>
-                      <input type="checkbox" checked={!!editingPlan.featured} onChange={(e) => setEditingPlan((p) => ({ ...p, featured: e.target.checked }))}
-                        style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
-                      Mark as featured (highlighted on website)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.body, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={!!editingPlan.active} onChange={(e) => setEditingPlan((p) => ({ ...p, active: e.target.checked }))}
-                        style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
-                      Plan is active (shown on website)
-                    </label>
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-                    <button type="button" onClick={savePlan} disabled={planSaving}
-                      style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: planSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: planSaving ? 0.7 : 1 }}>
-                      {planSaving ? 'Saving…' : editingPlan.id ? 'Save changes' : 'Create plan'}
-                    </button>
-                    <button type="button" onClick={() => setEditingPlan(null)}
-                      style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {tab === 'inbox' && (
+              <section data-pane>
+                <Inbox messages={data.messages} reload={reload} showToast={showToast} />
+              </section>
             )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {listLoading ? <div style={{ ...card(24), textAlign: 'center', color: C.muted }}>Loading…</div> : plans.map((p) => {
-                const d = p.data || {}
-                return (
-                  <div key={p.id} style={{ ...card(20), display: 'flex', alignItems: 'center', gap: 18 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                        <span style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{d.name}</span>
-                        {d.featured && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: 'rgba(109,40,217,.1)', color: C.primary, textTransform: 'uppercase', letterSpacing: '.06em' }}>Featured</span>}
-                        {!d.active && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: '#fef2f2', color: C.red, textTransform: 'uppercase', letterSpacing: '.06em' }}>Hidden</span>}
-                      </div>
-                      <div style={{ fontSize: 13, color: C.muted }}>
-                        Min: <b style={{ color: C.ink }}>${(d.min_usd || 0).toLocaleString()}</b>
-                        {d.max_usd > 0 && <> · Max: <b style={{ color: C.ink }}>${d.max_usd.toLocaleString()}</b></>}
-                        {d.annual_return_pct > 0 && <> · Target return: <b style={{ color: '#16a34a' }}>{d.annual_return_pct}% p.a.</b></>}
-                        {' · '}{d.risk} risk · {d.assets}
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => setEditingPlan({ id: p.id, ...d })}
-                      style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.primary, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                      Edit plan →
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+          </>
         )}
-
-        {/* ── PORTFOLIO MGMT ── */}
-        {screen === 'portfolio' && (
-          <section>
-            <div style={{ marginBottom: 28 }}>
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Portfolio management</h1>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>Strategy allocations, rebalancing and performance overview.</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, marginBottom: 24 }}>
-              {[
-                { name: 'Growth Strategy', alloc: '$120,000', ret: '+22%', risk: 'High', assets: 'BTC 70% · ETH 30%', color: '#f59e0b', grad: 'linear-gradient(135deg,#f59e0b,#f97316)' },
-                { name: 'Balanced Strategy', alloc: '$100,000', ret: '+15%', risk: 'Medium', assets: 'BTC 40% · ETH 35% · Stable 25%', color: C.primary, grad: 'linear-gradient(135deg,#6d28d9,#a855f7)' },
-                { name: 'Conservative Strategy', alloc: '$52,000', ret: '+9%', risk: 'Low', assets: 'Stable yield 75% · Crypto 25%', color: '#2563eb', grad: 'linear-gradient(135deg,#2563eb,#06b6d4)' },
-              ].map((s) => (
-                <div key={s.name} style={card(22)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 6, background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, flex: 'none' }}>▲</div>
-                    <div style={{ fontFamily: serif, fontSize: 18, color: C.ink }}>{s.name}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[['Allocated', s.alloc], ['Annual return', s.ret], ['Risk level', s.risk], ['Assets', s.assets]].map(([k, v]) => (
-                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                        <span style={{ color: C.muted, fontWeight: 600 }}>{k}</span>
-                        <span style={{ color: k === 'Annual return' ? C.green : C.ink, fontWeight: 700 }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" style={{ marginTop: 18, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: s.color, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Manage strategy →</button>
-                </div>
-              ))}
-            </div>
-
-            <div style={card(24)}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>Platform performance summary</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 16 }}>
-                {[
-                  ['Total AUM', `$${fmt(totalAUM)}`],
-                  ['Portfolio value', `$${fmt(totalAUM + totalEarnings)}`],
-                  ['Earnings accrued', `$${fmt(totalEarnings)}`],
-                  ['Active investments', String(activeInvestments.length)],
-                  ['Active investors', String(new Set(activeInvestments.map(i => i.data?.user_id)).size)],
-                  ['Plans offered', String(plans.length)],
-                ].map(([k, v]) => (
-                  <div key={k} style={{ background: '#f8f5ff', borderRadius: 14, padding: '14px 16px' }}>
-                    <div style={{ fontSize: 11.5, color: C.muted, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>{k}</div>
-                    <div style={{ fontFamily: serif, fontSize: 22, color: C.ink }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ── MESSAGES / SUPPORT INBOX ── */}
-        {screen === 'messages' && (
-          <section>
-            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-              <div>
-                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: '0 0 6px', color: C.ink }}>Support inbox</h1>
-                <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>{listLoading ? 'Loading…' : `${messages.length} message${messages.length === 1 ? '' : 's'} · ${unreadMessages} new`}</p>
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {messages.length > 0 && (
-                  <button type="button" onClick={handleClearMessages} disabled={deleteBusy}
-                    style={{ padding: '11px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.red, fontSize: 14, fontWeight: 700, cursor: deleteBusy ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: deleteBusy ? 0.6 : 1 }}>
-                    {deleteBusy ? 'Clearing…' : 'Clear all'}
-                  </button>
-                )}
-                <button type="button" onClick={() => { setCompose({ to: '', subject: '', body: '' }); setComposing(true) }}
-                  style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6d28d9,#ec4899)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                  ✉ Compose email
-                </button>
-              </div>
-            </div>
-
-            {listLoading ? (
-              <div style={card(32)}><LoadingRow /></div>
-            ) : messages.length === 0 ? (
-              <div style={{ ...card(32), textAlign: 'center' }}>
-                <div style={{ fontSize: 34, marginBottom: 12 }}>📭</div>
-                <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 6 }}>No messages yet</div>
-                <div style={{ fontSize: 14, color: C.muted, maxWidth: 460, margin: '0 auto' }}>Emails sent to your support address will appear here once inbound email is configured. You can still compose and send emails to any investor now.</div>
-              </div>
-            ) : (
-              <div style={card(0)}>
-                {messages.map((m) => {
-                  const d = m.data || {}
-                  const isNew = (d.status || 'new') === 'new'
-                  const outbound = d.direction === 'outbound'
-                  return (
-                    <button key={m.id} type="button" onClick={() => openMessage(m)}
-                      style={{ width: '100%', textAlign: 'left', display: 'grid', gridTemplateColumns: '1.6fr 2.4fr 0.9fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid #f6f1fe', background: 'transparent', border: 'none', borderBottomStyle: 'solid', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          {isNew && !outbound && <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.primary, flex: 'none' }} />}
-                          <span style={{ fontSize: 14, fontWeight: isNew && !outbound ? 800 : 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outbound ? `To: ${d.name || d.email}` : (d.name || d.email || 'Unknown')}</span>
-                        </div>
-                        <div style={{ fontSize: 12, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.email}</div>
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.body, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.subject || '(no subject)'}</div>
-                        <div style={{ fontSize: 12.5, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.message || ''}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: outbound ? '#eef2ff' : isNew ? 'rgba(109,40,217,.1)' : '#f0fdf4', color: outbound ? '#4338ca' : isNew ? C.primary : C.green }}>
-                          {outbound ? 'Sent' : isNew ? 'New' : 'Replied'}
-                        </span>
-                        <span style={{ fontSize: 11, color: C.muted }}>{d.created_at ? new Date(d.created_at).toLocaleDateString() : ''}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
       </main>
 
-      {/* ── ADD / EDIT DEPOSIT METHOD ── */}
-      {editingMethod && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={() => setEditingMethod(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-            <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>
-              {editingMethod.id ? `Edit — ${editingMethod.name}` : 'New deposit method'}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {[
-                { key: 'name', label: 'Name', placeholder: 'Bitcoin', type: 'text' },
-                { key: 'symbol', label: 'Symbol', placeholder: 'BTC', type: 'text' },
-                { key: 'network', label: 'Network / chain', placeholder: 'Bitcoin mainnet', type: 'text' },
-                { key: 'wallet_address', label: 'Wallet address', placeholder: 'bc1q…', type: 'text', mono: true },
-                { key: 'min_amount', label: 'Minimum deposit (0 = none)', placeholder: '0', type: 'number' },
-              ].map(({ key, label, placeholder, type, mono }) => (
-                <label key={key} style={{ display: 'block' }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
-                  <input
-                    type={type} value={editingMethod[key] ?? ''} placeholder={placeholder}
-                    onChange={(e) => setEditingMethod((m) => ({ ...m, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
-                    style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: mono ? 13 : 14, fontFamily: mono ? 'monospace' : 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', boxSizing: 'border-box' }}
-                  />
-                </label>
-              ))}
-              <label style={{ display: 'block' }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>Instructions for the investor</div>
-                <textarea
-                  value={editingMethod.instructions ?? ''} rows={3}
-                  placeholder="e.g. Send only BTC on the Bitcoin network. Deposits confirm after 3 blocks."
-                  onChange={(e) => setEditingMethod((m) => ({ ...m, instructions: e.target.value }))}
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', resize: 'vertical', boxSizing: 'border-box' }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.body, cursor: 'pointer' }}>
-                <input type="checkbox" checked={editingMethod.active !== false} onChange={(e) => setEditingMethod((m) => ({ ...m, active: e.target.checked }))}
-                  style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
-                Active (investors can deposit with this method)
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-              <button type="button" onClick={saveMethod} disabled={methodSaving}
-                style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: methodSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: methodSaving ? 0.7 : 1 }}>
-                {methodSaving ? 'Saving…' : editingMethod.id ? 'Save changes' : 'Add method'}
-              </button>
-              <button type="button" onClick={() => setEditingMethod(null)}
-                style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Cancel
-              </button>
-            </div>
-          </div>
+      {/* Mobile: the five sections an admin actually works from */}
+      <nav data-tabbar aria-label="Admin sections">
+        {TABS.slice(0, 5).map(([key, label, icon]) => (
+          <button
+            key={key} type="button" onClick={() => setTab(key)}
+            {...(tab === key ? { 'data-active': '' } : {})}
+            aria-current={tab === key ? 'page' : undefined}
+          >
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <Icon name={icon} size={22} />
+              {badges[key] > 0 && (
+                <span style={{ position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: '50%', background: 'var(--loss)', border: '1.5px solid var(--surface)' }} />
+              )}
+            </span>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <Toast message={toast} />
+    </div>
+  )
+}
+
+function Gate({ title, body, to, cta }) {
+  return (
+    <div data-root style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <Card style={{ maxWidth: 400, textAlign: 'center' }} pad={32}>
+        <div style={{ fontFamily: serif, fontSize: 26, color: 'var(--text)', marginBottom: 10 }}>{title}</div>
+        <p style={{ color: 'var(--text-3)', fontSize: 14.5, margin: '0 0 22px', lineHeight: 1.6 }}>{body}</p>
+        <Link to={to} style={{ textDecoration: 'none' }}><Button full>{cta}</Button></Link>
+      </Card>
+    </div>
+  )
+}
+
+function Sidebar({ tab, setTab, badges, profile, navigate }) {
+  return (
+    <aside
+      data-sidebar
+      style={{
+        width: 236, flex: 'none', position: 'fixed', top: 0, left: 0, height: '100vh',
+        background: 'var(--sidebar)', borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column', padding: '20px 12px', zIndex: 50, overflowY: 'auto',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px 20px' }}>
+        <img src="/uploads/kneelstone-logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+        <div>
+          <div style={{ fontFamily: serif, fontSize: 15.5, lineHeight: 1.15 }}>Keelstone</div>
+          <div style={{ fontSize: 9.5, color: 'var(--primary)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' }}>Admin</div>
         </div>
-      )}
+      </div>
 
-      {/* ── FUND / DEFUND MANAGER ── */}
-      {managing && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={() => setManaging(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-              <Avatar u={managing} size={44} />
-              <div>
-                <div style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{displayName(managing)}</div>
-                <div style={{ fontSize: 12.5, color: C.muted }}>{managing.email}</div>
-              </div>
-            </div>
-
-            {/* Current balance */}
-            {(() => {
-              const t = investorTotals(managing.id, investments)
-              return (
-                <div style={{ display: 'flex', gap: 10, margin: '18px 0 22px' }}>
-                  {[['Invested', `$${fmt(t.principal)}`, C.ink], ['Earnings', `+$${fmt(t.earnings)}`, C.green], ['Value', `$${fmt(t.value)}`, C.ink]].map(([k, v, col]) => (
-                    <div key={k} style={{ flex: 1, background: C.bg, borderRadius: 6, padding: '12px 14px' }}>
-                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>{k}</div>
-                      <div style={{ fontFamily: serif, fontSize: 19, color: col }}>{v}</div>
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
-
-            {/* Fund */}
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Add funds</div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-              <select value={fundPlanId} onChange={(e) => setFundPlanId(e.target.value)}
-                style={{ flex: '1 1 160px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', background: '#faf7ff', color: C.ink, outline: 'none' }}>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>{p.data?.name} ({p.data?.annual_return_pct}% p.a.)</option>
-                ))}
-              </select>
-              <div style={{ flex: '1 1 140px', display: 'flex', alignItems: 'center', border: `1px solid ${C.border}`, borderRadius: 10, padding: '0 12px', background: '#faf7ff' }}>
-                <span style={{ fontSize: 15, color: C.muted }}>$</span>
-                <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="Amount"
-                  style={{ width: '100%', padding: '11px 6px', border: 'none', background: 'transparent', fontSize: 14, fontFamily: 'inherit', color: C.ink, outline: 'none' }} />
-              </div>
-            </div>
-            <button type="button" onClick={handleFund} disabled={fundBusy}
-              style={{ width: '100%', padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: fundBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: fundBusy ? 0.7 : 1, marginBottom: 24 }}>
-              {fundBusy ? 'Working…' : '+ Fund investor'}
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {TABS.map(([key, label, icon]) => {
+          const active = tab === key
+          const n = badges[key] || 0
+          return (
+            <button
+              key={key} type="button" onClick={() => setTab(key)}
+              aria-current={active ? 'page' : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px',
+                borderRadius: 'var(--r)', border: 'none',
+                background: active ? 'var(--primary-soft)' : 'transparent',
+                color: active ? 'var(--primary)' : 'var(--text-2)',
+                fontSize: 14, fontWeight: active ? 700 : 500,
+                cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+              }}
+            >
+              <Icon name={icon} size={19} />
+              <span style={{ flex: 1 }}>{label}</span>
+              {n > 0 && (
+                <span style={{ minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999, background: 'var(--loss)', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {n > 99 ? '99+' : n}
+                </span>
+              )}
             </button>
+          )
+        })}
+      </nav>
 
-            {/* Defund — active investments */}
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 12 }}>Active investments</div>
-            {managingInvestments.length === 0 ? (
-              <div style={{ fontSize: 13.5, color: C.muted, padding: '8px 0 4px' }}>No active investments.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {managingInvestments.map((inv) => {
-                  const d = inv.data || {}
-                  return (
-                    <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{d.plan_name} · ${fmt(d.principal)}</div>
-                        <div style={{ fontSize: 12, color: C.muted }}>{d.annual_return_pct}% p.a. · since {d.start_date ? new Date(d.start_date).toLocaleDateString() : '—'}</div>
-                      </div>
-                      <button type="button" onClick={() => handleDefund(inv.id)} disabled={fundBusy}
-                        style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: '#fef2f2', color: C.red, fontSize: 12.5, fontWeight: 700, cursor: fundBusy ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                        Defund
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <button type="button" onClick={() => setManaging(null)} style={{ width: '100%', marginTop: 22, padding: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
+      <div style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 6px 12px' }}>
+          <div style={{ width: 34, height: 34, flex: 'none', borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12.5 }}>
+            {initialsOf(profile)}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(profile)}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--text-3)' }}>Administrator</div>
           </div>
         </div>
-      )}
+        <Link to="/dashboard" style={{ textDecoration: 'none', display: 'block', marginBottom: 6 }}>
+          <Button variant="secondary" size="sm" full>Investor view</Button>
+        </Link>
+        <Button
+          variant="ghost" size="sm" full
+          onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
+          style={{ color: 'var(--loss)' }}
+        >
+          Sign out
+        </Button>
+      </div>
+    </aside>
+  )
+}
 
-      {/* ── MESSAGE DETAIL + REPLY ── */}
-      {activeMsg && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={() => setActiveMsg(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-            <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, marginBottom: 4 }}>{activeMsg.data?.direction === 'outbound' ? 'To' : 'From'}</div>
-            <div style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>{activeMsg.data?.name || activeMsg.data?.email || 'Unknown'}</div>
-            <div style={{ fontSize: 13, color: C.primary, marginBottom: 16 }}>{activeMsg.data?.email}</div>
+/* ══ overview ════════════════════════════════════════════ */
 
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Subject</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 14 }}>{activeMsg.data?.subject || '(no subject)'}</div>
+function Overview({ totals, actionCount, pendingDeposits, pendingWithdrawals, pendingKyc, notifications, activeCount, goTab }) {
+  const stats = [
+    ['Assets under management', `$${money0(totals.aum)}`, `${activeCount} active investments`],
+    ['Earnings accrued', `$${money0(totals.earnings)}`, 'Across all investors'],
+    ['Investors', String(totals.investors), 'Registered accounts'],
+    ['Needs action', String(actionCount), actionCount ? 'Waiting on you' : 'All clear'],
+  ]
 
-            <div style={{ fontSize: 14, color: C.body, lineHeight: 1.65, whiteSpace: 'pre-wrap', background: C.bg, borderRadius: 8, padding: '14px 16px', marginBottom: 18 }}>{activeMsg.data?.message || '—'}</div>
+  return (
+    <>
+      <div data-statgrid style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+        {stats.map(([label, val, sub], i) => (
+          <Card key={label} pad={16}>
+            <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600, marginBottom: 8 }}>{label}</div>
+            <div style={{ fontFamily: serif, fontSize: 24, color: i === 3 && actionCount ? 'var(--warn)' : 'var(--text)' }}>{val}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>
+          </Card>
+        ))}
+      </div>
 
-            {activeMsg.data?.reply_body && (
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Your reply{activeMsg.data?.replied_by ? ` · ${activeMsg.data.replied_by}` : ''}</div>
-                <div style={{ fontSize: 14, color: C.body, lineHeight: 1.65, whiteSpace: 'pre-wrap', background: '#f0fdf4', borderRadius: 8, padding: '14px 16px' }}>{activeMsg.data.reply_body}</div>
-              </div>
-            )}
-
-            {activeMsg.data?.direction !== 'outbound' && (
-              <>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.ink, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Reply via email</div>
-                <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} placeholder={`Write your reply to ${activeMsg.data?.email || 'the sender'}…`} rows={6}
-                  style={{ width: '100%', padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', resize: 'vertical', boxSizing: 'border-box' }} />
-                <button type="button" onClick={handleReply} disabled={replyBusy}
-                  style={{ width: '100%', marginTop: 12, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: replyBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: replyBusy ? 0.7 : 1 }}>
-                  {replyBusy ? 'Sending…' : 'Send reply'}
-                </button>
-              </>
-            )}
-            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-              <button type="button" onClick={() => handleDeleteMessage(activeMsg)} disabled={deleteBusy}
-                style={{ flex: 1, padding: 12, borderRadius: 6, border: `1px solid ${C.red}`, background: 'transparent', color: C.red, fontSize: 14, fontWeight: 600, cursor: deleteBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: deleteBusy ? 0.6 : 1 }}>
-                {deleteBusy ? 'Deleting…' : 'Delete'}
+      {actionCount > 0 && (
+        <Card style={{ marginTop: 14 }} pad={18}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 12px' }}>Waiting for review</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              ['Deposits', pendingDeposits.length, 'requests', 'down'],
+              ['Withdrawals', pendingWithdrawals.length, 'requests', 'up'],
+              ['KYC submissions', pendingKyc.length, 'kyc', 'shield'],
+            ].filter(([, n]) => n > 0).map(([label, n, target, icon]) => (
+              <button
+                key={label} type="button" onClick={() => goTab(target)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+                  padding: '12px 14px', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: 'inherit',
+                  background: 'var(--warn-soft)', border: '1px solid var(--border)',
+                }}
+              >
+                <Icon name={icon} size={19} style={{ color: 'var(--warn)' }} />
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{label}</span>
+                <Pill tone="warn">{n} pending</Pill>
+                <Icon name="arrowRight" size={16} style={{ color: 'var(--text-3)' }} />
               </button>
-              <button type="button" onClick={() => setActiveMsg(null)} style={{ flex: 1, padding: 12, borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
-            </div>
+            ))}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* ── COMPOSE NEW EMAIL ── */}
-      {composing && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={() => setComposing(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(14,12,22,.55)', backdropFilter: 'blur(6px)' }} />
-          <div style={{ position: 'relative', zIndex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 28, width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-            <div style={{ fontFamily: serif, fontSize: 22, color: C.ink, marginBottom: 20 }}>Compose email</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <label style={{ display: 'block' }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>To</div>
-                <input type="email" value={compose.to} onChange={(e) => setCompose((c) => ({ ...c, to: e.target.value }))} placeholder="investor@example.com"
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', boxSizing: 'border-box' }} />
-              </label>
-              <label style={{ display: 'block' }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>Subject</div>
-                <input type="text" value={compose.subject} onChange={(e) => setCompose((c) => ({ ...c, subject: e.target.value }))} placeholder="Subject"
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', boxSizing: 'border-box' }} />
-              </label>
-              <label style={{ display: 'block' }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.muted, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 5 }}>Message</div>
-                <textarea value={compose.body} onChange={(e) => setCompose((c) => ({ ...c, body: e.target.value }))} placeholder="Write your message…" rows={7}
-                  style={{ width: '100%', padding: '12px 14px', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', color: C.ink, background: '#faf7ff', resize: 'vertical', boxSizing: 'border-box' }} />
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-              <button type="button" onClick={handleCompose} disabled={composeBusy}
-                style={{ flex: 1, padding: '12px', borderRadius: 6, border: 'none', background: C.primary, color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: composeBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: composeBusy ? 0.7 : 1 }}>
-                {composeBusy ? 'Sending…' : 'Send email'}
-              </button>
-              <button type="button" onClick={() => setComposing(false)}
-                style={{ padding: '12px 20px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'transparent', color: C.body, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Cancel
-              </button>
-            </div>
-          </div>
+      <Card style={{ marginTop: 14 }} pad={18}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Latest activity</h2>
+          <Button variant="ghost" size="sm" onClick={() => goTab('alerts')}>See all</Button>
         </div>
-      )}
+        {notifications.length === 0 ? (
+          <EmptyState compact icon={<Icon name="bell" size={22} />} title="Nothing yet" body="Activity across the platform will appear here." />
+        ) : notifications.slice(0, 6).map((n) => <NotificationRow key={n.id} n={n} />)}
+      </Card>
+    </>
+  )
+}
+
+/* ══ alerts ══════════════════════════════════════════════ */
+
+const TONE_FG = { gain: 'var(--gain)', warn: 'var(--warn)', loss: 'var(--loss)', info: 'var(--info)', brand: 'var(--primary)' }
+const TONE_BG = { gain: 'var(--gain-soft)', warn: 'var(--warn-soft)', loss: 'var(--loss-soft)', info: 'var(--info-soft)', brand: 'var(--primary-soft)' }
+
+function NotificationRow({ n, onClick }) {
+  const kind = KINDS[n.kind] || KINDS.message
+  return (
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 12,
+        padding: '13px 0', borderBottom: '1px solid var(--border)',
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+    >
+      <div style={{ width: 36, height: 36, flex: 'none', borderRadius: '50%', background: TONE_BG[n.tone] || 'var(--surface-2)', color: TONE_FG[n.tone] || 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={kind.icon} size={17} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          {!n.isRead && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', flex: 'none' }} />}
+          <span style={{ fontSize: 14, fontWeight: n.isRead ? 600 : 800, color: 'var(--text)' }}>{n.title}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {n.body}{n.actor ? ` · ${n.actor}` : ''}
+        </div>
+      </div>
+      <div style={{ textAlign: 'right', flex: 'none' }}>
+        {n.amount != null && <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>${money0(n.amount)}</div>}
+        <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>{timeAgo(n.at)}</div>
+      </div>
     </div>
   )
 }
 
-function RequestRows({ items, type, actionLoading, onAction, actionNote, setActionNote, showAll }) {
-  const display = showAll ? items : items.slice(0, 5)
+function Alerts({ notifications, setNotifications, showToast, goTab }) {
+  const [filter, setFilter] = useState('all')
+  const shown = notifications.filter((n) => filter === 'all' || n.kind === filter)
+  const unread = unreadCount(notifications)
+
+  const readAll = async () => {
+    try {
+      await markAllRead(notifications)
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+      showToast('All caught up')
+    } catch (e) {
+      showToast(e.message || 'Could not update')
+    }
+  }
+
+  const open = async (n) => {
+    if (!n.isRead) {
+      try {
+        await markRead(n.id)
+        setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)))
+      } catch { /* non-fatal */ }
+    }
+    const dest = { deposit: 'requests', withdrawal: 'requests', kyc: 'kyc', message: 'inbox', user: 'investors', investment: 'investors' }[n.kind]
+    if (dest) goTab(dest)
+  }
+
   return (
-    <div>
-      {display.map((item) => {
-        const d = item.data || {}
-        const isPending = d.status === 'pending'
-        const isProcessing = actionLoading === item.id
-        return (
-          <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 1.2fr 1fr 1.6fr', gap: 14, alignItems: 'center', padding: '15px 22px', borderBottom: '1px solid #f6f1fe' }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#221a33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user_name || d.user_email || '—'}</div>
-              <div style={{ fontSize: 12, color: '#a89cc4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.user_email}</div>
-            </div>
-            <div>
-              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: '#221a33' }}>${parseFloat(d.amount || 0).toLocaleString()}</div>
-              {type === 'deposit' && (
-                <div style={{ fontSize: 11, color: d.plan_name ? '#6d28d9' : '#a89cc4', fontWeight: 700, marginTop: 2 }}>
-                  {d.plan_name || 'To balance'}
+    <Card pad={18}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600 }}>{unread > 0 ? `${unread} unread` : 'All caught up'}</div>
+        {unread > 0 && <Button variant="ghost" size="sm" onClick={readAll}>Mark all read</Button>}
+      </div>
+
+      <Segmented tabs={KIND_FILTERS} active={filter} onChange={setFilter} style={{ marginBottom: 8 }} />
+
+      {shown.length === 0 ? (
+        <EmptyState compact icon={<Icon name="bell" size={22} />} title="Nothing here" body="New activity will show up as it happens." />
+      ) : shown.map((n) => <NotificationRow key={n.id} n={n} onClick={() => open(n)} />)}
+    </Card>
+  )
+}
+
+/* ══ investors ═══════════════════════════════════════════ */
+
+function Investors({ data, reload, showToast }) {
+  const [q, setQ] = useState('')
+  const [managing, setManaging] = useState(null)
+
+  const investors = data.profiles.filter((p) => {
+    if (!q) return true
+    const s = q.toLowerCase()
+    return displayName(p).toLowerCase().includes(s) || (p.email || '').toLowerCase().includes(s)
+  })
+
+  return (
+    <>
+      <Card pad={14} style={{ marginBottom: 12 }}>
+        <input
+          value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by name or email…"
+          aria-label="Search investors"
+          style={{ ...fieldStyle }}
+        />
+      </Card>
+
+      <Card pad={0}>
+        <div data-table-head style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+          <div>Investor</div><div>Plans</div><div>Invested</div><div>Earnings</div><div />
+        </div>
+
+        {investors.length === 0 ? (
+          <EmptyState compact icon={<Icon name="users" size={22} />} title="No investors found" />
+        ) : investors.map((p) => {
+          const t = investorTotals(p.id, data.investments)
+          return (
+            <div
+              key={p.id} data-table-row
+              style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 12, alignItems: 'center', padding: '13px 18px', borderBottom: '1px solid var(--border)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                <div style={{ width: 36, height: 36, flex: 'none', borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+                  {initialsOf(p)}
                 </div>
-              )}
-            </div>
-            <div style={{ fontSize: 12, color: '#5b5172', minWidth: 0 }}>
-              {type === 'deposit' && <div style={{ fontWeight: 700, color: '#221a33', marginBottom: 2 }}>{d.method || '—'}</div>}
-              {d.tx_hash ? (
-                <a href={`https://bscscan.com/tx/${d.tx_hash}`} target="_blank" rel="noreferrer" style={{ color: '#6d28d9', fontWeight: 700, fontFamily: 'monospace', textDecoration: 'none' }}>
-                  {d.tx_hash.slice(0, 8)}…{d.tx_hash.slice(-6)} ↗
-                </a>
-              ) : d.reference ? (
-                <span style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{String(d.reference).slice(0, 22)}{String(d.reference).length > 22 ? '…' : ''}</span>
-              ) : type === 'withdrawal' && d.bank_details ? (
-                <a href={`https://bscscan.com/address/${d.bank_details}`} target="_blank" rel="noreferrer" style={{ color: '#5b5172', fontFamily: 'monospace', textDecoration: 'none', wordBreak: 'break-all' }}>
-                  {String(d.bank_details).slice(0, 10)}…{String(d.bank_details).slice(-6)}
-                </a>
-              ) : type === 'deposit' ? (
-                <span style={{ color: '#a89cc4' }}>No reference given</span>
-              ) : (
-                <span style={{ fontFamily: 'monospace' }}>{d.method || '—'}</span>
-              )}
-            </div>
-            <div><StatusBadge status={d.status || 'pending'} /></div>
-            <div>
-              {isPending ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <input
-                    placeholder="Note (optional)"
-                    value={actionNote[item.id] || ''}
-                    onChange={(e) => setActionNote((n) => ({ ...n, [item.id]: e.target.value }))}
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ece4fb', fontSize: 12, fontFamily: 'inherit', outline: 'none', background: '#faf7ff', color: '#221a33' }}
-                  />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button type="button" disabled={isProcessing} onClick={() => onAction(type, item.id, 'approve', actionNote[item.id] || '')}
-                      style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', background: isProcessing ? '#d1fae5' : '#16a34a', color: '#fff', fontSize: 12, fontWeight: 700, cursor: isProcessing ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
-                      {isProcessing ? '…' : '✓ Approve'}
-                    </button>
-                    <button type="button" disabled={isProcessing} onClick={() => onAction(type, item.id, 'reject', actionNote[item.id] || '')}
-                      style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, cursor: isProcessing ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
-                      ✕ Reject
-                    </button>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {displayName(p)}
+                    {p.role === 'admin' && <Pill tone="brand" style={{ marginLeft: 6 }}>Admin</Pill>}
                   </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email}</div>
                 </div>
-              ) : (
-                <span style={{ fontSize: 12, color: '#a89cc4' }}>{d.admin_note || 'No note'}</span>
-              )}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t.count || '—'}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t.principal ? `$${money0(t.principal)}` : '—'}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: t.earnings ? 'var(--gain)' : 'var(--text-3)' }}>
+                {t.earnings ? `+$${money0(t.earnings)}` : '—'}
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setManaging(p)}>Manage</Button>
             </div>
-          </div>
-        )
-      })}
-    </div>
+          )
+        })}
+      </Card>
+
+      {managing && (
+        <ManageInvestor
+          investor={managing} plans={data.plans} investments={data.investments}
+          onClose={() => setManaging(null)}
+          onDone={async (msg) => { setManaging(null); await reload(); showToast(msg) }}
+        />
+      )}
+    </>
   )
 }
 
-function LoadingRow() {
-  return <div style={{ padding: '32px 22px', textAlign: 'center', color: '#a89cc4', fontSize: 14 }}>Loading…</div>
-}
+function ManageInvestor({ investor, plans, investments, onClose, onDone }) {
+  const [amount, setAmount] = useState('')
+  const [planId, setPlanId] = useState(plans[0]?.id || '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-function AuthBlock({ title, sub, action }) {
+  const t = investorTotals(investor.id, investments)
+  const theirs = investments.filter((i) => i.user_id === investor.id && i.status === 'active')
+
+  const fund = async () => {
+    setError('')
+    const amt = parseFloat(String(amount).replace(/,/g, '')) || 0
+    if (!amt) return setError('Enter an amount.')
+    if (!planId) return setError('Choose a plan.')
+    setBusy(true)
+    try {
+      await fundInvestor({ userId: investor.id, planId, amount: amt })
+      onDone(`Funded ${displayName(investor)} $${money0(amt)}`)
+    } catch (e) {
+      setError(e.message || 'Could not fund this investor.')
+      setBusy(false)
+    }
+  }
+
+  const close = async (id) => {
+    setBusy(true)
+    try {
+      await closeInvestment(id)
+      onDone('Investment closed')
+    } catch (e) {
+      setError(e.message || 'Could not close that investment.')
+      setBusy(false)
+    }
+  }
+
   return (
-    <div style={{ background: '#fff', border: '1px solid #ece4fb', borderRadius: 22, padding: 36, maxWidth: 420, textAlign: 'center' }}>
-      <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: '#221a33', marginBottom: 10 }}>{title}</div>
-      <p style={{ color: '#a89cc4', fontSize: 14.5, margin: '0 0 24px', lineHeight: 1.6 }}>{sub}</p>
-      {action}
+    <Sheet onClose={onClose} maxWidth={520} labelledBy="mi-title">
+      <SheetHeader id="mi-title" title={displayName(investor)} onClose={onClose} />
+      <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: -10, marginBottom: 16 }}>{investor.email}</div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        {[['Invested', `$${money0(t.principal)}`], ['Earnings', `+$${money0(t.earnings)}`], ['Value', `$${money0(t.value)}`]].map(([k, v]) => (
+          <div key={k} style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '11px 12px' }}>
+            <div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{k}</div>
+            <div style={{ fontFamily: serif, fontSize: 17 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Add funds</div>
+      <Field label="Plan">
+        <select value={planId} onChange={(e) => setPlanId(e.target.value)} style={fieldStyle}>
+          {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.annual_return_pct}% p.a.)</option>)}
+        </select>
+      </Field>
+      <Field label="Amount (USD)">
+        <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" style={fieldStyle} />
+      </Field>
+      <Button full onClick={fund} busy={busy} style={{ marginBottom: 22 }}>Fund investor</Button>
+
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Active investments</div>
+      {theirs.length === 0 ? (
+        <div style={{ fontSize: 13.5, color: 'var(--text-3)' }}>None.</div>
+      ) : theirs.map((inv) => (
+        <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 'var(--r)', background: 'var(--surface-2)', marginBottom: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700 }}>{inv.plan_name} · ${money0(inv.principal)}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{inv.annual_return_pct}% p.a. · since {shortDate(inv.start_date)}</div>
+          </div>
+          <Button variant="dangerGhost" size="sm" onClick={() => close(inv.id)} busy={busy}>Close</Button>
+        </div>
+      ))}
+
+      {error && <Alert tone="loss" style={{ marginTop: 14 }}>{error}</Alert>}
+    </Sheet>
+  )
+}
+
+/* ══ requests ════════════════════════════════════════════ */
+
+function Requests({ deposits, withdrawals, profiles, reload, showToast }) {
+  const [filter, setFilter] = useState('pending')
+  const byId = useMemo(() => Object.fromEntries(profiles.map((p) => [p.id, p])), [profiles])
+
+  const rows = [
+    ...deposits.map((d) => ({ ...d, type: 'deposit' })),
+    ...withdrawals.map((w) => ({ ...w, type: 'withdrawal' })),
+  ]
+    .filter((r) => (filter === 'all' ? true : filter === 'pending' ? r.status === 'pending' : r.type === filter))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+  return (
+    <Card pad={18}>
+      <Segmented
+        tabs={[['pending', 'Pending'], ['deposit', 'Deposits'], ['withdrawal', 'Withdrawals'], ['all', 'All']]}
+        active={filter} onChange={setFilter} style={{ marginBottom: 10 }}
+      />
+      {rows.length === 0 ? (
+        <EmptyState compact icon={<Icon name="check" size={22} />} title="All clear" body="Nothing is waiting for review." />
+      ) : rows.map((r) => (
+        <RequestRow key={`${r.type}-${r.id}`} r={r} profile={byId[r.user_id]} reload={reload} showToast={showToast} />
+      ))}
+    </Card>
+  )
+}
+
+function RequestRow({ r, profile, reload, showToast }) {
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const isDep = r.type === 'deposit'
+
+  const act = async (action) => {
+    setBusy(true)
+    try {
+      await reviewRequest({ type: r.type, recordId: r.id, action, note })
+      showToast(`${isDep ? 'Deposit' : 'Withdrawal'} ${action}d`)
+      await reload()
+    } catch (e) {
+      showToast(e.message || 'Action failed')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '13px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          style={{
+            width: 36, height: 36, flex: 'none', borderRadius: '50%',
+            background: isDep ? 'var(--gain-soft)' : 'var(--warn-soft)',
+            color: isDep ? 'var(--gain)' : 'var(--warn)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon name={isDep ? 'down' : 'up'} size={17} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {displayName(profile)} · ${money0(r.amount)}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+            {isDep ? (r.plan_name || 'No plan') : (r.network || 'Withdrawal')} · {timeAgo(r.created_at)}
+          </div>
+        </div>
+        <Pill status={r.status} />
+      </div>
+
+      {r.status === 'pending' && (
+        <div style={{ marginTop: 10, paddingLeft: 48 }}>
+          {(isDep ? (r.tx_hash || r.reference) : r.bank_details) && (
+            <div style={{ marginBottom: 8, fontSize: 11.5, color: 'var(--text-3)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+              {isDep ? `Ref: ${r.tx_hash || r.reference}` : `To: ${r.bank_details}`}
+            </div>
+          )}
+          {noteOpen && (
+            <input
+              value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Note (optional)" aria-label="Admin note"
+              style={{ ...fieldStyle, marginBottom: 8, padding: '9px 12px', fontSize: 13 }}
+            />
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button size="sm" onClick={() => act('approve')} busy={busy} style={{ background: 'var(--gain)' }}>Approve</Button>
+            <Button size="sm" variant="dangerGhost" onClick={() => act('reject')} busy={busy}>Reject</Button>
+            {!noteOpen && <Button size="sm" variant="ghost" onClick={() => setNoteOpen(true)}>Add note</Button>}
+          </div>
+        </div>
+      )}
+
+      {r.status !== 'pending' && r.admin_note && (
+        <div style={{ marginTop: 6, paddingLeft: 48, fontSize: 12, color: 'var(--text-3)' }}>Note: {r.admin_note}</div>
+      )}
     </div>
   )
 }
 
-function Centered({ children }) {
-  return <div style={{ minHeight: '100vh', background: '#faf7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>{children}</div>
+/* ══ KYC queue ═══════════════════════════════════════════ */
+
+function KycQueue({ kyc, profiles, reload, showToast }) {
+  const [filter, setFilter] = useState('submitted')
+  const [viewing, setViewing] = useState(null)
+  const byId = useMemo(() => Object.fromEntries(profiles.map((p) => [p.id, p])), [profiles])
+  const shown = kyc.filter((k) => filter === 'all' || k.status === filter)
+
+  return (
+    <>
+      <Card pad={18}>
+        <Segmented
+          tabs={[['submitted', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['all', 'All']]}
+          active={filter} onChange={setFilter} style={{ marginBottom: 10 }}
+        />
+        {shown.length === 0 ? (
+          <EmptyState compact icon={<Icon name="shield" size={22} />} title="Nothing here" body="KYC submissions will appear here for review." />
+        ) : shown.map((k) => (
+          <button
+            key={k.id} type="button" onClick={() => setViewing(k)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+              padding: '13px 0', borderBottom: '1px solid var(--border)',
+              background: 'transparent', border: 'none', borderBottomStyle: 'solid',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <div style={{ width: 36, height: 36, flex: 'none', borderRadius: '50%', background: 'var(--primary-soft)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="shield" size={17} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{k.full_name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{byId[k.user_id]?.email || '—'} · {timeAgo(k.submitted_at)}</div>
+            </div>
+            <Pill status={k.status} />
+          </button>
+        ))}
+      </Card>
+
+      {viewing && (
+        <KycReview
+          submission={viewing} profile={byId[viewing.user_id]}
+          onClose={() => setViewing(null)}
+          onDone={async (msg) => { setViewing(null); await reload(); showToast(msg) }}
+        />
+      )}
+    </>
+  )
 }
 
-function btnStyle() {
-  return { display: 'inline-block', padding: '13px 24px', borderRadius: 13, background: 'linear-gradient(135deg,#6d28d9,#c026d3)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', boxShadow: '0 14px 30px rgba(109,40,217,.35)' }
+function KycReview({ submission, profile, onClose, onDone }) {
+  const [urls, setUrls] = useState({})
+  const [reason, setReason] = useState('')
+  const [rejecting, setRejecting] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  // Documents live in a private bucket — fetch short-lived signed URLs.
+  useEffect(() => {
+    let active = true
+    const keys = ['doc_id_front', 'doc_id_back', 'doc_selfie']
+    Promise.all(keys.map((k) => (submission[k] ? getDocumentUrl(submission[k]).catch(() => null) : Promise.resolve(null))))
+      .then((res) => { if (active) setUrls(Object.fromEntries(keys.map((k, i) => [k, res[i]]))) })
+    return () => { active = false }
+  }, [submission])
+
+  const decide = async (action) => {
+    setError('')
+    if (action === 'reject' && !reason.trim()) {
+      setRejecting(true)
+      return setError('Give a reason so the investor knows what to fix.')
+    }
+    setBusy(true)
+    try {
+      await reviewKyc({ submissionId: submission.id, action, reason: reason.trim() })
+      onDone(action === 'approve' ? 'Identity approved' : 'Submission rejected')
+    } catch (e) {
+      setError(e.message || 'Could not record that decision.')
+      setBusy(false)
+    }
+  }
+
+  const idType = ID_TYPES.find((t) => t.value === submission.id_type)?.label || submission.id_type
+
+  return (
+    <Sheet onClose={onClose} maxWidth={560} labelledBy="kyc-review">
+      <SheetHeader id="kyc-review" title="Review identity" onClose={onClose} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: -8, marginBottom: 16 }}>
+        <Pill status={submission.status} />
+        <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>Submitted {shortDate(submission.submitted_at)}</span>
+      </div>
+
+      <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: 16, marginBottom: 16 }}>
+        {[
+          ['Name', submission.full_name],
+          ['Email', profile?.email],
+          ['Date of birth', submission.date_of_birth],
+          ['Country', submission.country],
+          ['Address', submission.address],
+          ['Document', idType],
+          ['Number', submission.id_number],
+        ].map(([k, v]) => (
+          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '6px 0', fontSize: 13.5 }}>
+            <span style={{ color: 'var(--text-3)', flex: 'none' }}>{k}</span>
+            <span style={{ fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{v || '—'}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Documents</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {['doc_id_front', 'doc_id_back', 'doc_selfie'].map((k) =>
+          submission[k] ? (
+            urls[k] ? (
+              <a key={k} href={urls[k]} target="_blank" rel="noreferrer" style={{ flex: '1 1 120px' }}>
+                <img src={urls[k]} alt={k.replace(/_/g, ' ')} style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', display: 'block' }} />
+              </a>
+            ) : (
+              <div key={k} data-skeleton style={{ flex: '1 1 120px', height: 110, borderRadius: 'var(--r-sm)' }} />
+            )
+          ) : null,
+        )}
+      </div>
+
+      {submission.status === 'submitted' && (
+        <>
+          {rejecting && (
+            <Field label="Reason for rejection" hint="The investor sees this, so be specific.">
+              <textarea
+                value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
+                placeholder="e.g. The document photo is blurred — please retake it in better light."
+                style={{ ...fieldStyle, resize: 'vertical' }}
+              />
+            </Field>
+          )}
+          {error && <Alert tone="loss" style={{ marginBottom: 14 }}>{error}</Alert>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button onClick={() => decide('approve')} busy={busy} style={{ flex: 1, background: 'var(--gain)' }}>Approve</Button>
+            <Button variant="dangerGhost" onClick={() => (rejecting ? decide('reject') : setRejecting(true))} busy={busy} style={{ flex: 1 }}>
+              {rejecting ? 'Confirm rejection' : 'Reject'}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {submission.status === 'rejected' && submission.rejection_reason && (
+        <Alert tone="loss"><div><b>Rejected:</b> {submission.rejection_reason}</div></Alert>
+      )}
+    </Sheet>
+  )
+}
+
+/* ══ plans + deposit methods ═════════════════════════════ */
+
+function Plans({ plans, methods, reload, showToast }) {
+  const [editing, setEditing] = useState(null)
+  const [editingMethod, setEditingMethod] = useState(null)
+
+  return (
+    <>
+      <Card pad={18} style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Investment plans</h2>
+          <Button size="sm" onClick={() => setEditing({ name: '', annual_return_pct: 0, min_usd: 5000, max_usd: 0, risk: 'Medium', active: true, sort_order: plans.length + 1 })}>
+            <Icon name="plus" size={15} /> Add
+          </Button>
+        </div>
+        {plans.length === 0 ? (
+          <div style={{ fontSize: 13.5, color: 'var(--text-3)', padding: '8px 0' }}>No plans yet.</div>
+        ) : plans.map((p) => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14.5, fontWeight: 700 }}>{p.name}</span>
+                {p.featured && <Pill tone="brand">Featured</Pill>}
+                {!p.active && <Pill tone="neutral">Hidden</Pill>}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
+                ${money0(p.min_usd)}{p.max_usd > 0 ? ` – $${money0(p.max_usd)}` : '+'} · {p.annual_return_pct}% p.a. · {p.risk} risk
+              </div>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => setEditing(p)}>Edit</Button>
+          </div>
+        ))}
+      </Card>
+
+      <Card pad={18}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Deposit methods</h2>
+          <Button size="sm" onClick={() => setEditingMethod({ name: '', symbol: '', network: '', wallet_address: '', min_amount: 0, active: true })}>
+            <Icon name="plus" size={15} /> Add
+          </Button>
+        </div>
+        {methods.length === 0 ? (
+          <Alert tone="warn">No deposit methods yet — investors can’t deposit until you add one.</Alert>
+        ) : methods.map((m) => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ fontSize: 14.5, fontWeight: 700 }}>{m.name}</span>
+                {!m.active && <Pill tone="neutral">Hidden</Pill>}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-3)', fontFamily: 'monospace', marginTop: 2, wordBreak: 'break-all' }}>{m.wallet_address}</div>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => setEditingMethod(m)}>Edit</Button>
+          </div>
+        ))}
+      </Card>
+
+      {editing && (
+        <PlanEditor plan={editing} onClose={() => setEditing(null)} onDone={async (msg) => { setEditing(null); await reload(); showToast(msg) }} />
+      )}
+      {editingMethod && (
+        <MethodEditor method={editingMethod} onClose={() => setEditingMethod(null)} onDone={async (msg) => { setEditingMethod(null); await reload(); showToast(msg) }} />
+      )}
+    </>
+  )
+}
+
+function PlanEditor({ plan, onClose, onDone }) {
+  const [form, setForm] = useState(plan)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  const save = async () => {
+    setError('')
+    if (!form.name?.trim()) return setError('Give the plan a name.')
+    setBusy(true)
+    try {
+      await savePlan(form)
+      onDone(plan.id ? 'Plan updated' : 'Plan created')
+    } catch (e) {
+      setError(e.message || 'Could not save.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet onClose={onClose} maxWidth={520} labelledBy="pe">
+      <SheetHeader id="pe" title={plan.id ? `Edit ${plan.name}` : 'New plan'} onClose={onClose} />
+      <Field label="Plan name"><input value={form.name || ''} onChange={(e) => set('name', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Target annual return (%)"><input type="number" value={form.annual_return_pct ?? 0} onChange={(e) => set('annual_return_pct', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Minimum (USD)"><input type="number" value={form.min_usd ?? 0} onChange={(e) => set('min_usd', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Maximum (USD)" hint="0 means no limit."><input type="number" value={form.max_usd ?? 0} onChange={(e) => set('max_usd', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Risk level"><input value={form.risk || ''} onChange={(e) => set('risk', e.target.value)} placeholder="Low / Medium / High" style={fieldStyle} /></Field>
+      <Field label="Assets"><input value={form.assets || ''} onChange={(e) => set('assets', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Strategy"><textarea value={form.strategy || ''} onChange={(e) => set('strategy', e.target.value)} rows={3} style={{ ...fieldStyle, resize: 'vertical' }} /></Field>
+
+      {[['featured', 'Featured on the website'], ['active', 'Visible to investors']].map(([k, label]) => (
+        <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, marginBottom: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!form[k]} onChange={(e) => set(k, e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--primary)' }} />
+          {label}
+        </label>
+      ))}
+
+      {error && <Alert tone="loss" style={{ marginTop: 12 }}>{error}</Alert>}
+      <Button full onClick={save} busy={busy} style={{ marginTop: 14 }}>{plan.id ? 'Save changes' : 'Create plan'}</Button>
+    </Sheet>
+  )
+}
+
+function MethodEditor({ method, onClose, onDone }) {
+  const [form, setForm] = useState(method)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  const save = async () => {
+    setError('')
+    if (!form.name?.trim()) return setError('Give the method a name.')
+    if (!form.wallet_address?.trim()) return setError('A wallet address is required.')
+    setBusy(true)
+    try {
+      await saveDepositMethod(form)
+      onDone(method.id ? 'Method updated' : 'Method added')
+    } catch (e) {
+      setError(e.message || 'Could not save.')
+      setBusy(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!window.confirm(`Remove ${form.name}? Investors will no longer see it.`)) return
+    setBusy(true)
+    try {
+      await deleteDepositMethod(method.id)
+      onDone('Method removed')
+    } catch (e) {
+      setError(e.message || 'Could not remove.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet onClose={onClose} maxWidth={520} labelledBy="me">
+      <SheetHeader id="me" title={method.id ? `Edit ${method.name}` : 'New deposit method'} onClose={onClose} />
+      <Field label="Name"><input value={form.name || ''} onChange={(e) => set('name', e.target.value)} placeholder="USDT" style={fieldStyle} /></Field>
+      <Field label="Symbol"><input value={form.symbol || ''} onChange={(e) => set('symbol', e.target.value)} placeholder="USDT" style={fieldStyle} /></Field>
+      <Field label="Network"><input value={form.network || ''} onChange={(e) => set('network', e.target.value)} placeholder="BEP-20 (BNB Smart Chain)" style={fieldStyle} /></Field>
+      <Field label="Wallet address">
+        <input value={form.wallet_address || ''} onChange={(e) => set('wallet_address', e.target.value)} placeholder="0x…" style={{ ...fieldStyle, fontFamily: 'monospace', fontSize: 13 }} />
+      </Field>
+      <Field label="Minimum amount (USD)"><input type="number" value={form.min_amount ?? 0} onChange={(e) => set('min_amount', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Instructions" hint="Shown to investors when they pick this method.">
+        <textarea value={form.instructions || ''} onChange={(e) => set('instructions', e.target.value)} rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
+      </Field>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, marginBottom: 10, cursor: 'pointer' }}>
+        <input type="checkbox" checked={form.active !== false} onChange={(e) => set('active', e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--primary)' }} />
+        Available to investors
+      </label>
+
+      {error && <Alert tone="loss" style={{ marginTop: 12 }}>{error}</Alert>}
+      <Button full onClick={save} busy={busy} style={{ marginTop: 14 }}>{method.id ? 'Save changes' : 'Add method'}</Button>
+      {method.id && <Button variant="dangerGhost" full onClick={remove} busy={busy} style={{ marginTop: 8 }}>Remove method</Button>}
+    </Sheet>
+  )
+}
+
+/* ══ inbox ═══════════════════════════════════════════════ */
+
+function Inbox({ messages, reload, showToast }) {
+  const [active, setActive] = useState(null)
+  const [composing, setComposing] = useState(false)
+
+  return (
+    <>
+      <Card pad={18}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Support inbox</h2>
+          <Button size="sm" onClick={() => setComposing(true)}><Icon name="mail" size={15} /> Compose</Button>
+        </div>
+        {messages.length === 0 ? (
+          <EmptyState compact icon={<Icon name="mail" size={22} />} title="No messages" body="Messages from investors will appear here." />
+        ) : messages.map((m) => {
+          const outbound = m.direction === 'outbound'
+          const isNew = !outbound && m.status === 'new'
+          return (
+            <button
+              key={m.id} type="button" onClick={() => setActive(m)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+                padding: '13px 0', borderBottom: '1px solid var(--border)',
+                background: 'transparent', border: 'none', borderBottomStyle: 'solid',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  {isNew && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', flex: 'none' }} />}
+                  <span style={{ fontSize: 14, fontWeight: isNew ? 800 : 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {outbound ? `To: ${m.email}` : (m.name || m.email)}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {m.subject || '(no subject)'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flex: 'none' }}>
+                <Pill tone={outbound ? 'info' : isNew ? 'brand' : 'gain'}>{outbound ? 'Sent' : isNew ? 'New' : 'Replied'}</Pill>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{timeAgo(m.created_at)}</div>
+              </div>
+            </button>
+          )
+        })}
+      </Card>
+
+      {active && (
+        <MessageView message={active} onClose={() => setActive(null)} onDone={async (msg) => { setActive(null); await reload(); showToast(msg) }} />
+      )}
+      {composing && (
+        <Compose onClose={() => setComposing(false)} onDone={async (msg) => { setComposing(false); await reload(); showToast(msg) }} />
+      )}
+    </>
+  )
+}
+
+function MessageView({ message, onClose, onDone }) {
+  const [reply, setReply] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const send = async () => {
+    setError('')
+    if (!reply.trim()) return setError('Write a reply first.')
+    setBusy(true)
+    try {
+      await sendEmail({
+        to: message.email,
+        subject: message.subject ? `Re: ${message.subject}` : 'Re: your message',
+        body: reply,
+        messageId: message.id,
+      })
+      onDone(`Reply sent to ${message.email}`)
+    } catch (e) {
+      setError(e.message || 'Could not send.')
+      setBusy(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!window.confirm('Delete this message?')) return
+    setBusy(true)
+    try {
+      await deleteMessage(message.id)
+      onDone('Message deleted')
+    } catch (e) {
+      setError(e.message || 'Could not delete.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet onClose={onClose} maxWidth={560} labelledBy="mv">
+      <SheetHeader id="mv" title={message.subject || '(no subject)'} onClose={onClose} />
+      <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: -10, marginBottom: 16 }}>
+        {message.direction === 'outbound' ? 'To' : 'From'} {message.name ? `${message.name} · ` : ''}{message.email} · {shortDate(message.created_at)}
+      </div>
+
+      <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: 16, fontSize: 14, lineHeight: 1.65, whiteSpace: 'pre-wrap', marginBottom: 16 }}>
+        {message.message || '—'}
+      </div>
+
+      {message.reply_body && (
+        <>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gain)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>
+            Your reply{message.replied_by ? ` · ${message.replied_by}` : ''}
+          </div>
+          <div style={{ background: 'var(--gain-soft)', borderRadius: 'var(--r)', padding: 14, fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: 16 }}>
+            {message.reply_body}
+          </div>
+        </>
+      )}
+
+      {message.direction !== 'outbound' && (
+        <Field label="Reply by email">
+          <textarea
+            value={reply} onChange={(e) => setReply(e.target.value)} rows={5}
+            placeholder={`Write your reply to ${message.email}…`}
+            style={{ ...fieldStyle, resize: 'vertical' }}
+          />
+        </Field>
+      )}
+
+      {error && <Alert tone="loss" style={{ marginBottom: 12 }}>{error}</Alert>}
+
+      {message.direction !== 'outbound' && <Button full onClick={send} busy={busy}>Send reply</Button>}
+      <Button variant="dangerGhost" full onClick={remove} busy={busy} style={{ marginTop: 8 }}>Delete</Button>
+    </Sheet>
+  )
+}
+
+function Compose({ onClose, onDone }) {
+  const [form, setForm] = useState({ to: '', subject: '', body: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  const send = async () => {
+    setError('')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.to.trim())) return setError('Enter a valid email address.')
+    if (!form.subject.trim()) return setError('Add a subject.')
+    if (!form.body.trim()) return setError('Write a message.')
+    setBusy(true)
+    try {
+      await sendEmail({ to: form.to.trim(), subject: form.subject, body: form.body })
+      onDone(`Email sent to ${form.to.trim()}`)
+    } catch (e) {
+      setError(e.message || 'Could not send.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet onClose={onClose} maxWidth={520} labelledBy="cp">
+      <SheetHeader id="cp" title="Compose email" onClose={onClose} />
+      <Field label="To"><input type="email" value={form.to} onChange={(e) => set('to', e.target.value)} placeholder="investor@example.com" style={fieldStyle} /></Field>
+      <Field label="Subject"><input value={form.subject} onChange={(e) => set('subject', e.target.value)} style={fieldStyle} /></Field>
+      <Field label="Message"><textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={7} style={{ ...fieldStyle, resize: 'vertical' }} /></Field>
+      {error && <Alert tone="loss" style={{ marginBottom: 12 }}>{error}</Alert>}
+      <Button full onClick={send} busy={busy}>Send email</Button>
+    </Sheet>
+  )
 }

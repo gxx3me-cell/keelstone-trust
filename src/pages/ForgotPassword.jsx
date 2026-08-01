@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAnim } from '../hooks/useReveal'
-import { db } from '../lib/cocobase'
+import { supabase } from '../lib/supabase'
 import { ArrowRight, EnvelopeSimple } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
@@ -26,15 +26,14 @@ export default function ForgotPassword() {
     if (!email) { setError('Please enter your email address.'); return }
     setSubmitting(true)
     try {
-      // Our own cloud function — issues the token and sends the branded email.
-      // CocoBase's built-in forgot-password is not used (it sends its own email
-      // and never returns the token to us).
-      await db.functions.execute('request_password_reset', {
-        payload: { email },
-        method: 'POST',
+      // Supabase sends the recovery email and manages the token. The link lands
+      // on /reset-password, where the SDK picks up the recovery session.
+      // Customise the wording under Auth → Email Templates → Reset Password.
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       })
       setDone(true)
-    } catch (err) {
+    } catch {
       // Always show success even on error to avoid email enumeration
       setDone(true)
     } finally {
