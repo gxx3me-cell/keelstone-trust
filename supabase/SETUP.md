@@ -303,3 +303,55 @@ When you want it, the pieces are:
    so it works without signing in
 
 Ask and I'll build it.
+
+---
+
+## Investor management (admin console)
+
+Admin → **Investors** → click any row. Four panes:
+
+| Pane | What it does |
+|---|---|
+| **Overview** | Balances, credit them (to a plan or straight to balance), close investments |
+| **Records** | Every deposit, withdrawal and investment — each editable and deletable. Plus recent admin history |
+| **Email** | Send a custom email to that investor, in the Keelstone template |
+| **Manage** | Edit name, override KYC status, promote/demote, delete the account |
+
+### Everything is audited
+
+Migration `20260801000007` adds `admin_audit_log`. Triggers on `deposits`,
+`withdrawals`, `investments` and `profiles` record every admin edit and delete
+with a **before/after snapshot** and who did it.
+
+This matters: free-form editing of balances is exactly the thing a client might
+later dispute. Investor-initiated writes are skipped so the log stays readable —
+only admin actions land there.
+
+Deleting an investor snapshots their entire record set *before* removing it. If
+the audit write fails, the deletion is refused — an untraceable deletion of
+financial records is worse than a failed one.
+
+The log is admin-only and has no INSERT/UPDATE/DELETE policy for anyone: the
+only writer is a SECURITY DEFINER function, so it cannot be tampered with
+through the API.
+
+### Guardrails
+
+- Deleting anything asks you to **type to confirm** — the investor's email for
+  an account, `delete` for a record
+- An admin **cannot delete themselves**
+- An admin **cannot delete another admin** — demote them first
+- Investors still cannot edit or delete any record; those policies are unchanged
+  and `verify-admin-crud.mjs` asserts it
+
+### Deleting an investor
+
+Removes the auth account and cascades to profile, deposits, investments,
+withdrawals and KYC. Goes through the `admin-delete-user` Edge Function because
+removing an `auth.users` row needs the service role — no RLS policy can grant it.
+
+```bash
+source .supabase-secrets.local.sh && node supabase/verify-admin-crud.mjs
+```
+
+18 checks: editing, auditing, cascade deletion, and every guardrail above.

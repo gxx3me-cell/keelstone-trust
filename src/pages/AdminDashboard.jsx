@@ -7,6 +7,8 @@ import BrandSplash from '../components/BrandSplash'
 import {
   loadAdminData, displayName, initialsOf, investorTotals,
   savePlan, sendEmail, deleteMessage, fundInvestor, closeInvestment,
+  loadInvestorDetail, updateProfile, setKycStatus, updateRecord,
+  deleteRecord, deleteInvestor, setRole,
 } from '../lib/admin'
 import { reviewRequest, listAllDepositMethods, saveDepositMethod, deleteDepositMethod } from '../lib/deposits'
 import { listKycSubmissions, reviewKyc, getDocumentUrl, ID_TYPES } from '../lib/kyc'
@@ -479,35 +481,151 @@ function Investors({ data, reload, showToast }) {
 
       {managing && (
         <ManageInvestor
-          investor={managing} plans={data.plans} investments={data.investments}
+          investor={managing} plans={data.plans}
           onClose={() => setManaging(null)}
-          onDone={async (msg) => { setManaging(null); await reload(); showToast(msg) }}
+          showToast={showToast}
+          onDone={async () => { setManaging(null); await reload() }}
         />
       )}
     </>
   )
 }
 
-function ManageInvestor({ investor, plans, investments, onClose, onDone }) {
-  const [amount, setAmount] = useState('')
-  const [planId, setPlanId] = useState(plans[0]?.id || '')
+function ManageInvestor({ investor, plans, onClose, onDone, showToast }) {
+  const [pane, setPane] = useState('overview')
+  const [detail, setDetail] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [editing, setEditing] = useState(null)   // { type, row }
+  const [confirming, setConfirming] = useState(null)
 
-  const t = investorTotals(investor.id, investments)
-  const theirs = investments.filter((i) => i.user_id === investor.id && i.status === 'active')
+  const load = async () => {
+    setLoading(true)
+    try {
+      setDetail(await loadInvestorDetail(investor.id))
+    } catch (e) {
+      setError(e.message || 'Could not load this investor.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [investor.id])
+
+  const refresh = async (msg) => {
+    await load()
+    if (msg) showToast(msg)
+  }
+
+  const t = detail
+    ? investorTotals(investor.id, detail.investments)
+    : { principal: 0, earnings: 0, value: 0, count: 0 }
+
+  const pending = detail?.deposits.filter((d) => d.status === 'pending').length ?? 0
+
+  const PANES = [
+    ['overview', 'Overview'],
+    ['records', `Records${pending ? ` (${pending})` : ''}`],
+    ['email', 'Email'],
+    ['danger', 'Manage'],
+  ]
+
+  return (
+    <Sheet onClose={onClose} maxWidth={620} labelledBy="mi-title">
+      <SheetHeader id="mi-title" title={displayName(investor)} onClose={onClose} />
+      <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: -10, marginBottom: 4 }}>{investor.email}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        {investor.role === 'admin' && <Pill tone="brand">Admin</Pill>}
+        <Pill tone={{ approved: 'gain', pending: 'warn', rejected: 'loss' }[investor.kyc_status] || 'neutral'}>
+          KYC: {investor.kyc_status?.replace('_', ' ') || 'not started'}
+        </Pill>
+        {detail?.subscribed && <Pill tone="info">Investor Letter</Pill>}
+      </div>
+
+      <Segmented tabs={PANES} active={pane} onChange={setPane} style={{ marginBottom: 18 }} />
+
+      {error && <Alert tone="loss" style={{ marginBottom: 14 }}>{error}</Alert>}
+
+      {loading ? (
+        <SkeletonCard rows={3} />
+      ) : (
+        <>
+          {pane === 'overview' && (
+            <InvestorOverview
+              investor={investor} detail={detail} totals={t} plans={plans}
+              onDone={refresh} setError={setError}
+            />
+          )}
+          {pane === 'records' && (
+            <InvestorRecords
+              detail={detail}
+              onEdit={(type, row) => setEditing({ type, row })}
+              onDelete={(type, row) => setConfirming({ kind: 'record', type, row })}
+            />
+          )}
+          {pane === 'email' && (
+            <InvestorEmail investor={investor} showToast={showToast} setError={setError} />
+          )}
+          {pane === 'danger' && (
+            <InvestorAdmin
+              investor={investor} detail={detail} busy={busy} setBusy={setBusy}
+              setError={setError} onDone={refresh}
+              onDeleteUser={() => setConfirming({ kind: 'user' })}
+            />
+          )}
+        </>
+      )}
+
+      {editing && (
+        <EditRecord
+          type={editing.type} row={editing.row} plans={plans}
+          onClose={() => setEditing(null)}
+          onSaved={async () => { setEditing(null); await refresh('Record updated') }}
+        />
+      )}
+
+      {confirming && (
+        <ConfirmDestructive
+          confirming={confirming}
+          investor={investor}
+          onCancel={() => setConfirming(null)}
+          onConfirmed={async (msg, closeAll) => {
+            setConfirming(null)
+            if (closeAll) { showToast(msg); onDone(); }
+            else await refresh(msg)
+          }}
+          setError={setError}
+        />
+      )}
+    </Sheet>
+  )
+}
+
+/* ── overview: balances + fund ── */
+
+function InvestorOverview({ investor, detail, totals, plans, onDone, setError }) {
+  const [amount, setAmount] = useState('')
+  const [planId, setPlanId] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const active = detail.investments.filter((i) => i.status === 'active')
+  const pendingTotal = detail.deposits
+    .filter((d) => d.status === 'pending')
+    .reduce((s, d) => s + Number(d.amount || 0), 0)
 
   const fund = async () => {
     setError('')
     const amt = parseFloat(String(amount).replace(/,/g, '')) || 0
     if (!amt) return setError('Enter an amount.')
-    if (!planId) return setError('Choose a plan.')
     setBusy(true)
     try {
-      await fundInvestor({ userId: investor.id, planId, amount: amt })
-      onDone(`Funded ${displayName(investor)} $${money0(amt)}`)
+      await fundInvestor({ userId: investor.id, planId: planId || null, amount: amt })
+      setAmount('')
+      await onDone(`Credited ${displayName(investor)} $${money0(amt)}`)
     } catch (e) {
-      setError(e.message || 'Could not fund this investor.')
+      setError(e.message || 'Could not credit this investor.')
+    } finally {
       setBusy(false)
     }
   }
@@ -516,42 +634,50 @@ function ManageInvestor({ investor, plans, investments, onClose, onDone }) {
     setBusy(true)
     try {
       await closeInvestment(id)
-      onDone('Investment closed')
+      await onDone('Investment closed')
     } catch (e) {
       setError(e.message || 'Could not close that investment.')
+    } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Sheet onClose={onClose} maxWidth={520} labelledBy="mi-title">
-      <SheetHeader id="mi-title" title={displayName(investor)} onClose={onClose} />
-      <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: -10, marginBottom: 16 }}>{investor.email}</div>
-
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        {[['Invested', `$${money0(t.principal)}`], ['Earnings', `+$${money0(t.earnings)}`], ['Value', `$${money0(t.value)}`]].map(([k, v]) => (
-          <div key={k} style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '11px 12px' }}>
+    <>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+        {[
+          ['Invested', `$${money0(totals.principal)}`],
+          ['Earnings', `+$${money0(totals.earnings)}`],
+          ['Value', `$${money0(totals.value)}`],
+        ].map(([k, v]) => (
+          <div key={k} style={{ flex: '1 1 120px', background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '11px 12px' }}>
             <div style={{ fontSize: 10.5, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>{k}</div>
             <div style={{ fontFamily: serif, fontSize: 17 }}>{v}</div>
           </div>
         ))}
       </div>
+      {pendingTotal > 0 && (
+        <Alert tone="warn" style={{ marginBottom: 16 }}>
+          ${money0(pendingTotal)} in deposits awaiting your confirmation — see Records.
+        </Alert>
+      )}
 
-      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Add funds</div>
-      <Field label="Plan">
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', margin: '16px 0 10px' }}>Credit this investor</div>
+      <Field label="Destination" hint="Leave as balance to credit without opening an investment.">
         <select value={planId} onChange={(e) => setPlanId(e.target.value)} style={fieldStyle}>
+          <option value="">Available balance (no plan)</option>
           {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.annual_return_pct}% p.a.)</option>)}
         </select>
       </Field>
       <Field label="Amount (USD)">
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" style={fieldStyle} />
       </Field>
-      <Button full onClick={fund} busy={busy} style={{ marginBottom: 22 }}>Fund investor</Button>
+      <Button full onClick={fund} busy={busy} style={{ marginBottom: 22 }}>Credit investor</Button>
 
       <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Active investments</div>
-      {theirs.length === 0 ? (
+      {active.length === 0 ? (
         <div style={{ fontSize: 13.5, color: 'var(--text-3)' }}>None.</div>
-      ) : theirs.map((inv) => (
+      ) : active.map((inv) => (
         <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 'var(--r)', background: 'var(--surface-2)', marginBottom: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700 }}>{inv.plan_name} · ${money0(inv.principal)}</div>
@@ -560,8 +686,353 @@ function ManageInvestor({ investor, plans, investments, onClose, onDone }) {
           <Button variant="dangerGhost" size="sm" onClick={() => close(inv.id)} busy={busy}>Close</Button>
         </div>
       ))}
+    </>
+  )
+}
 
-      {error && <Alert tone="loss" style={{ marginTop: 14 }}>{error}</Alert>}
+/* ── records: every row, editable ── */
+
+const RECORD_GROUPS = [
+  ['deposit', 'Deposits', (r) => `$${money0(r.amount)} · ${r.plan_name || 'To balance'}`, (r) => `${r.method_label || 'Deposit'} · ${shortDate(r.created_at)}`],
+  ['withdrawal', 'Withdrawals', (r) => `$${money0(r.amount)}`, (r) => `${r.network || 'Transfer'} · ${shortDate(r.created_at)}`],
+  ['investment', 'Investments', (r) => `${r.plan_name} · $${money0(r.principal)}`, (r) => `${r.annual_return_pct}% p.a. · since ${shortDate(r.start_date)}`],
+]
+
+function InvestorRecords({ detail, onEdit, onDelete }) {
+  const sets = {
+    deposit: detail.deposits,
+    withdrawal: detail.withdrawals,
+    investment: detail.investments,
+  }
+
+  return (
+    <>
+      {RECORD_GROUPS.map(([type, label, primary, secondary]) => {
+        const rows = sets[type]
+        return (
+          <div key={type} style={{ marginBottom: 22 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>
+              {label} <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>({rows.length})</span>
+            </div>
+            {rows.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--text-3)' }}>None on file.</div>
+            ) : rows.map((r) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 'var(--r)', background: 'var(--surface-2)', marginBottom: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    {primary(r)}
+                    {r.status && (
+                      <Pill tone={{ approved: 'gain', active: 'gain', pending: 'warn', rejected: 'loss', closed: 'neutral' }[r.status] || 'neutral'}>
+                        {r.status}
+                      </Pill>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{secondary(r)}</div>
+                  {r.admin_note && <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, fontStyle: 'italic' }}>{r.admin_note}</div>}
+                </div>
+                <Button variant="secondary" size="sm" onClick={() => onEdit(type, r)}>Edit</Button>
+                <Button variant="dangerGhost" size="sm" onClick={() => onDelete(type, r)}>Delete</Button>
+              </div>
+            ))}
+          </div>
+        )
+      })}
+
+      {detail.audit.length > 0 && (
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Admin history</div>
+          {detail.audit.slice(0, 10).map((a) => (
+            <div key={a.id} style={{ fontSize: 12, color: 'var(--text-3)', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+              <b style={{ color: 'var(--text-2)' }}>{a.action}</b> on {a.table_name.replace('public.', '')} · {a.admin_email || 'system'} · {timeAgo(a.created_at)}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ── edit one record ── */
+
+const EDIT_FIELDS = {
+  deposit: [
+    ['amount', 'Amount (USD)', 'decimal'],
+    ['status', 'Status', 'select', ['pending', 'approved', 'rejected']],
+    ['method_label', 'Method', 'text'],
+    ['reference', 'Reference', 'text'],
+    ['admin_note', 'Admin note', 'text'],
+  ],
+  withdrawal: [
+    ['amount', 'Amount (USD)', 'decimal'],
+    ['status', 'Status', 'select', ['pending', 'approved', 'rejected']],
+    ['bank_details', 'Destination address', 'text'],
+    ['admin_note', 'Admin note', 'text'],
+  ],
+  investment: [
+    ['principal', 'Principal (USD)', 'decimal'],
+    ['annual_return_pct', 'Annual return %', 'decimal'],
+    ['plan_name', 'Plan name', 'text'],
+    ['status', 'Status', 'select', ['active', 'closed']],
+  ],
+}
+
+function EditRecord({ type, row, onClose, onSaved }) {
+  const fields = EDIT_FIELDS[type]
+  const [form, setForm] = useState(() =>
+    Object.fromEntries(fields.map(([k]) => [k, row[k] ?? ''])))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const save = async () => {
+    setError('')
+    setBusy(true)
+    try {
+      const patch = {}
+      for (const [k, , kind] of fields) {
+        patch[k] = kind === 'decimal'
+          ? (parseFloat(String(form[k]).replace(/,/g, '')) || 0)
+          : (String(form[k] ?? '').trim() || null)
+      }
+      await updateRecord(type, row.id, patch)
+      await onSaved()
+    } catch (e) {
+      setError(e.message || 'Could not save.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet onClose={onClose} maxWidth={440} labelledBy="er-title">
+      <SheetHeader id="er-title" title={`Edit ${type}`} onClose={onClose} />
+      <Alert tone="warn" style={{ marginBottom: 16 }}>
+        Editing a financial record changes what the investor sees. The change is
+        recorded in the admin history.
+      </Alert>
+      {fields.map(([key, label, kind, options]) => (
+        <Field key={key} label={label}>
+          {kind === 'select' ? (
+            <select value={form[key] ?? ''} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} style={fieldStyle}>
+              {options.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input
+              value={form[key] ?? ''} inputMode={kind === 'decimal' ? 'decimal' : undefined}
+              onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+              style={fieldStyle}
+            />
+          )}
+        </Field>
+      ))}
+      {error && <Alert tone="loss" style={{ marginBottom: 12 }}>{error}</Alert>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button full onClick={save} busy={busy}>Save changes</Button>
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+      </div>
+    </Sheet>
+  )
+}
+
+/* ── email this investor ── */
+
+function InvestorEmail({ investor, showToast, setError }) {
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  const send = async () => {
+    setError('')
+    if (!subject.trim()) return setError('Enter a subject.')
+    if (!body.trim()) return setError('Write a message.')
+    setBusy(true)
+    try {
+      await sendEmail({ to: investor.email, subject: subject.trim(), body: body.trim() })
+      setSubject(''); setBody(''); setSent(true)
+      showToast(`Email sent to ${investor.email}`)
+      setTimeout(() => setSent(false), 4000)
+    } catch (e) {
+      setError(e.message || 'Could not send the email.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 14, lineHeight: 1.55 }}>
+        Sends from your verified address, in the Keelstone template. Replies come
+        back to you. A copy is saved to the support inbox.
+      </div>
+      <Field label="To">
+        <input value={investor.email} disabled style={{ ...fieldStyle, opacity: 0.6 }} />
+      </Field>
+      <Field label="Subject">
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="About your account" style={fieldStyle} />
+      </Field>
+      <Field label="Message">
+        <textarea
+          value={body} onChange={(e) => setBody(e.target.value)} rows={8}
+          placeholder={`Hello ${displayName(investor).split(' ')[0]},`}
+          style={{ ...fieldStyle, resize: 'vertical', minHeight: 140 }}
+        />
+      </Field>
+      <Button full onClick={send} busy={busy}>{sent ? '✓ Sent' : 'Send email'}</Button>
+    </>
+  )
+}
+
+/* ── profile, role, deletion ── */
+
+function InvestorAdmin({ investor, detail, busy, setBusy, setError, onDone, onDeleteUser }) {
+  const [first, setFirst] = useState(investor.first_name || '')
+  const [last, setLast] = useState(investor.last_name || '')
+  const [kyc, setKyc] = useState(investor.kyc_status || 'not_started')
+
+  const saveProfile = async () => {
+    setError('')
+    setBusy(true)
+    try {
+      await updateProfile(investor.id, { first_name: first, last_name: last })
+      await onDone('Profile updated')
+    } catch (e) {
+      setError(e.message || 'Could not update the profile.')
+    } finally { setBusy(false) }
+  }
+
+  const saveKyc = async (next) => {
+    setKyc(next)
+    setError('')
+    setBusy(true)
+    try {
+      await setKycStatus(investor.id, next)
+      await onDone(`KYC set to ${next.replace('_', ' ')}`)
+    } catch (e) {
+      setKyc(investor.kyc_status || 'not_started')
+      setError(e.message || 'Could not change KYC status.')
+    } finally { setBusy(false) }
+  }
+
+  const changeRole = async (next) => {
+    setError('')
+    setBusy(true)
+    try {
+      await setRole(investor.id, next)
+      await onDone(next === 'admin' ? 'Promoted to admin' : 'Demoted to investor')
+    } catch (e) {
+      setError(e.message || 'Could not change the role.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <>
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Profile</div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Field label="First name" style={{ flex: 1 }}>
+          <input value={first} onChange={(e) => setFirst(e.target.value)} style={fieldStyle} />
+        </Field>
+        <Field label="Last name" style={{ flex: 1 }}>
+          <input value={last} onChange={(e) => setLast(e.target.value)} style={fieldStyle} />
+        </Field>
+      </div>
+      <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: -6, marginBottom: 12 }}>
+        Email is managed by Supabase Auth and can’t be changed here.
+      </div>
+      <Button full variant="secondary" onClick={saveProfile} busy={busy} style={{ marginBottom: 22 }}>Save profile</Button>
+
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Identity verification</div>
+      <Field label="KYC status" hint="Overrides whatever their submission says.">
+        <select value={kyc} onChange={(e) => saveKyc(e.target.value)} style={fieldStyle} disabled={busy}>
+          {['not_started', 'pending', 'approved', 'rejected'].map((s) => (
+            <option key={s} value={s}>{s.replace('_', ' ')}</option>
+          ))}
+        </select>
+      </Field>
+      {detail.kyc.length > 0 && (
+        <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20 }}>
+          Latest submission: {detail.kyc[0].full_name} · {detail.kyc[0].id_type?.replace('_', ' ')} · {shortDate(detail.kyc[0].submitted_at)}
+        </div>
+      )}
+
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', margin: '18px 0 10px' }}>Access</div>
+      {investor.role === 'admin' ? (
+        <Button full variant="secondary" onClick={() => changeRole('investor')} busy={busy} style={{ marginBottom: 22 }}>
+          Demote to investor
+        </Button>
+      ) : (
+        <Button full variant="secondary" onClick={() => changeRole('admin')} busy={busy} style={{ marginBottom: 22 }}>
+          Promote to admin
+        </Button>
+      )}
+
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8, color: 'var(--loss)' }}>Danger zone</div>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.55, marginBottom: 12 }}>
+          Deleting removes their account and every deposit, investment,
+          withdrawal and KYC record. It cannot be undone — though a snapshot is
+          kept in the admin history.
+        </div>
+        <Button full variant="dangerGhost" onClick={onDeleteUser} disabled={investor.role === 'admin'}>
+          Delete this investor
+        </Button>
+        {investor.role === 'admin' && (
+          <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 8 }}>
+            Demote them first — admins can’t be deleted.
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+/* ── typed confirmation for anything destructive ── */
+
+function ConfirmDestructive({ confirming, investor, onCancel, onConfirmed, setError }) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const isUser = confirming.kind === 'user'
+  const target = isUser ? investor.email : `this ${confirming.type}`
+  const phrase = isUser ? investor.email : 'delete'
+  const matches = typed.trim().toLowerCase() === phrase.toLowerCase()
+
+  const go = async () => {
+    setBusy(true)
+    try {
+      if (isUser) {
+        const res = await deleteInvestor(investor.id)
+        const n = (res?.deleted?.deposits ?? 0) + (res?.deleted?.investments ?? 0) + (res?.deleted?.withdrawals ?? 0)
+        await onConfirmed(`Deleted ${investor.email} and ${n} record${n === 1 ? '' : 's'}`, true)
+      } else {
+        await deleteRecord(confirming.type, confirming.row.id)
+        await onConfirmed(`${confirming.type[0].toUpperCase()}${confirming.type.slice(1)} deleted`, false)
+      }
+    } catch (e) {
+      setError(e.message || 'Could not complete that.')
+      setBusy(false)
+      onCancel()
+    }
+  }
+
+  return (
+    <Sheet onClose={onCancel} maxWidth={420} labelledBy="cd-title">
+      <SheetHeader id="cd-title" title="Are you sure?" onClose={onCancel} />
+      <Alert tone="loss" style={{ marginBottom: 16 }}>
+        {isUser
+          ? <>This permanently deletes <b>{investor.email}</b> and every record belonging to them.</>
+          : <>This permanently deletes {target}. The investor’s balance will change.</>}
+      </Alert>
+      <Field label={`Type "${phrase}" to confirm`}>
+        <input
+          value={typed} onChange={(e) => setTyped(e.target.value)}
+          placeholder={phrase} autoFocus style={fieldStyle}
+        />
+      </Field>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button full variant="dangerGhost" onClick={go} busy={busy} disabled={!matches}>
+          {isUser ? 'Delete investor' : 'Delete record'}
+        </Button>
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
     </Sheet>
   )
 }

@@ -267,9 +267,9 @@ export const fieldStyle = {
   boxSizing: 'border-box',
 }
 
-export function Field({ label, hint, error, children }) {
+export function Field({ label, hint, error, children, style = {} }) {
   return (
-    <label style={{ display: 'block', marginBottom: 16 }}>
+    <label style={{ display: 'block', marginBottom: 16, ...style }}>
       <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 }}>{label}</span>
       {children}
       {hint && !error && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-3)', marginTop: 5 }}>{hint}</span>}
