@@ -94,10 +94,23 @@ export async function reviewRequest({ type, recordId, action, note = '' }) {
 // now three RLS-scoped reads plus arithmetic. `investments_with_earnings` is a
 // security_invoker view, so it only ever returns the caller's own rows.
 export async function getMyPortfolio() {
+  // Scope to the caller EXPLICITLY — do not rely on RLS to do it.
+  //
+  // Admins hold policies granting them every row in these tables (they need
+  // that for the console). Without the .eq('user_id') filters below, an admin
+  // opening their own /dashboard saw the sum of every investor's deposits and
+  // investments presented as their personal balance.
+  //
+  // RLS still backstops this for investors; the filter is what makes the query
+  // correct for admins too.
+  const { data: auth } = await supabase.auth.getUser()
+  const userId = auth?.user?.id
+  if (!userId) throw new Error('You must be signed in.')
+
   const [investments, deposits, withdrawals] = await Promise.all([
-    supabase.from('investments_with_earnings').select('*').eq('status', 'active'),
-    supabase.from('deposits').select('*').order('created_at', { ascending: false }),
-    supabase.from('withdrawals').select('*').order('created_at', { ascending: false }),
+    supabase.from('investments_with_earnings').select('*').eq('user_id', userId).eq('status', 'active'),
+    supabase.from('deposits').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+    supabase.from('withdrawals').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
   ])
   if (investments.error) throw new Error(investments.error.message)
   if (deposits.error) throw new Error(deposits.error.message)

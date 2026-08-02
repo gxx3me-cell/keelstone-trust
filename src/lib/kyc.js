@@ -52,11 +52,22 @@ export const needsBackImage = (idType) => idType === 'drivers_license' || idType
 export const getKycStatus = (profile) => profile?.kyc_status || 'not_started'
 export const isKycVerified = (profile) => getKycStatus(profile) === 'approved'
 
-/** The investor's most recent submission, or null. */
+/**
+ * The signed-in investor's most recent submission, or null.
+ *
+ * Scoped to the caller explicitly. Admins can read every submission (they
+ * review them), so without this filter an admin's own KYC panel would show
+ * another investor's identity documents.
+ */
 export async function getMyKycSubmission() {
+  const { data: auth } = await supabase.auth.getUser()
+  const userId = auth?.user?.id
+  if (!userId) return null
+
   const { data, error } = await supabase
     .from('kyc_submissions')
     .select('*')
+    .eq('user_id', userId)
     .order('submitted_at', { ascending: false })
     .limit(1)
     .maybeSingle()

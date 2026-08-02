@@ -28,13 +28,20 @@ export async function unsubscribe() {
 
 /**
  * Is the signed-in investor subscribed?
- * RLS scopes this to their own row, so it returns null when they've never
- * subscribed at all.
+ *
+ * Scoped to the caller explicitly rather than leaning on RLS: admins can read
+ * the whole subscriber list, so an unfiltered maybeSingle() would either throw
+ * on multiple rows or hand back somebody else's record.
  */
 export async function getMySubscription() {
+  const { data: auth } = await supabase.auth.getUser()
+  const userId = auth?.user?.id
+  if (!userId) return null
+
   const { data, error } = await supabase
     .from('newsletter_subscribers')
     .select('status, subscribed_at')
+    .eq('user_id', userId)
     .maybeSingle()
   if (error) return null
   return data
