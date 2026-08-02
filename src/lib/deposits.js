@@ -127,18 +127,36 @@ export async function getMyPortfolio() {
   const credited = deps
     .filter((d) => d.status === 'approved' && !d.plan_id && !d.allocated)
     .reduce((s, d) => s + d.amount, 0)
+
+  // Approved withdrawals have left the account. Pending ones haven't yet, but
+  // they are spoken for — an investor must not be able to request the same
+  // funds twice while the first request is still being processed.
   const withdrawn = wds
     .filter((w) => w.status === 'approved')
     .reduce((s, w) => s + w.amount, 0)
+  const withdrawPending = wds
+    .filter((w) => w.status === 'pending')
+    .reduce((s, w) => s + w.amount, 0)
+
+  const invested_value = total_principal + total_earnings
+  const available_balance = Math.max(credited - withdrawn, 0)
 
   return {
     investment_count: invs.length,
     investments: invs,
     total_principal: round2(total_principal),
     total_earnings: round2(total_earnings),
-    total_value: round2(total_principal + total_earnings),
+    invested_value: round2(invested_value),
+    // Everything the investor owns: what's invested plus what's uninvested and
+    // spendable, minus what has already been withdrawn. Previously this was
+    // investments only, so an approved withdrawal never moved the headline
+    // figure and the balance looked unchanged after a payout.
+    total_value: round2(invested_value + available_balance),
     return_pct: total_principal ? round2((total_earnings / total_principal) * 100) : 0,
-    available_balance: round2(Math.max(credited - withdrawn, 0)),
+    available_balance: round2(available_balance),
+    // What can actually be requested right now.
+    withdrawable: round2(Math.max(available_balance - withdrawPending, 0)),
+    withdraw_pending_total: round2(withdrawPending),
     pending_total: round2(pending.reduce((s, d) => s + d.amount, 0)),
     pending_count: pending.length,
     deposits: deps,
@@ -152,9 +170,19 @@ const round2 = (v) => Math.round(v * 100) / 100
 
 // Investors may file their own withdrawal — the RLS policy pins user_id to the
 // caller and forces status to 'pending'.
-export async function submitWithdrawal({ amount, address, network = 'USDT BEP-20' }) {
+export async function submitWithdrawal({ amount, address, network = 'Bitcoin (BTC)' }) {
   const { data: auth } = await supabase.auth.getUser()
   if (!auth?.user) throw new Error('You must be signed in.')
+
+  const addr = String(address || '').trim()
+  if (!addr) throw new Error('Enter the Bitcoin address to send to.')
+
+  // The database check constraint enforces this too — this is the friendlier
+  // of the two errors, not the authoritative one.
+  const looksBtc =
+    /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(addr) ||
+    /^(bc1[023456789acdefghjklmnpqrstuvwxyz]{11,71}|BC1[023456789ACDEFGHJKLMNPQRSTUVWXYZ]{11,71})$/.test(addr)
+  if (!looksBtc) throw new Error('That does not look like a Bitcoin address.')
 
   return unwrap(
     await supabase
@@ -162,7 +190,7 @@ export async function submitWithdrawal({ amount, address, network = 'USDT BEP-20
       .insert({
         user_id: auth.user.id,
         amount: Number(amount),
-        bank_details: address,
+        bank_details: addr,
         network,
         status: 'pending',
       })

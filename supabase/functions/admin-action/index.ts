@@ -139,7 +139,10 @@ Deno.serve(async (req) => {
           ? `Your $${money(amount)} withdrawal has been approved`
           : `About your $${money(amount)} withdrawal request`,
         idempotencyKey: `withdrawal-reviewed-${recordId}-${approved}`,
-        html: withdrawalReviewedEmail({ firstName, amount, approved, note }),
+        html: withdrawalReviewedEmail({
+          firstName, amount, approved, note,
+          address: record.bank_details ?? null,
+        }),
       })
     }
   }

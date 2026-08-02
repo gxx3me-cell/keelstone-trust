@@ -419,7 +419,8 @@ export function depositReviewedEmail(d: {
 
 /** To the investor: withdrawal approved or declined. */
 export function withdrawalReviewedEmail(d: {
-  firstName: string; amount: number; approved: boolean; note?: string
+  firstName: string; amount: number; approved: boolean
+  note?: string; address?: string | null
 }) {
   return layout({
     preheader: d.approved
@@ -430,9 +431,11 @@ export function withdrawalReviewedEmail(d: {
     body:
       greet(d.firstName) +
       (d.approved
-        ? p('Your withdrawal has been approved and is being sent to the wallet address you provided.') +
-          statement('Sending', `$${money(d.amount)}`)
-        : p(`Your withdrawal request of <b style="color:${C.ink};">$${money(d.amount)}</b> was not approved.`) +
+        ? p('Your withdrawal has been approved and is being sent to the Bitcoin address you provided.') +
+          statement('Sending', `$${money(d.amount)}`) +
+          (d.address ? details([['Bitcoin address', d.address, true]]) : '') +
+          p('This amount has been deducted from your available balance. Bitcoin transfers usually confirm within an hour once sent.', '16px 0 0')
+        : p(`Your withdrawal request of <b style="color:${C.ink};">$${money(d.amount)}</b> was not approved, and no funds have left your account.`) +
           (d.note ? callout(`<b>Reason given:</b> ${esc(d.note)}`, 'loss') : '') +
           p('Please contact your advisor if you have questions.')),
     cta: { label: 'View my dashboard', href: `${siteUrl()}/dashboard` },

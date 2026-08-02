@@ -765,7 +765,7 @@ const EDIT_FIELDS = {
   withdrawal: [
     ['amount', 'Amount (USD)', 'decimal'],
     ['status', 'Status', 'select', ['pending', 'approved', 'rejected']],
-    ['bank_details', 'Destination address', 'text'],
+    ['bank_details', 'Bitcoin payout address', 'text'],
     ['admin_note', 'Admin note', 'text'],
   ],
   investment: [

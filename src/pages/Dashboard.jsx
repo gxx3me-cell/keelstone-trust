@@ -13,6 +13,29 @@ import {
   Sheet, SheetHeader, Field, fieldStyle, Alert, Segmented, Toast, Icon,
 } from '../dashboard/ui'
 
+/**
+ * Bitcoin address validation.
+ *
+ * Format-only — it confirms the shape, not that the address exists or that
+ * anyone holds its key. Full validation needs a Base58Check/Bech32 checksum,
+ * which belongs server-side when payouts are actually wired up.
+ *
+ *   1…  P2PKH   (legacy)      Base58, 26–34 chars, no 0/O/I/l
+ *   3…  P2SH    (SegWit-wrapped)
+ *   bc1 Bech32  (native SegWit / Taproot), lowercase, no 1/b/i/o
+ *
+ * Testnet prefixes (m, n, 2, tb1) are deliberately rejected — sending real
+ * funds to a testnet address loses them.
+ */
+export function isBtcAddress(value) {
+  const addr = String(value || '').trim()
+  if (!addr) return false
+  if (/^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(addr)) return true          // legacy / P2SH
+  if (/^bc1[023456789acdefghjklmnpqrstuvwxyz]{11,71}$/.test(addr)) return true  // bech32, lowercase
+  if (/^BC1[023456789ACDEFGHJKLMNPQRSTUVWXYZ]{11,71}$/.test(addr)) return true  // bech32, uppercase
+  return false
+}
+
 /* Four sections — down from seven. Everything financial lives under
    "Invest"; statements, profile and KYC live under "Account". */
 const TABS = [
@@ -311,6 +334,8 @@ function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
   const pct = portfolio?.return_pct || 0
   const up = earnings >= 0
   const funded = !!portfolio?.investment_count
+  const availableBalance = portfolio?.available_balance || 0
+  const withdrawPending = portfolio?.withdraw_pending_total || 0
 
   return (
     <Card
@@ -343,8 +368,32 @@ function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
             )}
           </div>
           {funded && (
-            <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.7)', marginBottom: 20 }}>
+            <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.7)', marginBottom: availableBalance > 0 || withdrawPending > 0 ? 12 : 20 }}>
               {up ? '+' : ''}${money(earnings)} earned · ${money(portfolio.total_principal)} invested
+            </div>
+          )}
+          {/* Uninvested cash, shown separately so a withdrawal visibly reduces
+              it — the headline figure alone made payouts look like they had
+              no effect. */}
+          {(availableBalance > 0 || withdrawPending > 0) && (
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: 10, flexWrap: 'wrap', marginBottom: 20, padding: '10px 13px',
+                background: 'rgba(255,255,255,.1)', borderRadius: 10,
+              }}
+            >
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,.75)', fontWeight: 600 }}>
+                Available to withdraw
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>
+                ${money(portfolio.withdrawable ?? availableBalance)}
+                {withdrawPending > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.6)', marginLeft: 7 }}>
+                    ${money(withdrawPending)} pending
+                  </span>
+                )}
+              </span>
             </div>
           )}
         </>
@@ -698,9 +747,21 @@ function AccountScreen({ user, profile, fullName, userEmail, initials, portfolio
       '-'.repeat(44),
       `Total invested:    $${money(portfolio.total_principal)}`,
       `Earnings to date:  +$${money(portfolio.total_earnings)}`,
-      `Current value:     $${money(portfolio.total_value)}`,
+      `Invested value:    $${money(portfolio.invested_value)}`,
+      `Available balance: $${money(portfolio.available_balance)}`,
+      `Total value:       $${money(portfolio.total_value)}`,
       `Total return:      +${portfolio.return_pct}%`,
       '',
+      ...(portfolio.withdrawals?.some((w) => w.status === 'approved')
+        ? [
+            'WITHDRAWALS PAID',
+            '-'.repeat(44),
+            ...portfolio.withdrawals
+              .filter((w) => w.status === 'approved')
+              .map((w) => `$${money(w.amount)} — ${shortDate(w.reviewed_at || w.created_at)}${w.bank_details ? ` · ${w.bank_details}` : ''}`),
+            '',
+          ]
+        : []),
       'INVESTMENTS',
       '-'.repeat(44),
       ...portfolio.investments.map((i) =>
@@ -1083,16 +1144,25 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
   const [address, setAddress] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const available = portfolio?.total_value || 0
+  // Only uninvested, un-spoken-for funds can be withdrawn — not the headline
+  // portfolio value, which includes capital locked in active investments.
+  const available = portfolio?.withdrawable ?? 0
+  const heldForPending = portfolio?.withdraw_pending_total ?? 0
 
   const submit = async () => {
     setError('')
     const amt = parseFloat(String(amount).replace(/,/g, '')) || 0
     const addr = address.trim()
     if (!amt) return setError('Enter how much you want to withdraw.')
-    if (amt > available) return setError(`You can withdraw up to $${money(available)}.`)
-    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
-      return setError('Enter a valid USDT BEP-20 (BSC) wallet address starting with 0x.')
+    if (amt > available) {
+      return setError(
+        available > 0
+          ? `You can withdraw up to $${money(available)}.`
+          : 'You have no funds available to withdraw right now.',
+      )
+    }
+    if (!isBtcAddress(addr)) {
+      return setError('Enter a valid Bitcoin address (starting with 1, 3, or bc1).')
     }
     setBusy(true)
     try {
@@ -1115,7 +1185,14 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
           background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '14px 16px', marginBottom: 18,
         }}
       >
-        <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600 }}>Available</span>
+        <div>
+          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600, display: 'block' }}>Available to withdraw</span>
+          {heldForPending > 0 && (
+            <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+              ${money(heldForPending)} held for a pending request
+            </span>
+          )}
+        </div>
         <span style={{ fontFamily: serif, fontSize: 21, color: 'var(--text)' }}>${money(available)}</span>
       </div>
 
@@ -1133,17 +1210,28 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
           style={{ border: 'none', background: 'transparent', outline: 'none', fontFamily: serif, fontSize: 30, color: 'var(--text)', width: '100%' }}
         />
       </div>
-      <Button variant="ghost" size="sm" onClick={() => setAmount(String(available))} style={{ marginBottom: 14 }}>
+      <Button
+        variant="ghost" size="sm" disabled={available <= 0}
+        onClick={() => setAmount(String(available))} style={{ marginBottom: 14 }}
+      >
         Withdraw everything
       </Button>
 
-      <Field label="Your USDT wallet address" hint="BEP-20 (BNB Smart Chain) address starting with 0x.">
+      <Field
+        label="Your Bitcoin wallet address"
+        hint="A BTC address on the Bitcoin network — starts with 1, 3, or bc1."
+      >
         <input
           value={address} onChange={(e) => setAddress(e.target.value)}
-          placeholder="0x…" autoCapitalize="off" autoCorrect="off" spellCheck="false"
+          placeholder="bc1…" autoCapitalize="off" autoCorrect="off" spellCheck="false"
           style={{ ...fieldStyle, fontFamily: 'monospace', fontSize: 13.5 }}
         />
       </Field>
+
+      <Alert tone="warn" style={{ marginBottom: 14 }}>
+        Send to a <b>Bitcoin</b> address only. Funds sent to an address on another
+        network cannot be recovered. Double-check it before submitting.
+      </Alert>
 
       <Alert tone="info" style={{ marginBottom: 14 }}>
         Withdrawals are reviewed by our team and usually paid within 2–5 business days.
