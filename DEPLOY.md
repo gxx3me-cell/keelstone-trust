@@ -26,6 +26,7 @@ git push -u origin main
 ```
 
 If it asks to authenticate, sign in as yourself — not the other account.
+jkj
 
 **Make it private.** The repo contains your full database schema and RLS
 policies. No keys (I checked), but the schema is a roadmap for anyone probing
