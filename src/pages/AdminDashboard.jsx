@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import '../dashboard/dashboard.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n, useDates } from '../i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import BrandSplash from '../components/BrandSplash'
 import {
   loadAdminData, displayName, initialsOf, investorTotals,
@@ -23,16 +25,17 @@ import {
 } from '../dashboard/ui'
 
 const TABS = [
-  ['overview', 'Overview', 'home'],
-  ['alerts', 'Alerts', 'bell'],
-  ['investors', 'Investors', 'users'],
-  ['requests', 'Requests', 'activity'],
-  ['kyc', 'KYC', 'shield'],
-  ['plans', 'Plans', 'plans'],
-  ['inbox', 'Inbox', 'mail'],
+  ['overview', 'admin.overview', 'home'],
+  ['alerts', 'admin.alerts', 'bell'],
+  ['investors', 'admin.investors', 'users'],
+  ['requests', 'admin.requests', 'activity'],
+  ['kyc', 'admin.kyc', 'shield'],
+  ['plans', 'admin.plans', 'plans'],
+  ['inbox', 'admin.inbox', 'mail'],
 ]
 
 export default function AdminDashboard() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const { user, profile, loading, isAuthenticated, isAdmin } = useAuth()
 
@@ -88,9 +91,9 @@ export default function AdminDashboard() {
 
   const actionCount = pendingDeposits.length + pendingWithdrawals.length + pendingKyc.length
 
-  if (loading) return <BrandSplash label="Verifying admin access" />
-  if (!isAuthenticated) return <Gate title="Sign in required" body="You need to be signed in to open the admin console." to="/login" cta="Go to sign in" />
-  if (!isAdmin) return <Gate title="Admins only" body={`${user?.email} doesn't have admin access.`} to="/dashboard" cta="Back to my dashboard" />
+  if (loading) return <BrandSplash label={t('admin.verifyingAccess')} />
+  if (!isAuthenticated) return <Gate title={t('admin.signInRequired')} body="You need to be signed in to open the admin console." to="/login" cta="Go to sign in" />
+  if (!isAdmin) return <Gate title={t('admin.adminsOnly')} body={`${user?.email} doesn't have admin access.`} to="/dashboard" cta="Back to my dashboard" />
 
   const badges = {
     alerts: unreadCount(notifications),
@@ -103,14 +106,15 @@ export default function AdminDashboard() {
     <div data-root data-theme={theme} style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
       <Sidebar tab={tab} setTab={setTab} badges={badges} profile={profile} navigate={navigate} />
 
-      <main data-main style={{ flex: 1, marginLeft: 236, padding: '0 28px 40px', minWidth: 0, maxWidth: 1180 }}>
+      <main data-main data-admin-main style={{ flex: 1, marginLeft: 236, padding: '0 28px 40px', minWidth: 0, maxWidth: 1180 }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 40, display: 'flex', alignItems: 'center', gap: 12, padding: '18px 0 14px', background: 'var(--bg)' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--primary)' }}>Admin console</div>
+            <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--primary)' }}>{t('admin.console')}</div>
             <h1 data-pagetitle style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: '2px 0 0' }}>
-              {TABS.find(([k]) => k === tab)?.[1]}
+              {t(TABS.find(([k]) => k === tab)?.[1] || '')}
             </h1>
           </div>
+          <LanguageSwitcher compact />
           <button
             type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label="Toggle theme"
@@ -182,7 +186,7 @@ export default function AdminDashboard() {
                 <span style={{ position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: '50%', background: 'var(--loss)', border: '1.5px solid var(--surface)' }} />
               )}
             </span>
-            {label}
+            {t(label)}
           </button>
         ))}
       </nav>
@@ -193,6 +197,7 @@ export default function AdminDashboard() {
 }
 
 function Gate({ title, body, to, cta }) {
+  const { t } = useI18n()
   return (
     <div data-root style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <Card style={{ maxWidth: 400, textAlign: 'center' }} pad={32}>
@@ -205,6 +210,7 @@ function Gate({ title, body, to, cta }) {
 }
 
 function Sidebar({ tab, setTab, badges, profile, navigate }) {
+  const { t } = useI18n()
   return (
     <aside
       data-sidebar
@@ -240,7 +246,7 @@ function Sidebar({ tab, setTab, badges, profile, navigate }) {
               }}
             >
               <Icon name={icon} size={19} />
-              <span style={{ flex: 1 }}>{label}</span>
+              <span style={{ flex: 1 }}>{t(label)}</span>
               {n > 0 && (
                 <span style={{ minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999, background: 'var(--loss)', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   {n > 99 ? '99+' : n}
@@ -258,18 +264,18 @@ function Sidebar({ tab, setTab, badges, profile, navigate }) {
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName(profile)}</div>
-            <div style={{ fontSize: 10.5, color: 'var(--text-3)' }}>Administrator</div>
+            <div style={{ fontSize: 10.5, color: 'var(--text-3)' }}>{t('admin.administrator')}</div>
           </div>
         </div>
         <Link to="/dashboard" style={{ textDecoration: 'none', display: 'block', marginBottom: 6 }}>
-          <Button variant="secondary" size="sm" full>Investor view</Button>
+          <Button variant="secondary" size="sm" full>{t('admin.investorView')}</Button>
         </Link>
         <Button
           variant="ghost" size="sm" full
           onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
           style={{ color: 'var(--loss)' }}
         >
-          Sign out
+          {t('common.signOut')}
         </Button>
       </div>
     </aside>
@@ -279,11 +285,12 @@ function Sidebar({ tab, setTab, badges, profile, navigate }) {
 /* ══ overview ════════════════════════════════════════════ */
 
 function Overview({ totals, actionCount, pendingDeposits, pendingWithdrawals, pendingKyc, notifications, activeCount, goTab }) {
+  const { t } = useI18n()
   const stats = [
-    ['Assets under management', `$${money0(totals.aum)}`, `${activeCount} active investments`],
-    ['Earnings accrued', `$${money0(totals.earnings)}`, 'Across all investors'],
-    ['Investors', String(totals.investors), 'Registered accounts'],
-    ['Needs action', String(actionCount), actionCount ? 'Waiting on you' : 'All clear'],
+    [t('admin.aum'), `$${money0(totals.aum)}`, t('admin.activeInvestments', { n: activeCount })],
+    [t('admin.earningsAccrued'), `$${money0(totals.earnings)}`, t('admin.acrossInvestors')],
+    [t('admin.investorCount'), String(totals.investors), t('admin.registeredAccounts')],
+    [t('admin.needsAction'), String(actionCount), actionCount ? t('admin.waitingOnYou') : t('admin.allClear')],
   ]
 
   return (
@@ -300,12 +307,12 @@ function Overview({ totals, actionCount, pendingDeposits, pendingWithdrawals, pe
 
       {actionCount > 0 && (
         <Card style={{ marginTop: 14 }} pad={18}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 12px' }}>Waiting for review</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 12px' }}>{t('admin.waitingReview')}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              ['Deposits', pendingDeposits.length, 'requests', 'down'],
-              ['Withdrawals', pendingWithdrawals.length, 'requests', 'up'],
-              ['KYC submissions', pendingKyc.length, 'kyc', 'shield'],
+              [t('dash.deposits'), pendingDeposits.length, 'requests', 'down'],
+              [t('dash.withdrawals'), pendingWithdrawals.length, 'requests', 'up'],
+              [t('admin.kyc'), pendingKyc.length, 'kyc', 'shield'],
             ].filter(([, n]) => n > 0).map(([label, n, target, icon]) => (
               <button
                 key={label} type="button" onClick={() => goTab(target)}
@@ -317,7 +324,7 @@ function Overview({ totals, actionCount, pendingDeposits, pendingWithdrawals, pe
               >
                 <Icon name={icon} size={19} style={{ color: 'var(--warn)' }} />
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{label}</span>
-                <Pill tone="warn">{n} pending</Pill>
+                <Pill tone="warn">{t('admin.pendingCount', { n })}</Pill>
                 <Icon name="arrowRight" size={16} style={{ color: 'var(--text-3)' }} />
               </button>
             ))}
@@ -327,11 +334,11 @@ function Overview({ totals, actionCount, pendingDeposits, pendingWithdrawals, pe
 
       <Card style={{ marginTop: 14 }} pad={18}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Latest activity</h2>
-          <Button variant="ghost" size="sm" onClick={() => goTab('alerts')}>See all</Button>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{t('admin.latestActivity')}</h2>
+          <Button variant="ghost" size="sm" onClick={() => goTab('alerts')}>{t('common.seeAll')}</Button>
         </div>
         {notifications.length === 0 ? (
-          <EmptyState compact icon={<Icon name="bell" size={22} />} title="Nothing yet" body="Activity across the platform will appear here." />
+          <EmptyState compact icon={<Icon name="bell" size={22} />} title={t('dash.nothingYet')} body={t('admin.nothingYetBody')} />
         ) : notifications.slice(0, 6).map((n) => <NotificationRow key={n.id} n={n} />)}
       </Card>
     </>
@@ -378,6 +385,7 @@ function NotificationRow({ n, onClick }) {
 }
 
 function Alerts({ notifications, setNotifications, showToast, goTab }) {
+  const { t } = useI18n()
   const [filter, setFilter] = useState('all')
   const shown = notifications.filter((n) => filter === 'all' || n.kind === filter)
   const unread = unreadCount(notifications)
@@ -386,7 +394,7 @@ function Alerts({ notifications, setNotifications, showToast, goTab }) {
     try {
       await markAllRead(notifications)
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
-      showToast('All caught up')
+      showToast(t('admin.caughtUp'))
     } catch (e) {
       showToast(e.message || 'Could not update')
     }
@@ -406,14 +414,14 @@ function Alerts({ notifications, setNotifications, showToast, goTab }) {
   return (
     <Card pad={18}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600 }}>{unread > 0 ? `${unread} unread` : 'All caught up'}</div>
-        {unread > 0 && <Button variant="ghost" size="sm" onClick={readAll}>Mark all read</Button>}
+        <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600 }}>{unread > 0 ? t('admin.unreadCount', { n: unread }) : t('admin.caughtUp')}</div>
+        {unread > 0 && <Button variant="ghost" size="sm" onClick={readAll}>{t('admin.markAllRead')}</Button>}
       </div>
 
       <Segmented tabs={KIND_FILTERS} active={filter} onChange={setFilter} style={{ marginBottom: 8 }} />
 
       {shown.length === 0 ? (
-        <EmptyState compact icon={<Icon name="bell" size={22} />} title="Nothing here" body="New activity will show up as it happens." />
+        <EmptyState compact icon={<Icon name="bell" size={22} />} title={t('admin.nothingHere')} body={t('admin.alertsEmpty')} />
       ) : shown.map((n) => <NotificationRow key={n.id} n={n} onClick={() => open(n)} />)}
     </Card>
   )
@@ -422,6 +430,7 @@ function Alerts({ notifications, setNotifications, showToast, goTab }) {
 /* ══ investors ═══════════════════════════════════════════ */
 
 function Investors({ data, reload, showToast }) {
+  const { t } = useI18n()
   const [q, setQ] = useState('')
   const [managing, setManaging] = useState(null)
 
@@ -436,19 +445,19 @@ function Investors({ data, reload, showToast }) {
       <Card pad={14} style={{ marginBottom: 12 }}>
         <input
           value={q} onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name or email…"
-          aria-label="Search investors"
+          placeholder={t('admin.searchInvestors')}
+          aria-label={t('admin.searchInvestors')}
           style={{ ...fieldStyle }}
         />
       </Card>
 
       <Card pad={0}>
         <div data-table-head style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-          <div>Investor</div><div>Plans</div><div>Invested</div><div>Earnings</div><div />
+          <div>Investor</div><div>{t('admin.plansCol')}</div><div>{t('admin.investedCol')}</div><div>{t('admin.earningsCol')}</div><div />
         </div>
 
         {investors.length === 0 ? (
-          <EmptyState compact icon={<Icon name="users" size={22} />} title="No investors found" />
+          <EmptyState compact icon={<Icon name="users" size={22} />} title={t('admin.noInvestors')} />
         ) : investors.map((p) => {
           const t = investorTotals(p.id, data.investments)
           return (
@@ -473,7 +482,7 @@ function Investors({ data, reload, showToast }) {
               <div style={{ fontSize: 13.5, fontWeight: 700, color: t.earnings ? 'var(--gain)' : 'var(--text-3)' }}>
                 {t.earnings ? `+$${money0(t.earnings)}` : '—'}
               </div>
-              <Button variant="secondary" size="sm" onClick={() => setManaging(p)}>Manage</Button>
+              <Button variant="secondary" size="sm" onClick={() => setManaging(p)}>{t('admin.manage')}</Button>
             </div>
           )
         })}
@@ -617,7 +626,7 @@ function InvestorOverview({ investor, detail, totals, plans, onDone, setError })
   const fund = async () => {
     setError('')
     const amt = parseFloat(String(amount).replace(/,/g, '')) || 0
-    if (!amt) return setError('Enter an amount.')
+    if (!amt) return setError(t('admin.enterAmountErr'))
     setBusy(true)
     try {
       await fundInvestor({ userId: investor.id, planId: planId || null, amount: amt })
@@ -634,7 +643,7 @@ function InvestorOverview({ investor, detail, totals, plans, onDone, setError })
     setBusy(true)
     try {
       await closeInvestment(id)
-      await onDone('Investment closed')
+      await onDone(t('admin.closedToast'))
     } catch (e) {
       setError(e.message || 'Could not close that investment.')
     } finally {
@@ -674,7 +683,7 @@ function InvestorOverview({ investor, detail, totals, plans, onDone, setError })
       </Field>
       <Button full onClick={fund} busy={busy} style={{ marginBottom: 22 }}>Credit investor</Button>
 
-      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Active investments</div>
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>{t('admin.activeInvestmentsLabel')}</div>
       {active.length === 0 ? (
         <div style={{ fontSize: 13.5, color: 'var(--text-3)' }}>None.</div>
       ) : active.map((inv) => (
@@ -683,7 +692,7 @@ function InvestorOverview({ investor, detail, totals, plans, onDone, setError })
             <div style={{ fontSize: 13.5, fontWeight: 700 }}>{inv.plan_name} · ${money0(inv.principal)}</div>
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{inv.annual_return_pct}% p.a. · since {shortDate(inv.start_date)}</div>
           </div>
-          <Button variant="dangerGhost" size="sm" onClick={() => close(inv.id)} busy={busy}>Close</Button>
+          <Button variant="dangerGhost" size="sm" onClick={() => close(inv.id)} busy={busy}>{t('admin.closeInvestment')}</Button>
         </div>
       ))}
     </>
@@ -730,8 +739,8 @@ function InvestorRecords({ detail, onEdit, onDelete }) {
                   <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{secondary(r)}</div>
                   {r.admin_note && <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, fontStyle: 'italic' }}>{r.admin_note}</div>}
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => onEdit(type, r)}>Edit</Button>
-                <Button variant="dangerGhost" size="sm" onClick={() => onDelete(type, r)}>Delete</Button>
+                <Button variant="secondary" size="sm" onClick={() => onEdit(type, r)}>{t('common.edit')}</Button>
+                <Button variant="dangerGhost" size="sm" onClick={() => onDelete(type, r)}>{t('common.delete')}</Button>
               </div>
             ))}
           </div>
@@ -796,7 +805,7 @@ function EditRecord({ type, row, onClose, onSaved }) {
       await updateRecord(type, row.id, patch)
       await onSaved()
     } catch (e) {
-      setError(e.message || 'Could not save.')
+      setError(e.message || t('admin.saveFailed'))
       setBusy(false)
     }
   }
@@ -863,13 +872,13 @@ function InvestorEmail({ investor, showToast, setError }) {
         Sends from your verified address, in the Keelstone template. Replies come
         back to you. A copy is saved to the support inbox.
       </div>
-      <Field label="To">
+      <Field label={t('admin.to')}>
         <input value={investor.email} disabled style={{ ...fieldStyle, opacity: 0.6 }} />
       </Field>
-      <Field label="Subject">
+      <Field label={t('admin.subject')}>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="About your account" style={fieldStyle} />
       </Field>
-      <Field label="Message">
+      <Field label={t('admin.message')}>
         <textarea
           value={body} onChange={(e) => setBody(e.target.value)} rows={8}
           placeholder={`Hello ${displayName(investor).split(' ')[0]},`}
@@ -1040,6 +1049,7 @@ function ConfirmDestructive({ confirming, investor, onCancel, onConfirmed, setEr
 /* ══ requests ════════════════════════════════════════════ */
 
 function Requests({ deposits, withdrawals, profiles, reload, showToast }) {
+  const { t } = useI18n()
   const [filter, setFilter] = useState('pending')
   const byId = useMemo(() => Object.fromEntries(profiles.map((p) => [p.id, p])), [profiles])
 
@@ -1053,11 +1063,11 @@ function Requests({ deposits, withdrawals, profiles, reload, showToast }) {
   return (
     <Card pad={18}>
       <Segmented
-        tabs={[['pending', 'Pending'], ['deposit', 'Deposits'], ['withdrawal', 'Withdrawals'], ['all', 'All']]}
+        tabs={[['pending', t('admin.filterPending')], ['deposit', t('dash.deposits')], ['withdrawal', t('dash.withdrawals')], ['all', t('admin.filterAll')]]}
         active={filter} onChange={setFilter} style={{ marginBottom: 10 }}
       />
       {rows.length === 0 ? (
-        <EmptyState compact icon={<Icon name="check" size={22} />} title="All clear" body="Nothing is waiting for review." />
+        <EmptyState compact icon={<Icon name="check" size={22} />} title={t('admin.allClear')} body={t('admin.nothingWaiting')} />
       ) : rows.map((r) => (
         <RequestRow key={`${r.type}-${r.id}`} r={r} profile={byId[r.user_id]} reload={reload} showToast={showToast} />
       ))}
@@ -1078,7 +1088,7 @@ function RequestRow({ r, profile, reload, showToast }) {
       showToast(`${isDep ? 'Deposit' : 'Withdrawal'} ${action}d`)
       await reload()
     } catch (e) {
-      showToast(e.message || 'Action failed')
+      showToast(e.message || t('admin.actionFailed'))
       setBusy(false)
     }
   }
@@ -1117,14 +1127,14 @@ function RequestRow({ r, profile, reload, showToast }) {
           {noteOpen && (
             <input
               value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Note (optional)" aria-label="Admin note"
+              placeholder={t('admin.notePlaceholder')} aria-label={t('admin.notePlaceholder')}
               style={{ ...fieldStyle, marginBottom: 8, padding: '9px 12px', fontSize: 13 }}
             />
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button size="sm" onClick={() => act('approve')} busy={busy} style={{ background: 'var(--gain)' }}>Approve</Button>
-            <Button size="sm" variant="dangerGhost" onClick={() => act('reject')} busy={busy}>Reject</Button>
-            {!noteOpen && <Button size="sm" variant="ghost" onClick={() => setNoteOpen(true)}>Add note</Button>}
+            <Button size="sm" onClick={() => act('approve')} busy={busy} style={{ background: 'var(--gain)' }}>{t('admin.approve')}</Button>
+            <Button size="sm" variant="dangerGhost" onClick={() => act('reject')} busy={busy}>{t('admin.reject')}</Button>
+            {!noteOpen && <Button size="sm" variant="ghost" onClick={() => setNoteOpen(true)}>{t('admin.addNote')}</Button>}
           </div>
         </div>
       )}
@@ -1139,6 +1149,7 @@ function RequestRow({ r, profile, reload, showToast }) {
 /* ══ KYC queue ═══════════════════════════════════════════ */
 
 function KycQueue({ kyc, profiles, reload, showToast }) {
+  const { t } = useI18n()
   const [filter, setFilter] = useState('submitted')
   const [viewing, setViewing] = useState(null)
   const byId = useMemo(() => Object.fromEntries(profiles.map((p) => [p.id, p])), [profiles])
@@ -1148,11 +1159,11 @@ function KycQueue({ kyc, profiles, reload, showToast }) {
     <>
       <Card pad={18}>
         <Segmented
-          tabs={[['submitted', 'Awaiting review'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['all', 'All']]}
+          tabs={[['submitted', t('admin.awaitingReview')], ['approved', t('status.approved')], ['rejected', t('status.rejected')], ['all', t('admin.filterAll')]]}
           active={filter} onChange={setFilter} style={{ marginBottom: 10 }}
         />
         {shown.length === 0 ? (
-          <EmptyState compact icon={<Icon name="shield" size={22} />} title="Nothing here" body="KYC submissions will appear here for review." />
+          <EmptyState compact icon={<Icon name="shield" size={22} />} title="Nothing here" body={t('admin.kycEmpty')} />
         ) : shown.map((k) => (
           <button
             key={k.id} type="button" onClick={() => setViewing(k)}
@@ -1187,6 +1198,7 @@ function KycQueue({ kyc, profiles, reload, showToast }) {
 }
 
 function KycReview({ submission, profile, onClose, onDone }) {
+  const { t } = useI18n()
   const [urls, setUrls] = useState({})
   const [reason, setReason] = useState('')
   const [rejecting, setRejecting] = useState(false)
@@ -1206,12 +1218,12 @@ function KycReview({ submission, profile, onClose, onDone }) {
     setError('')
     if (action === 'reject' && !reason.trim()) {
       setRejecting(true)
-      return setError('Give a reason so the investor knows what to fix.')
+      return setError(t('admin.reasonRequired'))
     }
     setBusy(true)
     try {
       await reviewKyc({ submissionId: submission.id, action, reason: reason.trim() })
-      onDone(action === 'approve' ? 'Identity approved' : 'Submission rejected')
+      onDone(action === 'approve' ? t('admin.kycApproved') : t('admin.kycRejected'))
     } catch (e) {
       setError(e.message || 'Could not record that decision.')
       setBusy(false)
@@ -1222,7 +1234,7 @@ function KycReview({ submission, profile, onClose, onDone }) {
 
   return (
     <Sheet onClose={onClose} maxWidth={560} labelledBy="kyc-review">
-      <SheetHeader id="kyc-review" title="Review identity" onClose={onClose} />
+      <SheetHeader id="kyc-review" title={t('admin.reviewIdentity')} onClose={onClose} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: -8, marginBottom: 16 }}>
         <Pill status={submission.status} />
@@ -1246,7 +1258,7 @@ function KycReview({ submission, profile, onClose, onDone }) {
         ))}
       </div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Documents</div>
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>{t('admin.documents')}</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {['doc_id_front', 'doc_id_back', 'doc_selfie'].map((k) =>
           submission[k] ? (
@@ -1264,7 +1276,7 @@ function KycReview({ submission, profile, onClose, onDone }) {
       {submission.status === 'submitted' && (
         <>
           {rejecting && (
-            <Field label="Reason for rejection" hint="The investor sees this, so be specific.">
+            <Field label={t('admin.rejectionReason')} hint={t('admin.rejectionHint')}>
               <textarea
                 value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
                 placeholder="e.g. The document photo is blurred — please retake it in better light."
@@ -1276,14 +1288,14 @@ function KycReview({ submission, profile, onClose, onDone }) {
           <div style={{ display: 'flex', gap: 10 }}>
             <Button onClick={() => decide('approve')} busy={busy} style={{ flex: 1, background: 'var(--gain)' }}>Approve</Button>
             <Button variant="dangerGhost" onClick={() => (rejecting ? decide('reject') : setRejecting(true))} busy={busy} style={{ flex: 1 }}>
-              {rejecting ? 'Confirm rejection' : 'Reject'}
+              {rejecting ? t('admin.confirmRejection') : t('admin.reject')}
             </Button>
           </div>
         </>
       )}
 
       {submission.status === 'rejected' && submission.rejection_reason && (
-        <Alert tone="loss"><div><b>Rejected:</b> {submission.rejection_reason}</div></Alert>
+        <Alert tone="loss"><div><b>{t('admin.rejectedLabel')}</b> {submission.rejection_reason}</div></Alert>
       )}
     </Sheet>
   )
@@ -1292,6 +1304,7 @@ function KycReview({ submission, profile, onClose, onDone }) {
 /* ══ plans + deposit methods ═════════════════════════════ */
 
 function Plans({ plans, methods, reload, showToast }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(null)
   const [editingMethod, setEditingMethod] = useState(null)
 
@@ -1299,9 +1312,9 @@ function Plans({ plans, methods, reload, showToast }) {
     <>
       <Card pad={18} style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Investment plans</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{t('admin.investmentPlans')}</h2>
           <Button size="sm" onClick={() => setEditing({ name: '', annual_return_pct: 0, min_usd: 5000, max_usd: 0, risk: 'Medium', active: true, sort_order: plans.length + 1 })}>
-            <Icon name="plus" size={15} /> Add
+            <Icon name="plus" size={15} /> {t('common.add')}
           </Button>
         </div>
         {plans.length === 0 ? (
@@ -1325,7 +1338,7 @@ function Plans({ plans, methods, reload, showToast }) {
 
       <Card pad={18}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Deposit methods</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{t('admin.depositMethods')}</h2>
           <Button size="sm" onClick={() => setEditingMethod({ name: '', symbol: '', network: '', wallet_address: '', min_amount: 0, active: true })}>
             <Icon name="plus" size={15} /> Add
           </Button>
@@ -1357,6 +1370,7 @@ function Plans({ plans, methods, reload, showToast }) {
 }
 
 function PlanEditor({ plan, onClose, onDone }) {
+  const { t } = useI18n()
   const [form, setForm] = useState(plan)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -1364,11 +1378,11 @@ function PlanEditor({ plan, onClose, onDone }) {
 
   const save = async () => {
     setError('')
-    if (!form.name?.trim()) return setError('Give the plan a name.')
+    if (!form.name?.trim()) return setError(t('admin.planNameRequired'))
     setBusy(true)
     try {
       await savePlan(form)
-      onDone(plan.id ? 'Plan updated' : 'Plan created')
+      onDone(plan.id ? t('admin.planUpdated') : t('admin.planCreated'))
     } catch (e) {
       setError(e.message || 'Could not save.')
       setBusy(false)
@@ -1378,15 +1392,15 @@ function PlanEditor({ plan, onClose, onDone }) {
   return (
     <Sheet onClose={onClose} maxWidth={520} labelledBy="pe">
       <SheetHeader id="pe" title={plan.id ? `Edit ${plan.name}` : 'New plan'} onClose={onClose} />
-      <Field label="Plan name"><input value={form.name || ''} onChange={(e) => set('name', e.target.value)} style={fieldStyle} /></Field>
-      <Field label="Target annual return (%)"><input type="number" value={form.annual_return_pct ?? 0} onChange={(e) => set('annual_return_pct', e.target.value)} style={fieldStyle} /></Field>
-      <Field label="Minimum (USD)"><input type="number" value={form.min_usd ?? 0} onChange={(e) => set('min_usd', e.target.value)} style={fieldStyle} /></Field>
-      <Field label="Maximum (USD)" hint="0 means no limit."><input type="number" value={form.max_usd ?? 0} onChange={(e) => set('max_usd', e.target.value)} style={fieldStyle} /></Field>
-      <Field label="Risk level"><input value={form.risk || ''} onChange={(e) => set('risk', e.target.value)} placeholder="Low / Medium / High" style={fieldStyle} /></Field>
-      <Field label="Assets"><input value={form.assets || ''} onChange={(e) => set('assets', e.target.value)} style={fieldStyle} /></Field>
-      <Field label="Strategy"><textarea value={form.strategy || ''} onChange={(e) => set('strategy', e.target.value)} rows={3} style={{ ...fieldStyle, resize: 'vertical' }} /></Field>
+      <Field label={t('admin.planName')}><input value={form.name || ''} onChange={(e) => set('name', e.target.value)} style={fieldStyle} /></Field>
+      <Field label={t('admin.targetReturn')}><input type="number" value={form.annual_return_pct ?? 0} onChange={(e) => set('annual_return_pct', e.target.value)} style={fieldStyle} /></Field>
+      <Field label={t('admin.minUsd')}><input type="number" value={form.min_usd ?? 0} onChange={(e) => set('min_usd', e.target.value)} style={fieldStyle} /></Field>
+      <Field label={t('admin.maxUsd')} hint={t('admin.maxHint')}><input type="number" value={form.max_usd ?? 0} onChange={(e) => set('max_usd', e.target.value)} style={fieldStyle} /></Field>
+      <Field label={t('admin.riskLevel')}><input value={form.risk || ''} onChange={(e) => set('risk', e.target.value)} placeholder="Low / Medium / High" style={fieldStyle} /></Field>
+      <Field label={t('admin.assets')}><input value={form.assets || ''} onChange={(e) => set('assets', e.target.value)} style={fieldStyle} /></Field>
+      <Field label={t('admin.strategy')}><textarea value={form.strategy || ''} onChange={(e) => set('strategy', e.target.value)} rows={3} style={{ ...fieldStyle, resize: 'vertical' }} /></Field>
 
-      {[['featured', 'Featured on the website'], ['active', 'Visible to investors']].map(([k, label]) => (
+      {[['featured', t('admin.featuredLabel')], ['active', t('admin.activeLabel')]].map(([k, label]) => (
         <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, marginBottom: 10, cursor: 'pointer' }}>
           <input type="checkbox" checked={!!form[k]} onChange={(e) => set(k, e.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--primary)' }} />
           {label}
@@ -1394,12 +1408,13 @@ function PlanEditor({ plan, onClose, onDone }) {
       ))}
 
       {error && <Alert tone="loss" style={{ marginTop: 12 }}>{error}</Alert>}
-      <Button full onClick={save} busy={busy} style={{ marginTop: 14 }}>{plan.id ? 'Save changes' : 'Create plan'}</Button>
+      <Button full onClick={save} busy={busy} style={{ marginTop: 14 }}>{plan.id ? t('common.save') : t('admin.createPlan')}</Button>
     </Sheet>
   )
 }
 
 function MethodEditor({ method, onClose, onDone }) {
+  const { t } = useI18n()
   const [form, setForm] = useState(method)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -1436,12 +1451,12 @@ function MethodEditor({ method, onClose, onDone }) {
       <SheetHeader id="me" title={method.id ? `Edit ${method.name}` : 'New deposit method'} onClose={onClose} />
       <Field label="Name"><input value={form.name || ''} onChange={(e) => set('name', e.target.value)} placeholder="USDT" style={fieldStyle} /></Field>
       <Field label="Symbol"><input value={form.symbol || ''} onChange={(e) => set('symbol', e.target.value)} placeholder="USDT" style={fieldStyle} /></Field>
-      <Field label="Network"><input value={form.network || ''} onChange={(e) => set('network', e.target.value)} placeholder="BEP-20 (BNB Smart Chain)" style={fieldStyle} /></Field>
-      <Field label="Wallet address">
+      <Field label={t('admin.network')}><input value={form.network || ''} onChange={(e) => set('network', e.target.value)} placeholder="BEP-20 (BNB Smart Chain)" style={fieldStyle} /></Field>
+      <Field label={t('admin.walletAddress')}>
         <input value={form.wallet_address || ''} onChange={(e) => set('wallet_address', e.target.value)} placeholder="0x…" style={{ ...fieldStyle, fontFamily: 'monospace', fontSize: 13 }} />
       </Field>
-      <Field label="Minimum amount (USD)"><input type="number" value={form.min_amount ?? 0} onChange={(e) => set('min_amount', e.target.value)} style={fieldStyle} /></Field>
-      <Field label="Instructions" hint="Shown to investors when they pick this method.">
+      <Field label={t('admin.minAmount')}><input type="number" value={form.min_amount ?? 0} onChange={(e) => set('min_amount', e.target.value)} style={fieldStyle} /></Field>
+      <Field label={t('admin.instructions')} hint={t('admin.instructionsHint')}>
         <textarea value={form.instructions || ''} onChange={(e) => set('instructions', e.target.value)} rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
       </Field>
 
@@ -1451,8 +1466,8 @@ function MethodEditor({ method, onClose, onDone }) {
       </label>
 
       {error && <Alert tone="loss" style={{ marginTop: 12 }}>{error}</Alert>}
-      <Button full onClick={save} busy={busy} style={{ marginTop: 14 }}>{method.id ? 'Save changes' : 'Add method'}</Button>
-      {method.id && <Button variant="dangerGhost" full onClick={remove} busy={busy} style={{ marginTop: 8 }}>Remove method</Button>}
+      <Button full onClick={save} busy={busy} style={{ marginTop: 14 }}>{method.id ? t('common.save') : t('admin.addMethod')}</Button>
+      {method.id && <Button variant="dangerGhost" full onClick={remove} busy={busy} style={{ marginTop: 8 }}>{t('admin.removeMethod')}</Button>}
     </Sheet>
   )
 }
@@ -1460,6 +1475,7 @@ function MethodEditor({ method, onClose, onDone }) {
 /* ══ inbox ═══════════════════════════════════════════════ */
 
 function Inbox({ messages, reload, showToast }) {
+  const { t } = useI18n()
   const [active, setActive] = useState(null)
   const [composing, setComposing] = useState(false)
 
@@ -1467,11 +1483,11 @@ function Inbox({ messages, reload, showToast }) {
     <>
       <Card pad={18}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Support inbox</h2>
-          <Button size="sm" onClick={() => setComposing(true)}><Icon name="mail" size={15} /> Compose</Button>
+          <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{t('admin.supportInbox')}</h2>
+          <Button size="sm" onClick={() => setComposing(true)}><Icon name="mail" size={15} /> {t('admin.compose')}</Button>
         </div>
         {messages.length === 0 ? (
-          <EmptyState compact icon={<Icon name="mail" size={22} />} title="No messages" body="Messages from investors will appear here." />
+          <EmptyState compact icon={<Icon name="mail" size={22} />} title={t('admin.noMessages')} body={t('admin.messagesEmpty')} />
         ) : messages.map((m) => {
           const outbound = m.direction === 'outbound'
           const isNew = !outbound && m.status === 'new'
@@ -1516,6 +1532,7 @@ function Inbox({ messages, reload, showToast }) {
 }
 
 function MessageView({ message, onClose, onDone }) {
+  const { t } = useI18n()
   const [reply, setReply] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -1573,7 +1590,7 @@ function MessageView({ message, onClose, onDone }) {
       )}
 
       {message.direction !== 'outbound' && (
-        <Field label="Reply by email">
+        <Field label={t('admin.replyByEmail')}>
           <textarea
             value={reply} onChange={(e) => setReply(e.target.value)} rows={5}
             placeholder={`Write your reply to ${message.email}…`}
@@ -1584,13 +1601,14 @@ function MessageView({ message, onClose, onDone }) {
 
       {error && <Alert tone="loss" style={{ marginBottom: 12 }}>{error}</Alert>}
 
-      {message.direction !== 'outbound' && <Button full onClick={send} busy={busy}>Send reply</Button>}
+      {message.direction !== 'outbound' && <Button full onClick={send} busy={busy}>{t('admin.sendReply')}</Button>}
       <Button variant="dangerGhost" full onClick={remove} busy={busy} style={{ marginTop: 8 }}>Delete</Button>
     </Sheet>
   )
 }
 
 function Compose({ onClose, onDone }) {
+  const { t } = useI18n()
   const [form, setForm] = useState({ to: '', subject: '', body: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -1613,12 +1631,12 @@ function Compose({ onClose, onDone }) {
 
   return (
     <Sheet onClose={onClose} maxWidth={520} labelledBy="cp">
-      <SheetHeader id="cp" title="Compose email" onClose={onClose} />
+      <SheetHeader id="cp" title={t('admin.composeTitle')} onClose={onClose} />
       <Field label="To"><input type="email" value={form.to} onChange={(e) => set('to', e.target.value)} placeholder="investor@example.com" style={fieldStyle} /></Field>
       <Field label="Subject"><input value={form.subject} onChange={(e) => set('subject', e.target.value)} style={fieldStyle} /></Field>
       <Field label="Message"><textarea value={form.body} onChange={(e) => set('body', e.target.value)} rows={7} style={{ ...fieldStyle, resize: 'vertical' }} /></Field>
       {error && <Alert tone="loss" style={{ marginBottom: 12 }}>{error}</Alert>}
-      <Button full onClick={send} busy={busy}>Send email</Button>
+      <Button full onClick={send} busy={busy}>{t('admin.sendEmail')}</Button>
     </Sheet>
   )
 }

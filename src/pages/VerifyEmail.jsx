@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useI18n } from '../i18n'
 import { useAnim } from '../hooks/useReveal'
 import { supabase } from '../lib/supabase'
 import { ArrowRight, CheckCircle, WarningCircle } from '@phosphor-icons/react'
@@ -12,6 +13,7 @@ const C = {
 const RAD = 8
 
 export default function VerifyEmail() {
+  const { t } = useI18n()
   const rootRef = useRef(null)
   const navigate = useNavigate()
   const [status, setStatus] = useState('verifying') // verifying | success | error
@@ -30,7 +32,7 @@ export default function VerifyEmail() {
         setStatus('success')
       } else {
         setStatus('error')
-        setMessage('This verification link is invalid or has expired. Request a new one from your dashboard.')
+        setMessage(t('auth.verificationInvalid'))
       }
     }
 
@@ -65,8 +67,8 @@ export default function VerifyEmail() {
           {status === 'verifying' && (
             <>
               <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid #e7e7ec', borderTopColor: C.primary, margin: '0 auto 22px', animation: 'spin .8s linear infinite' }} />
-              <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, marginBottom: 10 }}>Verifying your email…</div>
-              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>This will only take a moment.</p>
+              <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, marginBottom: 10 }}>{t('auth.verifying')}</div>
+              <p style={{ fontSize: 14.5, color: C.muted, margin: 0 }}>{t('auth.verifyingBody')}</p>
             </>
           )}
 
@@ -75,10 +77,10 @@ export default function VerifyEmail() {
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#16a34a,#22c55e)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 16px 40px rgba(22,163,74,.35)' }}>
                 <CheckCircle size={30} color="#fff" weight="fill" />
               </div>
-              <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>Email verified</div>
-              <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.6, margin: '0 0 28px' }}>Your email address has been confirmed. You're all set to access your investor portal.</p>
+              <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>{t('auth.emailVerified')}</div>
+              <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.6, margin: '0 0 28px' }}>{t('auth.emailVerifiedBody')}</p>
               <button type="button" onClick={() => navigate('/login')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Continue to sign in <ArrowRight size={16} weight="bold" />
+                {t('auth.continueToSignIn')} <ArrowRight size={16} weight="bold" />
               </button>
             </>
           )}
@@ -88,9 +90,9 @@ export default function VerifyEmail() {
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fff5f5', border: '1px solid #f6cccc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                 <WarningCircle size={30} color="#b91c1c" weight="fill" />
               </div>
-              <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, marginBottom: 12 }}>Verification failed</div>
+              <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, marginBottom: 12 }}>{t('auth.verificationFailed')}</div>
               <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.6, margin: '0 0 28px' }}>{message}</p>
-              <Link to="/login" style={{ display: 'block', padding: 14, borderRadius: RAD, background: C.ink, color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>Back to sign in</Link>
+              <Link to="/login" style={{ display: 'block', padding: 14, borderRadius: RAD, background: C.ink, color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>{t('auth.backToSignIn')}</Link>
             </>
           )}
         </div>

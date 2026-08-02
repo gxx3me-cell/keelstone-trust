@@ -3,6 +3,7 @@
    visually identical and behave the same on mobile. */
 
 import { useEffect } from 'react'
+import { useI18n } from '../i18n'
 
 export const serif = "'DM Serif Display',serif"
 
@@ -128,8 +129,20 @@ export const toneFor = (status) => ({
   new: 'brand', not_started: 'neutral', unverified: 'neutral', draft: 'neutral',
 }[String(status || '').toLowerCase()] || 'neutral')
 
+// Status values come from the database in snake_case English. Translate them
+// here so every call site gets it for free.
+const STATUS_KEYS = {
+  pending: 'status.pending', approved: 'status.approved', rejected: 'status.rejected',
+  active: 'status.active', submitted: 'status.submitted', new: 'status.new',
+  sent: 'status.sent', replied: 'status.replied', verified: 'status.verified',
+  not_started: 'status.notStarted',
+}
+
 export function Pill({ children, tone = 'neutral', status, icon, style = {} }) {
-  const t = TONES[status ? toneFor(status) : tone] || TONES.neutral
+  const { t: translate } = useI18n()
+  const tokens = TONES[status ? toneFor(status) : tone] || TONES.neutral
+  const key = status && STATUS_KEYS[String(status).toLowerCase()]
+  const label = children ?? (key ? translate(key) : status)
   return (
     <span
       style={{
@@ -140,14 +153,14 @@ export function Pill({ children, tone = 'neutral', status, icon, style = {} }) {
         fontWeight: 700,
         padding: '4px 9px',
         borderRadius: 999,
-        background: t.bg,
-        color: t.fg,
+        background: tokens.bg,
+        color: tokens.fg,
         textTransform: 'capitalize',
         whiteSpace: 'nowrap',
         ...style,
       }}
     >
-      {icon} {children ?? status}
+      {icon} {label}
     </span>
   )
 }

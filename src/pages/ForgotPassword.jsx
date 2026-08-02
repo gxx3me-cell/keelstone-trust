@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useI18n } from '../i18n'
 import { useAnim } from '../hooks/useReveal'
 import { supabase } from '../lib/supabase'
 import { ArrowRight, EnvelopeSimple } from '@phosphor-icons/react'
@@ -12,6 +13,7 @@ const C = {
 const RAD = 0
 
 export default function ForgotPassword() {
+  const { t } = useI18n()
   const rootRef = useRef(null)
   const [email, setEmail] = useState('')
   const [focus, setFocus] = useState(false)
@@ -23,7 +25,7 @@ export default function ForgotPassword() {
   async function handleSubmit(e) {
     e?.preventDefault()
     setError('')
-    if (!email) { setError('Please enter your email address.'); return }
+    if (!email) { setError(t('auth.enterEmail')); return }
     setSubmitting(true)
     try {
       // Supabase sends the recovery email and manages the token. The link lands
@@ -62,23 +64,23 @@ export default function ForgotPassword() {
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#c026d3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 16px 40px rgba(109,40,217,.45)' }}>
                 <EnvelopeSimple size={28} color="#fff" weight="fill" />
               </div>
-              <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>Check your inbox</div>
+              <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>{t('auth.checkInbox')}</div>
               <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.65, margin: '0 0 28px' }}>
                 If <strong style={{ color: C.ink }}>{email}</strong> is registered with Keelstone Trust, you'll receive a password reset link shortly.
               </p>
               <p style={{ fontSize: 13, color: C.muted, margin: '0 0 24px', lineHeight: 1.6 }}>
-                Didn't receive it? Check your spam folder, or wait a few minutes before trying again.
+                {t('auth.checkSpam')}
               </p>
               <Link to="/login" style={{ display: 'block', padding: '13px', borderRadius: RAD, background: C.ink, color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                Back to sign in
+                {t('auth.backToSignIn')}
               </Link>
             </div>
           ) : (
             <>
-              <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Password reset</div>
-              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 8px', color: C.ink }}>Reset your password</h2>
+              <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>{t('auth.resetEyebrow')}</div>
+              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 8px', color: C.ink }}>{t('auth.resetTitle')}</h2>
               <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px', lineHeight: 1.6 }}>
-                Enter the email address linked to your Keelstone Trust account and we'll send you a reset link.
+                {t('auth.resetBody')}
               </p>
 
               <form onSubmit={handleSubmit}>
@@ -106,12 +108,12 @@ export default function ForgotPassword() {
 
                 <button type="submit" disabled={submitting}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'inherit' }}>
-                  {submitting ? 'Sending…' : <>Send reset link <ArrowRight size={16} weight="bold" /></>}
+                  {submitting ? t('common.sending') : <>{t('auth.sendResetLink')} <ArrowRight size={16} weight="bold" /></>}
                 </button>
               </form>
 
               <p style={{ textAlign: 'center', fontSize: 14, margin: '22px 0 0', color: C.muted }}>
-                Remembered it? <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
+                {t('auth.rememberedIt')} <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>{t('common.signIn')}</Link>
               </p>
             </>
           )}

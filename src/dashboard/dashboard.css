@@ -242,3 +242,39 @@
   scrollbar-width: none;
 }
 [data-hscroll]::-webkit-scrollbar { display: none; }
+
+/* ── RTL (Arabic) ────────────────────────────────────────
+   The layouts use inline styles with physical properties
+   (left / marginLeft). Rather than rewrite every one, flip the
+   handful that actually control page structure. Flexbox, grid and
+   text alignment already mirror themselves from <html dir="rtl">. */
+
+[dir="rtl"] [data-sidebar] {
+  left: auto !important;
+  right: 0 !important;
+  border-right: none !important;
+  border-left: 1px solid var(--border);
+}
+
+[dir="rtl"] [data-main] {
+  margin-left: 0 !important;
+  margin-right: 248px;
+}
+[dir="rtl"] [data-admin-main] { margin-right: 236px; }
+
+@media (max-width: 900px) {
+  [dir="rtl"] [data-main] { margin-right: 0 !important; }
+}
+
+/* Glyphs that encode direction must mirror; brand marks must not. */
+[dir="rtl"] [data-flip] { transform: scaleX(-1); }
+
+/* Numerals stay LTR inside RTL text — an amount or wallet address
+   reversed mid-sentence is unreadable. */
+[dir="rtl"] [data-ltr],
+[dir="rtl"] input[inputmode="decimal"],
+[dir="rtl"] [style*="monospace"] {
+  direction: ltr;
+  text-align: start;
+  unicode-bidi: embed;
+}

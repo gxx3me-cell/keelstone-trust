@@ -4,6 +4,8 @@ import '../dashboard/dashboard.css'
 import { supabase } from '../lib/supabase'
 import { listDepositMethods, submitDeposit, submitWithdrawal, getMyPortfolio, listPlans } from '../lib/deposits'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n, useDates } from '../i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import BrandSplash from '../components/BrandSplash'
 import KycSection from '../dashboard/KycSection'
 import { subscribe, unsubscribe, getMySubscription } from '../lib/newsletter'
@@ -39,13 +41,14 @@ export function isBtcAddress(value) {
 /* Four sections — down from seven. Everything financial lives under
    "Invest"; statements, profile and KYC live under "Account". */
 const TABS = [
-  ['home', 'Home', 'home'],
-  ['invest', 'Invest', 'wallet'],
-  ['activity', 'Activity', 'activity'],
-  ['account', 'Account', 'user'],
+  ['home', 'dash.home', 'home'],
+  ['invest', 'dash.invest', 'wallet'],
+  ['activity', 'dash.activity', 'activity'],
+  ['account', 'dash.account', 'user'],
 ]
 
 export default function Dashboard() {
+  const { t } = useI18n()
   const rootRef = useRef(null)
   const navigate = useNavigate()
   const { user, profile, loading, isAuthenticated, refresh, emailVerified } = useAuth()
@@ -111,9 +114,9 @@ export default function Dashboard() {
 
   const greeting = (() => {
     const h = new Date().getHours()
-    if (h < 12) return 'Good morning'
-    if (h < 18) return 'Good afternoon'
-    return 'Good evening'
+    if (h < 12) return t('dash.goodMorning')
+    if (h < 18) return t('dash.goodAfternoon')
+    return t('dash.goodEvening')
   })()
 
   return (
@@ -130,7 +133,7 @@ export default function Dashboard() {
 
       <main data-main style={{ flex: 1, marginLeft: 248, padding: '0 28px 40px', minWidth: 0, maxWidth: 1100 }}>
         <TopBar
-          title={TABS.find(([k]) => k === tab)?.[1]}
+          title={t(TABS.find(([k]) => k === tab)?.[1] || '')}
           greeting={tab === 'home' ? `${greeting}, ${firstName || 'there'}` : null}
           theme={theme} setTheme={setTheme}
         />
@@ -191,7 +194,7 @@ export default function Dashboard() {
             aria-current={tab === key ? 'page' : undefined}
           >
             <Icon name={icon} size={22} />
-            {label}
+            {t(label)}
           </button>
         ))}
       </nav>
@@ -200,14 +203,14 @@ export default function Dashboard() {
         <DepositSheet
           plans={plans} methods={methods}
           onClose={() => setModal(null)}
-          onDone={() => { setModal(null); loadPortfolio(); showToast('Deposit submitted — we’ll confirm it shortly.') }}
+          onDone={() => { setModal(null); loadPortfolio(); showToast(t('deposit.submitted')) }}
         />
       )}
       {modal === 'withdraw' && (
         <WithdrawSheet
           portfolio={portfolio}
           onClose={() => setModal(null)}
-          onDone={() => { setModal(null); loadPortfolio(); showToast('Withdrawal request submitted.') }}
+          onDone={() => { setModal(null); loadPortfolio(); showToast(t('withdraw.submitted')) }}
         />
       )}
 
@@ -219,6 +222,7 @@ export default function Dashboard() {
 /* ══ chrome ══════════════════════════════════════════════ */
 
 function DesktopSidebar({ tab, goTab, fullName, userEmail, initials, onDeposit }) {
+  const { t } = useI18n()
   return (
     <aside
       data-sidebar
@@ -232,7 +236,7 @@ function DesktopSidebar({ tab, goTab, fullName, userEmail, initials, onDeposit }
         <img src="/uploads/kneelstone-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain', flex: 'none' }} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: serif, fontSize: 16, color: 'var(--text)', lineHeight: 1.15 }}>Keelstone</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Investor</div>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>{t('dash.investor')}</div>
         </div>
       </div>
 
@@ -252,7 +256,7 @@ function DesktopSidebar({ tab, goTab, fullName, userEmail, initials, onDeposit }
                 cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
               }}
             >
-              <Icon name={icon} size={20} /> {label}
+              <Icon name={icon} size={20} /> {t(label)}
             </button>
           )
         })}
@@ -260,7 +264,7 @@ function DesktopSidebar({ tab, goTab, fullName, userEmail, initials, onDeposit }
 
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Button onClick={onDeposit} full>
-          <Icon name="plus" size={17} /> Add funds
+          <Icon name="plus" size={17} /> {t('dash.addFunds')}
         </Button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 6px 0', borderTop: '1px solid var(--border)' }}>
           <Avatar initials={initials} size={36} />
@@ -290,6 +294,7 @@ function Avatar({ initials, size = 40 }) {
 }
 
 function TopBar({ title, greeting, theme, setTheme }) {
+  const { t } = useI18n()
   return (
     <div
       style={{
@@ -303,7 +308,7 @@ function TopBar({ title, greeting, theme, setTheme }) {
           <>
             <div style={{ fontSize: 12.5, color: 'var(--text-3)', fontWeight: 600 }}>{greeting}</div>
             <h1 data-pagetitle style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: '2px 0 0', color: 'var(--text)' }}>
-              Your portfolio
+              {t('dash.yourPortfolio')}
             </h1>
           </>
         ) : (
@@ -329,6 +334,7 @@ function TopBar({ title, greeting, theme, setTheme }) {
 /* ══ home ════════════════════════════════════════════════ */
 
 function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
+  const { t } = useI18n()
   const value = portfolio?.total_value || 0
   const earnings = portfolio?.total_earnings || 0
   const pct = portfolio?.return_pct || 0
@@ -346,7 +352,7 @@ function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
       }}
     >
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,.72)', fontWeight: 600, marginBottom: 8 }}>
-        Total portfolio value
+        {t('dash.totalValue')}
       </div>
 
       {loading ? (
@@ -384,7 +390,7 @@ function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
               }}
             >
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,.75)', fontWeight: 600 }}>
-                Available to withdraw
+                {t('withdraw.availableToWithdraw')}
               </span>
               <span style={{ fontSize: 15, fontWeight: 700 }}>
                 ${money(portfolio.withdrawable ?? availableBalance)}
@@ -407,7 +413,7 @@ function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
           onClick={onWithdraw}
           style={{ flex: 1, background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.24)' }}
         >
-          <Icon name="up" size={17} /> Withdraw
+          <Icon name="up" size={17} /> {t('dash.withdraw')}
         </Button>
       </div>
     </Card>
@@ -415,10 +421,11 @@ function BalanceHero({ portfolio, loading, onDeposit, onWithdraw }) {
 }
 
 function StatRow({ portfolio }) {
+  const { t } = useI18n()
   const stats = [
-    ['Invested', `$${money0(portfolio.total_principal)}`, 'var(--text)'],
-    ['Earned', `+$${money0(portfolio.total_earnings)}`, 'var(--gain)'],
-    ['Plans', String(portfolio.investment_count), 'var(--text)'],
+    [t('dash.invested'), `$${money0(portfolio.total_principal)}`, 'var(--text)'],
+    [t('dash.earned'), `+$${money0(portfolio.total_earnings)}`, 'var(--gain)'],
+    [t('dash.plansCount'), String(portfolio.investment_count), 'var(--text)'],
   ]
   return (
     <div data-statgrid style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginTop: 14 }}>
@@ -451,11 +458,12 @@ function PlanBadge({ name, i, size = 40 }) {
 }
 
 function HoldingsList({ portfolio, onAdd }) {
+  const { t } = useI18n()
   return (
     <Card style={{ marginTop: 14 }} pad={0}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 12px' }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text)' }}>Your plans</h2>
-        <Button variant="ghost" size="sm" onClick={onAdd}>Add</Button>
+        <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text)' }}>{t('dash.yourPlans')}</h2>
+        <Button variant="ghost" size="sm" onClick={onAdd}>{t('common.add')}</Button>
       </div>
       {portfolio.investments.map((inv, i) => (
         <div
@@ -480,18 +488,19 @@ function HoldingsList({ portfolio, onAdd }) {
 }
 
 function StartInvesting({ plans, onStart }) {
+  const { t } = useI18n()
   return (
     <Card style={{ marginTop: 14 }} pad={0}>
       <EmptyState
         icon={<Icon name="chart" size={26} />}
-        title="Start your first investment"
-        body="Choose a plan, add funds, and our team puts your capital to work. Track everything right here."
-        action={<Button onClick={onStart} size="lg">Get started</Button>}
+        title={t('dash.startFirstTitle')}
+        body={t('dash.startFirstBody')}
+        action={<Button onClick={onStart} size="lg">{t('common.getStarted')}</Button>}
       />
       {plans.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border)', padding: 18 }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
-            Available plans
+            {t('dash.availablePlans')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {plans.slice(0, 4).map((p) => (
@@ -521,6 +530,7 @@ function StartInvesting({ plans, onStart }) {
 /* ══ invest ══════════════════════════════════════════════ */
 
 function InvestScreen({ portfolio, plans, loading, onDeposit }) {
+  const { t } = useI18n()
   if (loading) return <SkeletonCard rows={4} />
   const hasAny = portfolio && portfolio.investment_count > 0
 
@@ -529,7 +539,7 @@ function InvestScreen({ portfolio, plans, loading, onDeposit }) {
       {hasAny ? (
         <>
           <Card pad={20}>
-            <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600, marginBottom: 6 }}>Invested capital</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600, marginBottom: 6 }}>{t('dash.investedCapital')}</div>
             <div style={{ fontFamily: serif, fontSize: 32, color: 'var(--text)', marginBottom: 4 }}>
               ${money(portfolio.total_principal)}
             </div>
@@ -552,9 +562,9 @@ function InvestScreen({ portfolio, plans, loading, onDeposit }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
                   {[
-                    ['Invested', `$${money0(inv.principal)}`, 'var(--text)'],
-                    ['Earned', `+$${money0(inv.earnings)}`, 'var(--gain)'],
-                    ['Value', `$${money0(inv.current_value)}`, 'var(--text)'],
+                    [t('dash.invested'), `$${money0(inv.principal)}`, 'var(--text)'],
+                    [t('dash.earned'), `+$${money0(inv.earnings)}`, 'var(--gain)'],
+                    [t('dash.value'), `$${money0(inv.current_value)}`, 'var(--text)'],
                   ].map(([k, v, c]) => (
                     <div key={k} style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
                       <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, marginBottom: 4 }}>{k}</div>
@@ -570,19 +580,19 @@ function InvestScreen({ portfolio, plans, loading, onDeposit }) {
         <Card pad={0}>
           <EmptyState
             icon={<Icon name="wallet" size={26} />}
-            title="No investments yet"
-            body="Fund a plan to start earning. You can add to any plan at any time."
-            action={<Button onClick={onDeposit} size="lg">Choose a plan</Button>}
+            title={t('dash.noInvestmentsTitle')}
+            body={t('dash.noInvestmentsBody')}
+            action={<Button onClick={onDeposit} size="lg">{t('dash.choosePlan')}</Button>}
           />
         </Card>
       )}
 
       <Card style={{ marginTop: 14 }} pad={18}>
         <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text)' }}>
-          {hasAny ? 'Add another plan' : 'Available plans'}
+          {hasAny ? t('dash.addAnotherPlan') : t('dash.availablePlans')}
         </h2>
         <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px', lineHeight: 1.55 }}>
-          Each plan targets a different return and risk level.
+          {t('dash.plansSubtitle')}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {plans.map((p) => (
@@ -648,8 +658,10 @@ function useActivity(portfolio) {
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))), [portfolio])
 }
 
-function ActivityRow({ t }) {
-  const isDep = t.kind === 'deposit'
+function ActivityRow({ tx }) {
+  const { t } = useI18n()
+  const { timeAgo } = useDates()
+  const isDep = tx.kind === 'deposit'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid var(--border)' }}>
       <div
@@ -664,35 +676,37 @@ function ActivityRow({ t }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-          {isDep ? 'Deposit' : 'Withdrawal'}{t.plan_name ? ` · ${t.plan_name}` : ''}
+          {isDep ? t('dash.deposit') : t('dash.withdrawal')}{tx.plan_name ? ` · ${tx.plan_name}` : ''}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{timeAgo(t.created_at)}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{timeAgo(tx.created_at)}</div>
       </div>
       <div style={{ textAlign: 'right', flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
         <div style={{ fontSize: 14.5, fontWeight: 700, color: isDep ? 'var(--gain)' : 'var(--text)' }}>
-          {isDep ? '+' : '−'}${money0(t.amount || 0)}
+          {isDep ? '+' : '−'}${money0(tx.amount || 0)}
         </div>
-        <Pill status={t.status || 'pending'} />
+        <Pill status={tx.status || 'pending'} />
       </div>
     </div>
   )
 }
 
 function RecentActivity({ portfolio, onSeeAll, limit }) {
+  const { t } = useI18n()
   const acts = useActivity(portfolio).slice(0, limit)
   if (!acts.length) return null
   return (
     <Card style={{ marginTop: 14 }} pad={18}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text)' }}>Recent activity</h2>
-        <Button variant="ghost" size="sm" onClick={onSeeAll}>See all</Button>
+        <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text)' }}>{t('dash.recentActivity')}</h2>
+        <Button variant="ghost" size="sm" onClick={onSeeAll}>{t('common.seeAll')}</Button>
       </div>
-      {acts.map((t) => <ActivityRow key={`${t.kind}-${t.id}`} t={t} />)}
+      {acts.map((t) => <ActivityRow key={`${t.kind}-${t.id}`} tx={t} />)}
     </Card>
   )
 }
 
 function ActivityScreen({ portfolio, loading }) {
+  const { t } = useI18n()
   const [filter, setFilter] = useState('all')
   const acts = useActivity(portfolio)
   const shown = acts.filter((a) => filter === 'all' || a.kind === filter)
@@ -702,7 +716,7 @@ function ActivityScreen({ portfolio, loading }) {
   return (
     <Card pad={18}>
       <Segmented
-        tabs={[['all', 'All'], ['deposit', 'Deposits'], ['withdrawal', 'Withdrawals']]}
+        tabs={[['all', t('dash.allFilter')], ['deposit', t('dash.deposits')], ['withdrawal', t('dash.withdrawals')]]}
         active={filter} onChange={setFilter}
         style={{ marginBottom: 8 }}
       />
@@ -710,11 +724,11 @@ function ActivityScreen({ portfolio, loading }) {
         <EmptyState
           compact
           icon={<Icon name="activity" size={24} />}
-          title="Nothing here yet"
+          title={t('dash.nothingYet')}
           body={filter === 'all' ? 'Your deposits and withdrawals will appear here.' : `No ${filter}s yet.`}
         />
       ) : (
-        shown.map((t) => <ActivityRow key={`${t.kind}-${t.id}`} t={t} />)
+        shown.map((t) => <ActivityRow key={`${t.kind}-${t.id}`} tx={t} />)
       )}
     </Card>
   )
@@ -723,6 +737,7 @@ function ActivityScreen({ portfolio, loading }) {
 /* ══ account ═════════════════════════════════════════════ */
 
 function AccountScreen({ user, profile, fullName, userEmail, initials, portfolio, theme, setTheme, showToast, refresh, onSignOut }) {
+  const { t } = useI18n()
   // Supabase marks confirmation with a timestamp, not a boolean.
   const emailVerified = !!user?.email_confirmed_at
   const [resend, setResend] = useState('')
@@ -808,7 +823,7 @@ function AccountScreen({ user, profile, fullName, userEmail, initials, portfolio
       <KycSection user={user} profile={profile} showToast={showToast} refresh={refresh} />
 
       <Card style={{ marginTop: 12 }} pad={0}>
-        <div style={{ padding: '16px 18px 8px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Statements</div>
+        <div style={{ padding: '16px 18px 8px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{t('dash.statements')}</div>
         <button
           type="button" onClick={downloadStatement} disabled={!canDownload}
           style={{
@@ -821,7 +836,7 @@ function AccountScreen({ user, profile, fullName, userEmail, initials, portfolio
         >
           <Icon name="download" size={20} style={{ color: 'var(--primary)' }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>Download account statement</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{t('dash.downloadStatement')}</div>
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
               {canDownload ? 'Built from your live portfolio' : 'Available once you have an investment'}
             </div>
@@ -830,20 +845,28 @@ function AccountScreen({ user, profile, fullName, userEmail, initials, portfolio
       </Card>
 
       <Card style={{ marginTop: 12 }} pad={0}>
-        <div style={{ padding: '16px 18px 8px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Preferences</div>
+        <div style={{ padding: '16px 18px 8px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{t('dash.preferences')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderTop: '1px solid var(--border)' }}>
           <Icon name={theme === 'dark' ? 'moon' : 'sun'} size={20} style={{ color: 'var(--text-2)' }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Dark mode</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Easier on the eyes at night</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{t('dash.darkMode')}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('dash.darkModeHint')}</div>
           </div>
-          <Switch on={theme === 'dark'} onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} label="Dark mode" />
+          <Switch on={theme === 'dark'} onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} label={t('dash.darkMode')} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderTop: '1px solid var(--border)' }}>
+          <Icon name="settings" size={20} style={{ color: 'var(--text-2)' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{t('common.language')}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('dash.languageHint')}</div>
+          </div>
+          <LanguageSwitcher />
         </div>
         <NewsletterPreference userEmail={userEmail} showToast={showToast} />
       </Card>
 
       <Button variant="dangerGhost" full onClick={onSignOut} style={{ marginTop: 16 }}>
-        <Icon name="logout" size={18} /> Sign out
+        <Icon name="logout" size={18} /> {t('common.signOut')}
       </Button>
     </>
   )
@@ -937,6 +960,7 @@ function StepDots({ total, current }) {
 }
 
 function DepositSheet({ plans, methods, onClose, onDone }) {
+  const { t } = useI18n()
   const [step, setStep] = useState(1)
   const [plan, setPlan] = useState(null)
   const [amount, setAmount] = useState('')
@@ -951,15 +975,15 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
   const next = () => {
     setError('')
     if (step === 1) {
-      if (!plan) return setError('Choose a plan to continue.')
+      if (!plan) return setError(t('deposit.chooseToContinue'))
       if (!amount) setAmount(String(plan.min_usd || ''))
       return setStep(2)
     }
     if (step === 2) {
-      if (!amt) return setError('Enter how much you want to invest.')
+      if (!amt) return setError(t('deposit.enterAmount'))
       if (plan.min_usd && amt < plan.min_usd) return setError(`The minimum for ${plan.name} is $${money0(plan.min_usd)}.`)
       if (plan.max_usd > 0 && amt > plan.max_usd) return setError(`The maximum for ${plan.name} is $${money0(plan.max_usd)}.`)
-      if (!methods.length) return setError('No deposit methods are available right now. Please contact support.')
+      if (!methods.length) return setError(t('deposit.noMethods'))
       return setStep(3)
     }
   }
@@ -977,7 +1001,7 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
 
   const submit = async () => {
     setError('')
-    if (!method) return setError('Choose how you paid.')
+    if (!method) return setError(t('deposit.chooseMethod'))
     if (method.min_amount > 0 && amt < method.min_amount) {
       return setError(`The minimum ${method.name} deposit is $${money0(method.min_amount)}.`)
     }
@@ -994,7 +1018,7 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
 
   return (
     <Sheet onClose={onClose} labelledBy="dep-title">
-      <SheetHeader id="dep-title" title={['Choose a plan', 'How much?', 'Send your payment'][step - 1]} onClose={onClose} />
+      <SheetHeader id="dep-title" title={[t('deposit.step1'), t('deposit.step2'), t('deposit.step3')][step - 1]} onClose={onClose} />
       <StepDots total={3} current={step} />
 
       {step === 1 && (
@@ -1105,7 +1129,7 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
                         {m.wallet_address}
                       </div>
                       <Button variant="secondary" size="sm" full onClick={copyAddress}>
-                        {copied ? '✓ Copied' : 'Copy address'}
+                        {copied ? t('deposit.copied') : t('deposit.copyAddress')}
                       </Button>
                       {m.instructions && (
                         <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.55 }}>{m.instructions}</div>
@@ -1117,8 +1141,8 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
             })}
           </div>
 
-          <Field label="Payment reference" hint="Transaction hash or reference — helps us match your payment faster.">
-            <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Optional" style={fieldStyle} />
+          <Field label={t('deposit.reference')} hint={t('deposit.referenceHint')}>
+            <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t('common.optional')} style={fieldStyle} />
           </Field>
         </>
       )}
@@ -1128,11 +1152,11 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
         {step > 1 && (
           <Button variant="secondary" onClick={() => { setError(''); setStep(step - 1) }} style={{ flex: 'none' }}>
-            Back
+            {t('common.back')}
           </Button>
         )}
         <Button onClick={step === 3 ? submit : next} busy={busy} style={{ flex: 1 }}>
-          {step === 3 ? (busy ? 'Submitting…' : "I've sent the payment") : 'Continue'}
+          {step === 3 ? (busy ? t('common.submitting') : t('deposit.sentPayment')) : t('common.continue')}
         </Button>
       </div>
     </Sheet>
@@ -1140,6 +1164,7 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
 }
 
 function WithdrawSheet({ portfolio, onClose, onDone }) {
+  const { t } = useI18n()
   const [amount, setAmount] = useState('')
   const [address, setAddress] = useState('')
   const [busy, setBusy] = useState(false)
@@ -1155,7 +1180,7 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
   const submit = async () => {
     setError('')
     const addr = address.trim()
-    if (!amt) return setError('Enter how much you want to withdraw.')
+    if (!amt) return setError(t('withdraw.enterAmount'))
     if (amt > available) {
       return setError(
         available > 0
@@ -1179,7 +1204,7 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
 
   return (
     <Sheet onClose={onClose} labelledBy="wd-title">
-      <SheetHeader id="wd-title" title="Withdraw funds" onClose={onClose} />
+      <SheetHeader id="wd-title" title={t('withdraw.title')} onClose={onClose} />
 
       <div
         style={{
@@ -1216,7 +1241,7 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
         variant="ghost" size="sm" disabled={available <= 0}
         onClick={() => setAmount(String(available))} style={{ marginBottom: 14 }}
       >
-        Withdraw everything
+        {t('withdraw.withdrawAll')}
       </Button>
 
       <Field
@@ -1231,21 +1256,19 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
       </Field>
 
       <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.55, marginBottom: 16 }}>
-        Requests are reviewed by our team and usually paid within 2–5 business days.
+        {t('withdraw.reviewNoticeShort')}
       </div>
 
       {error && <Alert tone="loss" style={{ marginBottom: 14 }}>{error}</Alert>}
 
       {investedShare > 0 && amt > 0 && amt > cashShare && (
         <Alert tone="warn" style={{ marginBottom: 14 }}>
-          This is more than your uninvested balance of ${money(cashShare)}, so we’ll
-          need to close or reduce one of your plans to release it. Your advisor will
-          confirm before anything is sold.
+          {t('withdraw.exceedsCash', { amount: `$${money(cashShare)}` })}
         </Alert>
       )}
 
       <Button onClick={submit} busy={busy} full size="lg">
-        {busy ? 'Submitting…' : 'Request withdrawal'}
+        {busy ? t('common.submitting') : t('withdraw.request')}
       </Button>
     </Sheet>
   )

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useI18n } from '../i18n'
 
 const serif = "'DM Serif Display',serif"
 const C = { ink: '#111018', body: '#3d3450', muted: '#8a829a', line: '#e8e3f0', surface: '#f8f6fc', primary: '#6d28d9' }
@@ -55,6 +56,7 @@ const SECTIONS = [
 ]
 
 export default function Terms() {
+  const { t } = useI18n()
   return (
     <div style={{ minHeight: '100vh', background: '#fff', color: C.ink }}>
       {/* Header */}
@@ -71,6 +73,10 @@ export default function Terms() {
           <div style={{ fontSize: 11.5, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: C.primary, marginBottom: 14 }}>Legal</div>
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,4.5vw,54px)', lineHeight: 1.06, margin: '0 0 14px', color: C.ink }}>Terms of Service</h1>
           <p style={{ fontSize: 15, color: C.muted, margin: 0 }}>Last updated: 1 July 2026 · Please read these terms carefully before using the Keelstone Trust Platform.</p>
+          <div style={{ marginTop: 18, padding: '12px 15px', background: '#f8f6fc', border: '1px solid #e8e3f0', borderRadius: 8, fontSize: 13, lineHeight: 1.6, color: '#3d3450', display: 'flex', gap: 9 }}>
+            <span aria-hidden="true">ℹ</span>
+            <span>{t('legal.englishNotice')}</span>
+          </div>
         </div>
       </div>
 
@@ -90,7 +96,7 @@ export default function Terms() {
           </p>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <Link to="/privacy" style={{ fontSize: 14, fontWeight: 600, color: C.primary, textDecoration: 'none' }}>Privacy Policy →</Link>
-            <Link to="/" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>← Back to Keelstone Trust</Link>
+            <Link to="/" style={{ fontSize: 14, fontWeight: 600, color: C.muted, textDecoration: 'none' }}>{t('legal.backToSite')}</Link>
           </div>
         </div>
       </div>

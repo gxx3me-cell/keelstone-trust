@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useI18n } from '../i18n'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
 import { supabase } from '../lib/supabase'
@@ -48,6 +49,7 @@ function scorePassword(v) {
 }
 
 export default function Signup() {
+  const { t } = useI18n()
   const rootRef = useRef(null)
   const navigate = useNavigate()
   const [focus, setFocus] = useState('')
@@ -69,8 +71,8 @@ export default function Signup() {
   async function handleSignup(e) {
     e?.preventDefault()
     setError('')
-    if (!firstName || !email || !pw) { setError('First name, email and password are required.'); return }
-    if (!agreed) { setError('Please agree to the Terms & Privacy Policy.'); return }
+    if (!firstName || !email || !pw) { setError(t('auth.requiredFields')); return }
+    if (!agreed) { setError(t('auth.mustAgree')); return }
     setSubmitting(true)
     try {
       // `options.data` lands in raw_user_meta_data, which the handle_new_user
@@ -99,7 +101,7 @@ export default function Signup() {
       if (!data.session) { setAwaitingConfirm(true); return }
       navigate('/dashboard')
     } catch (err) {
-      setError(err?.message || 'Could not create your account. Please try again.')
+      setError(err?.message || t('auth.signupFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -159,22 +161,22 @@ export default function Signup() {
             </>
           ) : (
           <>
-          <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Open your account</div>
-          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Begin your investment</h2>
-          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px' }}>Already a client? <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Sign in</Link></p>
+          <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>{t('auth.signupEyebrow')}</div>
+          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>{t('auth.signupTitle')}</h2>
+          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px' }}>{t('auth.alreadyClient')} <Link to="/login" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>{t('common.signIn')}</Link></p>
 
           <form onSubmit={handleSignup}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
-              <Field label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" focused={focus === 'first'} onFocus={() => setFocus('first')} onBlur={() => setFocus('')} />
-              <Field label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" focused={focus === 'last'} onFocus={() => setFocus('last')} onBlur={() => setFocus('')} />
+              <Field label={t("auth.firstName")} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" focused={focus === 'first'} onFocus={() => setFocus('first')} onBlur={() => setFocus('')} />
+              <Field label={t("auth.lastName")} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" focused={focus === 'last'} onFocus={() => setFocus('last')} onBlur={() => setFocus('')} />
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <Field label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} />
+              <Field label={t("common.email")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} />
             </div>
 
             <Field
-              label="Password" type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Create a password"
+              label={t("common.password")} type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder={t("auth.createPassword")}
               focused={focus === 'pw'} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')}
               trailing={
                 <button type="button" onClick={() => setShowPw((v) => !v)} aria-label="Toggle password" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: C.muted, display: 'flex' }}>
@@ -188,12 +190,12 @@ export default function Signup() {
               ))}
             </div>
             <div style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 18, height: 14, color: pw.length === 0 ? C.muted : activeColor }}>
-              {pw.length === 0 ? 'Use 8+ characters with a mix of letters & numbers' : words[Math.min(score, 4) - 1] || 'Weak'}
+              {pw.length === 0 ? t('auth.passwordHint') : words[Math.min(score, 4) - 1] || 'Weak'}
             </div>
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 12.5, color: C.body, lineHeight: 1.5, marginBottom: 22, cursor: 'pointer' }}>
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer', marginTop: 2, flex: 'none' }} />
-              I agree to the <Link to="/terms" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Terms</Link> &amp; <Link to="/privacy" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</Link> of Keelstone Trust.
+              {t('auth.agreeTo')} <Link to="/terms" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>{t('footer.terms')}</Link> &amp; <Link to="/privacy" style={{ color: C.ink, fontWeight: 600, textDecoration: 'none' }}>{t('footer.privacy')}</Link> {t('auth.ofKeelstone')}
             </label>
 
             {error && (
@@ -202,7 +204,7 @@ export default function Signup() {
 
             <button type="submit" disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-              {submitting ? 'Creating account…' : <>Open my Keelstone Trust account <ArrowRight size={16} weight="bold" /></>}
+              {submitting ? t('auth.creatingAccount') : <>{t('auth.createAccount')} <ArrowRight size={16} weight="bold" /></>}
             </button>
           </form>
           </>
@@ -219,7 +221,7 @@ export default function Signup() {
 
         <div data-anim style={{ position: 'relative', zIndex: 2 }}>
           <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(32px,3.4vw,48px)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: 440 }}>Join investors who trust professionals to manage their digital wealth.</h1>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>Keelstone Trust offers professionally managed digital asset portfolios — built on preservation, growth, and income.</p>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,.7)', margin: 0, maxWidth: 420 }}>{t('hero.subtitle')}</p>
         </div>
 
         <div data-anim data-delay="140" style={{ position: 'relative', zIndex: 2 }}>

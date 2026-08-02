@@ -6,11 +6,13 @@ import {
   KYC_STATUS, ID_TYPES, COUNTRIES, needsBackImage,
   getKycStatus, compressImage, submitKyc, validateKyc, getMyKycSubmission,
 } from '../lib/kyc'
+import { useI18n } from '../i18n'
 import {
   serif, Card, Button, Pill, Sheet, SheetHeader, Field, fieldStyle, Alert, Icon, shortDate,
 } from './ui'
 
 export default function KycSection({ user, profile, showToast, refresh }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   // Status lives on the profile row; the submission detail is a separate
   // fetch because it is a different table now.
@@ -42,10 +44,10 @@ export default function KycSection({ user, profile, showToast, refresh }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Identity verification</span>
-              <Pill tone={meta.tone}>{meta.label}</Pill>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{t('kyc.title')}</span>
+              <Pill tone={meta.tone}>{t(`kyc.${status}`)}</Pill>
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 }}>{meta.blurb}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 }}>{t(`kyc.${status}Blurb`)}</div>
           </div>
         </div>
 
@@ -53,7 +55,7 @@ export default function KycSection({ user, profile, showToast, refresh }) {
           <div style={{ padding: '0 18px 14px' }}>
             <Alert tone="loss">
               <div>
-                <b>Reason:</b> {kyc.rejection_reason}
+                <b>{t('kyc.reason')}</b> {kyc.rejection_reason}
               </div>
             </Alert>
           </div>
@@ -61,20 +63,20 @@ export default function KycSection({ user, profile, showToast, refresh }) {
 
         {status === 'pending' && kyc?.submitted_at && (
           <div style={{ padding: '0 18px 14px', fontSize: 12.5, color: 'var(--text-3)' }}>
-            Submitted {shortDate(kyc.submitted_at)}
+            {t('kyc.submittedOn', { date: shortDate(kyc.submitted_at) })}
           </div>
         )}
 
         {status === 'approved' && kyc?.reviewed_at && (
           <div style={{ padding: '0 18px 14px', fontSize: 12.5, color: 'var(--text-3)' }}>
-            Verified {shortDate(kyc.reviewed_at)}
+            {t('kyc.verifiedOn', { date: shortDate(kyc.reviewed_at) })}
           </div>
         )}
 
         {(status === 'not_started' || status === 'rejected') && (
           <div style={{ padding: '0 18px 18px' }}>
             <Button full onClick={() => setOpen(true)}>
-              {status === 'rejected' ? 'Resubmit documents' : 'Verify my identity'}
+              {status === 'rejected' ? t('kyc.resubmitCta') : t('kyc.verifyCta')}
             </Button>
           </div>
         )}
@@ -88,7 +90,7 @@ export default function KycSection({ user, profile, showToast, refresh }) {
           onDone={async () => {
             setOpen(false)
             await refresh?.()
-            showToast?.('Documents submitted — we’ll review them shortly.')
+            showToast?.(t('kyc.submitted'))
           }}
         />
       )}
@@ -98,9 +100,10 @@ export default function KycSection({ user, profile, showToast, refresh }) {
 
 /* ── wizard ─────────────────────────────────────────────── */
 
-const STEPS = ['Your details', 'Your document', 'Confirm']
+const STEP_KEYS = ['kyc.step1', 'kyc.step2', 'kyc.step3']
 
 function KycWizard({ profile, existing, onClose, onDone }) {
+  const { t } = useI18n()
   const [step, setStep] = useState(1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -156,7 +159,7 @@ function KycWizard({ profile, existing, onClose, onDone }) {
         const first = Object.keys(e.fieldErrors)[0]
         setStep(['full_name', 'date_of_birth', 'country', 'address'].includes(first) ? 1 : 2)
       }
-      setError(e?.message || 'Could not submit your documents. Please try again.')
+      setError(e?.message || t('kyc.errIncomplete'))
     } finally {
       setBusy(false)
     }
@@ -164,10 +167,10 @@ function KycWizard({ profile, existing, onClose, onDone }) {
 
   return (
     <Sheet onClose={onClose} maxWidth={520} labelledBy="kyc-title">
-      <SheetHeader id="kyc-title" title={STEPS[step - 1]} onClose={onClose} />
+      <SheetHeader id="kyc-title" title={t(STEP_KEYS[step - 1])} onClose={onClose} />
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 18 }} aria-hidden="true">
-        {STEPS.map((_, i) => (
+        {STEP_KEYS.map((_, i) => (
           <div
             key={i}
             style={{
@@ -182,24 +185,24 @@ function KycWizard({ profile, existing, onClose, onDone }) {
       {step === 1 && (
         <>
           <p style={{ fontSize: 13.5, color: 'var(--text-3)', margin: '0 0 18px', lineHeight: 1.6 }}>
-            Enter your details exactly as they appear on your identity document.
+            {t('kyc.detailsIntro')}
           </p>
-          <Field label="Full legal name" error={fieldErrors.full_name}>
+          <Field label={t('kyc.fullName')} error={fieldErrors.full_name}>
             <input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} placeholder="Jane Doe" style={fieldStyle} autoComplete="name" />
           </Field>
-          <Field label="Date of birth" hint="You must be 18 or older." error={fieldErrors.date_of_birth}>
+          <Field label={t('kyc.dob')} hint={t('kyc.dobHint')} error={fieldErrors.date_of_birth}>
             <input type="date" value={form.date_of_birth} onChange={(e) => set('date_of_birth', e.target.value)} style={fieldStyle} max={new Date().toISOString().slice(0, 10)} />
           </Field>
-          <Field label="Country of residence" error={fieldErrors.country}>
+          <Field label={t('kyc.country')} error={fieldErrors.country}>
             <select value={form.country} onChange={(e) => set('country', e.target.value)} style={fieldStyle}>
-              <option value="">Select a country…</option>
+              <option value="">{t('kyc.selectCountry')}</option>
               {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="Residential address" error={fieldErrors.address}>
+          <Field label={t('kyc.address')} error={fieldErrors.address}>
             <textarea
               value={form.address} onChange={(e) => set('address', e.target.value)}
-              rows={3} placeholder="Street, city, postcode"
+              rows={3} placeholder={t('kyc.addressPlaceholder')}
               style={{ ...fieldStyle, resize: 'vertical' }} autoComplete="street-address"
             />
           </Field>
@@ -208,7 +211,7 @@ function KycWizard({ profile, existing, onClose, onDone }) {
 
       {step === 2 && (
         <>
-          <Field label="Document type" error={fieldErrors.id_type}>
+          <Field label={t('kyc.docType')} error={fieldErrors.id_type}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {ID_TYPES.map((t) => {
                 const on = form.id_type === t.value
@@ -234,27 +237,27 @@ function KycWizard({ profile, existing, onClose, onDone }) {
             </div>
           </Field>
 
-          <Field label="Document number" error={fieldErrors.id_number}>
+          <Field label={t('kyc.docNumber')} error={fieldErrors.id_number}>
             <input value={form.id_number} onChange={(e) => set('id_number', e.target.value)} placeholder="e.g. 123456789" style={fieldStyle} />
           </Field>
 
           <Upload
-            label={needsBackImage(form.id_type) ? 'Front of document' : 'Photo page'}
+            label={needsBackImage(form.id_type) ? t('kyc.frontOfDoc') : t('kyc.photoPage')}
             value={form.documents.id_front}
             onChange={(v) => setDoc('id_front', v)}
             error={fieldErrors.id_front}
           />
           {needsBackImage(form.id_type) && (
             <Upload
-              label="Back of document"
+              label={t('kyc.backOfDoc')}
               value={form.documents.id_back}
               onChange={(v) => setDoc('id_back', v)}
               error={fieldErrors.id_back}
             />
           )}
           <Upload
-            label="Selfie holding your document"
-            hint="Your face and the document must both be clearly readable."
+            label={t('kyc.selfie')}
+            hint={t('kyc.selfieHint')}
             value={form.documents.selfie}
             onChange={(v) => setDoc('selfie', v)}
             error={fieldErrors.selfie}
@@ -265,7 +268,7 @@ function KycWizard({ profile, existing, onClose, onDone }) {
       {step === 3 && (
         <>
           <p style={{ fontSize: 13.5, color: 'var(--text-3)', margin: '0 0 16px', lineHeight: 1.6 }}>
-            Check everything is correct before submitting.
+            {t('kyc.reviewIntro')}
           </p>
           <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: 16, marginBottom: 16 }}>
             {[
@@ -295,7 +298,7 @@ function KycWizard({ profile, existing, onClose, onDone }) {
           </div>
 
           <Alert tone="info">
-            Your documents are used only to verify your identity and are never shared with third parties.
+            {t('kyc.privacyNote')}
           </Alert>
         </>
       )}
@@ -305,11 +308,11 @@ function KycWizard({ profile, existing, onClose, onDone }) {
       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
         {step > 1 && (
           <Button variant="secondary" onClick={() => { setError(''); setStep(step - 1) }} style={{ flex: 'none' }}>
-            Back
+            {t('common.back')}
           </Button>
         )}
         <Button onClick={step === 3 ? submit : next} busy={busy} style={{ flex: 1 }}>
-          {step === 3 ? (busy ? 'Submitting…' : 'Submit for review') : 'Continue'}
+          {step === 3 ? (busy ? t('common.submitting') : t('kyc.submitReview')) : t('common.continue')}
         </Button>
       </div>
     </Sheet>
@@ -319,6 +322,7 @@ function KycWizard({ profile, existing, onClose, onDone }) {
 /* ── image upload tile ──────────────────────────────────── */
 
 function Upload({ label, hint, value, onChange, error }) {
+  const { t } = useI18n()
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState('')
 
@@ -352,9 +356,9 @@ function Upload({ label, hint, value, onChange, error }) {
         >
           <img src={value} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 'var(--r-sm)', flex: 'none' }} />
           <div style={{ flex: 1, fontSize: 13, color: 'var(--gain)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="check" size={16} /> Uploaded
+            <Icon name="check" size={16} /> {t('kyc.uploaded')}
           </div>
-          <Button variant="ghost" size="sm" onClick={() => onChange(null)}>Replace</Button>
+          <Button variant="ghost" size="sm" onClick={() => onChange(null)}>{t('kyc.replace')}</Button>
         </div>
       ) : (
         <label
@@ -369,9 +373,9 @@ function Upload({ label, hint, value, onChange, error }) {
           <input type="file" accept="image/*" capture="environment" onChange={pick} style={{ display: 'none' }} disabled={busy} />
           <Icon name="camera" size={24} style={{ color: 'var(--text-3)' }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)' }}>
-            {busy ? 'Processing…' : 'Tap to upload or take a photo'}
+            {busy ? t('kyc.processing') : t('kyc.uploadCta')}
           </span>
-          <span style={{ fontSize: 11.5 }}>JPG or PNG, up to 8MB</span>
+          <span style={{ fontSize: 11.5 }}>{t('kyc.uploadFormats')}</span>
         </label>
       )}
 

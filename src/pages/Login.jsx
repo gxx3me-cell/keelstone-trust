@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImageSlot from '../components/ImageSlot'
 import { useAnim } from '../hooks/useReveal'
 import { supabase } from '../lib/supabase'
+import { useI18n } from '../i18n'
 import { ArrowRight, Eye, EyeSlash, ShieldCheck } from '@phosphor-icons/react'
 
 const serif = "'DM Serif Display',serif"
@@ -36,6 +37,7 @@ function Field({ label, type = 'text', value, onChange, placeholder, focused, on
 }
 
 export default function Login() {
+  const { t } = useI18n()
   const rootRef = useRef(null)
   const navigate = useNavigate()
   const [focus, setFocus] = useState('')
@@ -49,7 +51,7 @@ export default function Login() {
   async function handleLogin(e) {
     e?.preventDefault()
     setError('')
-    if (!email || !pw) { setError('Enter your email and password.'); return }
+    if (!email || !pw) { setError(t('auth.enterBoth')); return }
     setSubmitting(true)
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -67,7 +69,7 @@ export default function Login() {
         .maybeSingle()
       navigate(profile?.role === 'admin' ? '/admin' : '/dashboard')
     } catch (err) {
-      setError(err?.message || 'Invalid email or password.')
+      setError(err?.message || t('auth.invalidCredentials'))
     } finally {
       setSubmitting(false)
     }
@@ -114,23 +116,23 @@ export default function Login() {
       {/* RIGHT: form */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '46px clamp(22px,5vw,72px)' }}>
         <div data-anim data-delay="80" style={{ width: '100%', maxWidth: 408 }}>
-          <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Client Login</div>
-          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>Sign in</h2>
-          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>New to Keelstone Trust? <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>Open an account</Link></p>
+          <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>{t('auth.clientLogin')}</div>
+          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>{t('auth.signInTitle')}</h2>
+          <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>{t('auth.newHere')} <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>{t('auth.openOne')}</Link></p>
 
           <form onSubmit={handleLogin}>
             <Field
-              label="Email address" type="email" value={email}
+              label={t('common.email')} type="email" value={email}
               onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
               focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')}
             />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: -10 }}>
               <span />
-              <Link to="/forgot-password" style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, textDecoration: 'none' }}>Forgot password?</Link>
+              <Link to="/forgot-password" style={{ fontSize: 12.5, color: C.ink, fontWeight: 600, textDecoration: 'none' }}>{t('auth.forgotPassword')}</Link>
             </div>
             <Field
-              label="Password" type={showPw ? 'text' : 'password'} value={pw}
+              label={t('common.password')} type={showPw ? 'text' : 'password'} value={pw}
               onChange={(e) => setPw(e.target.value)} placeholder="••••••••"
               focused={focus === 'pw'} onFocus={() => setFocus('pw')} onBlur={() => setFocus('')}
               trailing={
@@ -141,7 +143,7 @@ export default function Login() {
             />
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, color: C.body, margin: '6px 0 24px', cursor: 'pointer' }}>
-              <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer' }} /> Keep me signed in
+              <input type="checkbox" style={{ width: 16, height: 16, accentColor: C.ink, cursor: 'pointer' }} /> {t('auth.keepSignedIn')}
             </label>
 
             {error && (
@@ -150,12 +152,12 @@ export default function Login() {
 
             <button type="submit" disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: RAD, border: 'none', background: C.ink, color: '#fff', fontSize: 15.5, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-              {submitting ? 'Signing in…' : <>Access investor portal <ArrowRight size={16} weight="bold" /></>}
+              {submitting ? t('auth.signingIn') : <>{t('auth.accessPortal')} <ArrowRight size={16} weight="bold" /></>}
             </button>
           </form>
 
-          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 12.5, color: C.muted, margin: '22px 0 0' }}><ShieldCheck size={15} weight="fill" color={C.primary} /> Protected by institutional-grade encryption &amp; multi-sig custody.</p>
-          <p style={{ textAlign: 'center', fontSize: 13.5, margin: '16px 0 0' }}><Link to="/" style={{ color: C.muted, textDecoration: 'none', fontWeight: 600 }}>← Back to Keelstone Trust</Link></p>
+          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 12.5, color: C.muted, margin: '22px 0 0' }}><ShieldCheck size={15} weight="fill" color={C.primary} /> {t('auth.protectedBy')}</p>
+          <p style={{ textAlign: 'center', fontSize: 13.5, margin: '16px 0 0' }}><Link to="/" style={{ color: C.muted, textDecoration: 'none', fontWeight: 600 }}>{t('auth.backTo')}</Link></p>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useI18n } from '../i18n'
 import { useAnim } from '../hooks/useReveal'
 import { supabase } from '../lib/supabase'
 import { ArrowRight, Eye, EyeSlash, CheckCircle, WarningCircle } from '@phosphor-icons/react'
@@ -30,6 +31,7 @@ function scorePassword(v) {
 }
 
 export default function ResetPassword() {
+  const { t } = useI18n()
   const rootRef = useRef(null)
   const navigate = useNavigate()
   const [ready, setReady] = useState(false)
@@ -132,7 +134,7 @@ export default function ResetPassword() {
                 Reset links can only be used once and expire after a short while. Request a fresh one and we&apos;ll email it straight over.
               </p>
               <Link to="/forgot-password" style={{ display: 'block', padding: 14, borderRadius: RAD, background: C.ink, color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
-                Request a new link
+                {t('auth.requestNewLink')}
               </Link>
             </div>
           ) : done ? (
@@ -140,25 +142,25 @@ export default function ResetPassword() {
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#16a34a,#22c55e)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 16px 40px rgba(22,163,74,.35)' }}>
                 <CheckCircle size={30} color="#fff" weight="fill" />
               </div>
-              <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>Password updated</div>
+              <div style={{ fontFamily: serif, fontSize: 28, color: C.ink, marginBottom: 12 }}>{t('auth.passwordUpdated')}</div>
               <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.6, margin: '0 0 28px' }}>
-                Your password has been changed. Taking you to sign in…
+                {t('auth.passwordUpdatedBody')}
               </p>
               <Link to="/login" style={{ display: 'block', padding: 14, borderRadius: RAD, background: C.ink, color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
-                Sign in now
+                {t('auth.signInNow')}
               </Link>
             </div>
           ) : (
             <>
-              <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>Password reset</div>
-              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 8px', color: C.ink }}>Choose a new password</h2>
+              <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>{t('auth.resetEyebrow')}</div>
+              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 30, margin: '0 0 8px', color: C.ink }}>{t('auth.newPasswordTitle')}</h2>
               <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 28px', lineHeight: 1.6 }}>
-                Pick something you haven't used before. This link can only be used once.
+                {t('auth.newPasswordBody')}
               </p>
 
               <form onSubmit={handleSubmit}>
                 <label style={{ display: 'block', marginBottom: 6 }}>
-                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: C.body, marginBottom: 7, letterSpacing: '.02em' }}>New password</span>
+                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: C.body, marginBottom: 7, letterSpacing: '.02em' }}>{t('auth.newPassword')}</span>
                   <span style={{ position: 'relative', display: 'block' }}>
                     <input
                       type={showPw ? 'text' : 'password'} value={pw}
