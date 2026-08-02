@@ -62,8 +62,24 @@ async function balances(userId) {
     .reduce((s, d) => s + n(d.amount), 0)
   const withdrawn = wds.filter((w) => w.status === 'approved').reduce((s, w) => s + n(w.amount), 0)
   const pending = wds.filter((w) => w.status === 'pending').reduce((s, w) => s + n(w.amount), 0)
-  const available = Math.max(credited - withdrawn, 0)
-  return { credited, withdrawn, pending, available, withdrawable: Math.max(available - pending, 0) }
+  // Investments are withdrawable too — an investor whose every deposit went
+  // into a plan would otherwise never be able to withdraw anything.
+  const invs = await (await svc(`/rest/v1/investments_with_earnings?user_id=eq.${userId}&status=eq.active&select=principal,earnings`)).json()
+  const investedValue = invs.reduce((s, i) => s + n(i.principal) + n(i.earnings), 0)
+
+  // A payout comes out of cash first, then out of invested capital. Deducting
+  // it from cash alone clamps at zero and makes an approved withdrawal
+  // invisible for anyone holding no uninvested cash.
+  const fromCash = Math.min(credited, withdrawn)
+  const available = Math.max(credited - fromCash, 0)
+  const netInvested = Math.max(investedValue - (withdrawn - fromCash), 0)
+  const totalValue = Math.max(investedValue + credited - withdrawn, 0)
+
+  return {
+    credited, withdrawn, pending, available, investedValue, netInvested,
+    totalValue,
+    withdrawable: Math.max(totalValue - pending, 0),
+  }
 }
 
 async function main() {
@@ -140,7 +156,7 @@ async function main() {
     whilePending.available === before.available
       ? pass('available balance unchanged while pending (funds not yet gone)')
       : fail(`available moved to $${whilePending.available} before approval`)
-    whilePending.withdrawable === before.withdrawable - 3000
+    Math.abs(whilePending.withdrawable - (before.withdrawable - 3000)) < 0.01
       ? pass('withdrawable drops by $3,000 — funds are spoken for')
       : fail(`withdrawable is $${whilePending.withdrawable}, expected $${before.withdrawable - 3000}`)
 
@@ -185,9 +201,106 @@ async function main() {
     after.available === before.available
       ? pass('rejected withdrawal left the balance untouched')
       : fail(`balance changed on rejection: $${before.available} → $${after.available}`)
-    after.withdrawable === before.withdrawable
+    Math.abs(after.withdrawable - before.withdrawable) < 0.01
       ? pass('withdrawable restored after rejection')
       : fail(`withdrawable is $${after.withdrawable}, expected $${before.withdrawable}`)
+  }
+
+  console.log('\n5. An all-invested investor can still withdraw')
+  {
+    // The reported bug: every deposit went into a plan, so uninvested cash was
+    // $0 and the withdraw sheet showed "Available to withdraw $0" despite a
+    // funded portfolio.
+    const id = await mk(`wd-plan-${stamp}@keelstone-test.invalid`)
+    const token = await login(`wd-plan-${stamp}@keelstone-test.invalid`)
+
+    await svc('/rest/v1/deposits', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: id, amount: 20000, status: 'approved', plan_name: 'Balanced', allocated: true, method_label: 'seed' }),
+    })
+    await svc('/rest/v1/investments', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: id, plan_name: 'Balanced', principal: 20000, annual_return_pct: 15, status: 'active', start_date: new Date().toISOString() }),
+    })
+
+    const b = await balances(id)
+    b.available === 0 ? pass('uninvested cash is $0, as expected') : fail(`uninvested cash is $${b.available}`)
+    b.withdrawable >= 20000
+      ? pass(`withdrawable is $${b.withdrawable.toFixed(2)} — invested capital counts`)
+      : fail(`REGRESSION: withdrawable is $${b.withdrawable}, expected ~$20,000`)
+
+    const r = await asUser(token, '/rest/v1/withdrawals', {
+      method: 'POST', headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ user_id: id, amount: 15000, status: 'pending', bank_details: BTC }),
+    })
+    r.ok
+      ? pass('all-invested investor filed a $15,000 withdrawal')
+      : fail(`could not withdraw against investments: ${(await r.text()).slice(0, 140)}`)
+
+    await svc(`/rest/v1/withdrawals?user_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/rest/v1/investments?user_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/rest/v1/deposits?user_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/rest/v1/notifications?actor_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/auth/v1/admin/users/${id}`, { method: 'DELETE' }).catch(() => {})
+  }
+
+  console.log('\n6. An approved payout reduces an all-invested balance')
+  {
+    // The reported bug: admin approved a withdrawal but the investor's balance
+    // kept showing the original figure. Withdrawals were deducted from
+    // uninvested cash only, and cash was $0, so Math.max(0 - payout, 0)
+    // clamped to zero and the payout never moved anything.
+    const id = await mk(`wd-net-${stamp}@keelstone-test.invalid`)
+    const token = await login(`wd-net-${stamp}@keelstone-test.invalid`)
+
+    await svc('/rest/v1/deposits', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: id, amount: 25000, status: 'approved', plan_name: 'Balanced', allocated: true, method_label: 'seed' }),
+    })
+    await svc('/rest/v1/investments', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: id, plan_name: 'Balanced', principal: 25000, annual_return_pct: 15, status: 'active', start_date: new Date().toISOString() }),
+    })
+
+    const before = await balances(id)
+    Math.abs(before.totalValue - 25000) < 1
+      ? pass(`starts at $${before.totalValue.toFixed(2)} with no uninvested cash`)
+      : fail(`starting total is $${before.totalValue}`)
+
+    const filed = await asUser(token, '/rest/v1/withdrawals', {
+      method: 'POST', headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ user_id: id, amount: 5000, status: 'pending', bank_details: BTC }),
+    })
+    const [wd] = await filed.json()
+
+    await fetch(`${URL}/functions/v1/admin-action`, {
+      method: 'POST',
+      headers: { apikey: PUBLISHABLE, Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'withdrawal', record_id: wd.id, action: 'approve' }),
+    })
+
+    const after = await balances(id)
+    Math.abs(after.totalValue - (before.totalValue - 5000)) < 1
+      ? pass(`balance dropped to $${after.totalValue.toFixed(2)} after the $5,000 payout`)
+      : fail(`STALE BALANCE: total is $${after.totalValue.toFixed(2)}, expected ~$${(before.totalValue - 5000).toFixed(2)}`)
+
+    Math.abs(after.netInvested - (before.investedValue - 5000)) < 1
+      ? pass('invested value reflects the payout drawn against the plan')
+      : fail(`invested value is $${after.netInvested.toFixed(2)}, expected ~$${(before.investedValue - 5000).toFixed(2)}`)
+
+    // The dashboard figure must agree with what the database will allow next.
+    const db = Number(await (await svc('/rest/v1/rpc/withdrawable_balance', {
+      method: 'POST', body: JSON.stringify({ p_user_id: id }),
+    })).text())
+    Math.abs(after.withdrawable - db) < 0.02
+      ? pass(`client and database agree on withdrawable ($${db.toFixed(2)})`)
+      : fail(`DRIFT: client says $${after.withdrawable.toFixed(2)}, database says $${db.toFixed(2)}`)
+
+    await svc(`/rest/v1/withdrawals?user_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/rest/v1/investments?user_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/rest/v1/deposits?user_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/rest/v1/notifications?actor_id=eq.${id}`, { method: 'DELETE' }).catch(() => {})
+    await svc(`/auth/v1/admin/users/${id}`, { method: 'DELETE' }).catch(() => {})
   }
 }
 

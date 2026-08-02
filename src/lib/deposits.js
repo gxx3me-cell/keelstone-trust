@@ -152,23 +152,41 @@ export async function getMyPortfolio() {
     .reduce((s, w) => s + w.amount, 0)
 
   const invested_value = total_principal + total_earnings
-  const available_balance = Math.max(credited - withdrawn, 0)
+  const gross_portfolio = invested_value + credited
+
+  // Approved withdrawals come off the WHOLE portfolio, not just uninvested
+  // cash. Deducting them from cash alone meant that for an investor whose
+  // every deposit sat in a plan — cash of $0 — the subtraction clamped at zero
+  // and an approved payout never moved any figure on the dashboard.
+  //
+  // The payout is drawn from cash first, then from invested capital (which the
+  // admin settles by closing or reducing a plan).
+  const withdrawn_from_cash = Math.min(credited, withdrawn)
+  const withdrawn_from_investments = withdrawn - withdrawn_from_cash
+
+  const available_balance = round2(Math.max(credited - withdrawn_from_cash, 0))
+  const net_invested_value = round2(Math.max(invested_value - withdrawn_from_investments, 0))
+
+  // What is left after everything already paid out.
+  const portfolio_total = Math.max(gross_portfolio - withdrawn, 0)
 
   return {
     investment_count: invs.length,
     investments: invs,
     total_principal: round2(total_principal),
     total_earnings: round2(total_earnings),
-    invested_value: round2(invested_value),
-    // Everything the investor owns: what's invested plus what's uninvested and
-    // spendable, minus what has already been withdrawn. Previously this was
-    // investments only, so an approved withdrawal never moved the headline
-    // figure and the balance looked unchanged after a payout.
-    total_value: round2(invested_value + available_balance),
+    // Net of any payout drawn against invested capital, so the figure matches
+    // what the investor still holds.
+    invested_value: net_invested_value,
+    // Everything the investor owns: invested capital plus uninvested cash,
+    // less everything already withdrawn.
+    total_value: round2(portfolio_total),
     return_pct: total_principal ? round2((total_earnings / total_principal) * 100) : 0,
-    available_balance: round2(available_balance),
-    // What can actually be requested right now.
-    withdrawable: round2(Math.max(available_balance - withdrawPending, 0)),
+    available_balance,
+    total_withdrawn: round2(withdrawn),
+    // What can actually be requested right now: the whole portfolio, less
+    // anything already spoken for by a pending request.
+    withdrawable: round2(Math.max(portfolio_total - withdrawPending, 0)),
     withdraw_pending_total: round2(withdrawPending),
     pending_total: round2(pending.reduce((s, d) => s + d.amount, 0)),
     pending_count: pending.length,

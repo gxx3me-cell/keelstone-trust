@@ -1148,10 +1148,12 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
   // portfolio value, which includes capital locked in active investments.
   const available = portfolio?.withdrawable ?? 0
   const heldForPending = portfolio?.withdraw_pending_total ?? 0
+  const cashShare = portfolio?.available_balance ?? 0
+  const investedShare = portfolio?.invested_value ?? 0
+  const amt = parseFloat(String(amount).replace(/,/g, '')) || 0
 
   const submit = async () => {
     setError('')
-    const amt = parseFloat(String(amount).replace(/,/g, '')) || 0
     const addr = address.trim()
     if (!amt) return setError('Enter how much you want to withdraw.')
     if (amt > available) {
@@ -1187,11 +1189,11 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
       >
         <div>
           <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600, display: 'block' }}>Available to withdraw</span>
-          {heldForPending > 0 && (
-            <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
-              ${money(heldForPending)} held for a pending request
-            </span>
-          )}
+          <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+            {heldForPending > 0
+              ? `$${money(heldForPending)} held for a pending request`
+              : 'Includes capital held in your active plans'}
+          </span>
         </div>
         <span style={{ fontFamily: serif, fontSize: 21, color: 'var(--text)' }}>${money(available)}</span>
       </div>
@@ -1218,8 +1220,8 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
       </Button>
 
       <Field
-        label="Your Bitcoin wallet address"
-        hint="A BTC address on the Bitcoin network — starts with 1, 3, or bc1."
+        label="Bitcoin address"
+        hint="Starts with 1, 3, or bc1. Bitcoin network only — we can’t recover funds sent to an address on another network."
       >
         <input
           value={address} onChange={(e) => setAddress(e.target.value)}
@@ -1228,16 +1230,19 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
         />
       </Field>
 
-      <Alert tone="warn" style={{ marginBottom: 14 }}>
-        Send to a <b>Bitcoin</b> address only. Funds sent to an address on another
-        network cannot be recovered. Double-check it before submitting.
-      </Alert>
-
-      <Alert tone="info" style={{ marginBottom: 14 }}>
-        Withdrawals are reviewed by our team and usually paid within 2–5 business days.
-      </Alert>
+      <div style={{ fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.55, marginBottom: 16 }}>
+        Requests are reviewed by our team and usually paid within 2–5 business days.
+      </div>
 
       {error && <Alert tone="loss" style={{ marginBottom: 14 }}>{error}</Alert>}
+
+      {investedShare > 0 && amt > 0 && amt > cashShare && (
+        <Alert tone="warn" style={{ marginBottom: 14 }}>
+          This is more than your uninvested balance of ${money(cashShare)}, so we’ll
+          need to close or reduce one of your plans to release it. Your advisor will
+          confirm before anything is sold.
+        </Alert>
+      )}
 
       <Button onClick={submit} busy={busy} full size="lg">
         {busy ? 'Submitting…' : 'Request withdrawal'}
