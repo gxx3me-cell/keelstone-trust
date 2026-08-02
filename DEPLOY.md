@@ -64,6 +64,8 @@ Set both for **Production, Preview and Development**.
 Miss this and the app builds fine but shows a blank screen — the Supabase
 client throws on startup when the vars are absent.
 
+
+
 5. **Deploy.** ~60–90 seconds → `https://<project>.vercel.app`
 
 `vercel.json` already handles SPA routing, so `/dashboard` and `/admin` won't
