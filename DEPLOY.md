@@ -158,3 +158,4 @@ node supabase/verify-withdrawals.mjs    # withdrawals        17/17
 ```
 
 They occasionally fail on a network blip — rerun before assuming a regression.
+finally done
