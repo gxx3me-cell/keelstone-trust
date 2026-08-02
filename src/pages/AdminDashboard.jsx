@@ -1085,6 +1085,7 @@ function Requests({ deposits, withdrawals, profiles, reload, showToast }) {
 }
 
 function RequestRow({ r, profile, reload, showToast }) {
+  const { t } = useI18n()
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
