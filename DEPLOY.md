@@ -5,7 +5,7 @@ of work plus DNS wait.
 
 **Important:** this is a **Vite + React** app, not Next.js. So env vars are
 `VITE_*`, not `NEXT_PUBLIC_*`, and the build output is `dist/`. Vercel usually
-detects this correctly — verify it says **Vite** on the import screen.
+detects this correctly — verify it says **Vite** on the import screen. good
 
 ---
 
@@ -158,3 +158,4 @@ node supabase/verify-withdrawals.mjs    # withdrawals        17/17
 ```
 
 They occasionally fail on a network blip — rerun before assuming a regression.
+finally done
