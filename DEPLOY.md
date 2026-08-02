@@ -9,7 +9,7 @@ detects this correctly — verify it says **Vite** on the import screen. good
 
 ---
 
-## Step 1 — Push to your own GitHub
+## Step 1 — Push to your own GitHubV
 
 The repo currently points at **`github.com/lordace-coder/lumen`**, which is not
 your account. Repoint it:
