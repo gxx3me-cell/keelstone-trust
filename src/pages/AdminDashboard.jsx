@@ -459,7 +459,9 @@ function Investors({ data, reload, showToast }) {
         {investors.length === 0 ? (
           <EmptyState compact icon={<Icon name="users" size={22} />} title={t('admin.noInvestors')} />
         ) : investors.map((p) => {
-          const t = investorTotals(p.id, data.investments)
+          // Not `t` — that name belongs to the i18n translator in this scope,
+          // and shadowing it breaks every t(...) call inside this row.
+          const totals = investorTotals(p.id, data.investments)
           return (
             <div
               key={p.id} data-table-row
@@ -477,10 +479,10 @@ function Investors({ data, reload, showToast }) {
                   <div style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email}</div>
                 </div>
               </div>
-              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t.count || '—'}</div>
-              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t.principal ? `$${money0(t.principal)}` : '—'}</div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: t.earnings ? 'var(--gain)' : 'var(--text-3)' }}>
-                {t.earnings ? `+$${money0(t.earnings)}` : '—'}
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{totals.count || '—'}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{totals.principal ? `$${money0(totals.principal)}` : '—'}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: totals.earnings ? 'var(--gain)' : 'var(--text-3)' }}>
+                {totals.earnings ? `+$${money0(totals.earnings)}` : '—'}
               </div>
               <Button variant="secondary" size="sm" onClick={() => setManaging(p)}>{t('admin.manage')}</Button>
             </div>
@@ -527,7 +529,9 @@ function ManageInvestor({ investor, plans, onClose, onDone, showToast }) {
     if (msg) showToast(msg)
   }
 
-  const t = detail
+  // Named `totals`, not `t` — `t` is the i18n translator everywhere else in
+  // this file, and shadowing it silently breaks translation calls.
+  const totals = detail
     ? investorTotals(investor.id, detail.investments)
     : { principal: 0, earnings: 0, value: 0, count: 0 }
 
@@ -562,7 +566,7 @@ function ManageInvestor({ investor, plans, onClose, onDone, showToast }) {
         <>
           {pane === 'overview' && (
             <InvestorOverview
-              investor={investor} detail={detail} totals={t} plans={plans}
+              investor={investor} detail={detail} totals={totals} plans={plans}
               onDone={refresh} setError={setError}
             />
           )}
@@ -614,6 +618,7 @@ function ManageInvestor({ investor, plans, onClose, onDone, showToast }) {
 /* ── overview: balances + fund ── */
 
 function InvestorOverview({ investor, detail, totals, plans, onDone, setError }) {
+  const { t } = useI18n()
   const [amount, setAmount] = useState('')
   const [planId, setPlanId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -708,6 +713,7 @@ const RECORD_GROUPS = [
 ]
 
 function InvestorRecords({ detail, onEdit, onDelete }) {
+  const { t } = useI18n()
   const sets = {
     deposit: detail.deposits,
     withdrawal: detail.withdrawals,
@@ -786,6 +792,7 @@ const EDIT_FIELDS = {
 }
 
 function EditRecord({ type, row, onClose, onSaved }) {
+  const { t } = useI18n()
   const fields = EDIT_FIELDS[type]
   const [form, setForm] = useState(() =>
     Object.fromEntries(fields.map(([k]) => [k, row[k] ?? ''])))
@@ -844,6 +851,7 @@ function EditRecord({ type, row, onClose, onSaved }) {
 /* ── email this investor ── */
 
 function InvestorEmail({ investor, showToast, setError }) {
+  const { t } = useI18n()
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
@@ -893,6 +901,7 @@ function InvestorEmail({ investor, showToast, setError }) {
 /* ── profile, role, deletion ── */
 
 function InvestorAdmin({ investor, detail, busy, setBusy, setError, onDone, onDeleteUser }) {
+  const { t } = useI18n()
   const [first, setFirst] = useState(investor.first_name || '')
   const [last, setLast] = useState(investor.last_name || '')
   const [kyc, setKyc] = useState(investor.kyc_status || 'not_started')

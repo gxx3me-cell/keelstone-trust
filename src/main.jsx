@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import { I18nProvider } from './i18n'
+import ErrorPage, { ErrorBoundary } from './components/ErrorPage'
 import Landing from './pages/Lumen'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -15,7 +16,11 @@ import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import NotFound from './pages/NotFound'
 
-const router = createBrowserRouter([
+// Every route gets an errorElement. Without one, React Router falls back to its
+// built-in page — a stack trace plus a note telling the developer to add an
+// errorElement — which is the last thing an investor should see when a balance
+// screen fails.
+const routes = [
   { path: '/', element: <Landing /> },
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
@@ -27,12 +32,20 @@ const router = createBrowserRouter([
   { path: '/terms', element: <Terms /> },
   { path: '/privacy', element: <Privacy /> },
   { path: '*', element: <NotFound /> },
-])
+]
+
+const router = createBrowserRouter(
+  routes.map((r) => ({ ...r, errorElement: <ErrorPage /> })),
+)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <I18nProvider>
-      <RouterProvider router={router} />
-    </I18nProvider>
+    {/* Catches anything thrown above the routes — a provider, or the router
+        itself — which errorElement cannot reach. */}
+    <ErrorBoundary>
+      <I18nProvider>
+        <RouterProvider router={router} />
+      </I18nProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )
