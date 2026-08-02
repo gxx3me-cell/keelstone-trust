@@ -445,6 +445,10 @@ export default {
     addressHint: '0xで始まるBEP-20（BNB Smart Chain）アドレス。',
     invalidAddress: '0xで始まる有効なUSDT BEP-20（BSC）ウォレットアドレスを入力してください。',
     reviewNotice: '出金は当社チームが確認のうえ、通常2〜5営業日以内にお支払いします。',
+    availableToWithdraw: '出金可能額',
+    reviewNoticeShort: '申請は当社チームが確認のうえ、通常2〜5営業日以内にお支払いします。',
+    exceedsCash:
+      'この金額は未投資残高{amount}を超えているため、資金を確保するにはプランのいずれかを解約または減額する必要があります。売却の前に担当アドバイザーが確認いたします。',
     request: '出金を申請',
     failed: '申請を送信できませんでした。もう一度お試しください。',
     submitted: '出金申請を受け付けました。',
@@ -681,6 +685,16 @@ export default {
     adminsOnlyBody: '{email}には管理者権限がありません。',
     backToDashboard: '自分のダッシュボードに戻る',
     verifyingAccess: '管理者権限を確認中',
+    creditInvestor: 'この投資家に入金',
+    availableNoPlan: '利用可能残高（プラン未配分）',
+    creditCta: '入金する',
+    noneOnFile: '記録はありません。',
+    adminHistory: '管理操作履歴',
+    saveProfile: 'プロフィールを保存',
+    identityVerification: '本人確認',
+    dangerZone: '危険な操作',
+    noPlansYet: 'プランはまだありません。',
+    needHelp: 'お困りですか？私たちのチームがお手伝いします。',
   },
 
   /* ── 法的事項 ── */

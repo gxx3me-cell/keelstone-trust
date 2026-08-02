@@ -113,11 +113,11 @@ export default function Signup() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '46px clamp(22px,5vw,72px)', order: 1 }}>
         <div data-anim data-delay="80" style={{ width: '100%', maxWidth: 420 }}>
           <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 30 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 7, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <div style={{ width: 34, height: 34, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <div>
-              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block' }}>Keelstone Trust</span>
+              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block', lineHeight: 1.2 }}>Keelstone Trust</span>
               <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</span>
             </div>
           </Link>

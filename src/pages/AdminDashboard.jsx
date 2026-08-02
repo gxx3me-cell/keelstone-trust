@@ -671,17 +671,17 @@ function InvestorOverview({ investor, detail, totals, plans, onDone, setError })
         </Alert>
       )}
 
-      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', margin: '16px 0 10px' }}>Credit this investor</div>
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', margin: '16px 0 10px' }}>{t('admin.creditInvestor')}</div>
       <Field label="Destination" hint="Leave as balance to credit without opening an investment.">
         <select value={planId} onChange={(e) => setPlanId(e.target.value)} style={fieldStyle}>
-          <option value="">Available balance (no plan)</option>
+          <option value="">{t('admin.availableNoPlan')}</option>
           {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.annual_return_pct}% p.a.)</option>)}
         </select>
       </Field>
       <Field label="Amount (USD)">
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0" style={fieldStyle} />
       </Field>
-      <Button full onClick={fund} busy={busy} style={{ marginBottom: 22 }}>Credit investor</Button>
+      <Button full onClick={fund} busy={busy} style={{ marginBottom: 22 }}>{t('admin.creditCta')}</Button>
 
       <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>{t('admin.activeInvestmentsLabel')}</div>
       {active.length === 0 ? (
@@ -724,7 +724,7 @@ function InvestorRecords({ detail, onEdit, onDelete }) {
               {label} <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>({rows.length})</span>
             </div>
             {rows.length === 0 ? (
-              <div style={{ fontSize: 13, color: 'var(--text-3)' }}>None on file.</div>
+              <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{t('admin.noneOnFile')}</div>
             ) : rows.map((r) => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 'var(--r)', background: 'var(--surface-2)', marginBottom: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -749,7 +749,7 @@ function InvestorRecords({ detail, onEdit, onDelete }) {
 
       {detail.audit.length > 0 && (
         <div>
-          <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Admin history</div>
+          <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>{t('admin.adminHistory')}</div>
           {detail.audit.slice(0, 10).map((a) => (
             <div key={a.id} style={{ fontSize: 12, color: 'var(--text-3)', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
               <b style={{ color: 'var(--text-2)' }}>{a.action}</b> on {a.table_name.replace('public.', '')} · {a.admin_email || 'system'} · {timeAgo(a.created_at)}
@@ -834,7 +834,7 @@ function EditRecord({ type, row, onClose, onSaved }) {
       ))}
       {error && <Alert tone="loss" style={{ marginBottom: 12 }}>{error}</Alert>}
       <div style={{ display: 'flex', gap: 8 }}>
-        <Button full onClick={save} busy={busy}>Save changes</Button>
+        <Button full onClick={save} busy={busy}>{t('common.save')}</Button>
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
       </div>
     </Sheet>
@@ -946,9 +946,9 @@ function InvestorAdmin({ investor, detail, busy, setBusy, setError, onDone, onDe
       <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: -6, marginBottom: 12 }}>
         Email is managed by Supabase Auth and can’t be changed here.
       </div>
-      <Button full variant="secondary" onClick={saveProfile} busy={busy} style={{ marginBottom: 22 }}>Save profile</Button>
+      <Button full variant="secondary" onClick={saveProfile} busy={busy} style={{ marginBottom: 22 }}>{t('admin.saveProfile')}</Button>
 
-      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Identity verification</div>
+      <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>{t('admin.identityVerification')}</div>
       <Field label="KYC status" hint="Overrides whatever their submission says.">
         <select value={kyc} onChange={(e) => saveKyc(e.target.value)} style={fieldStyle} disabled={busy}>
           {['not_started', 'pending', 'approved', 'rejected'].map((s) => (
@@ -974,7 +974,7 @@ function InvestorAdmin({ investor, detail, busy, setBusy, setError, onDone, onDe
       )}
 
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8, color: 'var(--loss)' }}>Danger zone</div>
+        <div style={{ fontSize: 12.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8, color: 'var(--loss)' }}>{t('admin.dangerZone')}</div>
         <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.55, marginBottom: 12 }}>
           Deleting removes their account and every deposit, investment,
           withdrawal and KYC record. It cannot be undone — though a snapshot is
@@ -1318,7 +1318,7 @@ function Plans({ plans, methods, reload, showToast }) {
           </Button>
         </div>
         {plans.length === 0 ? (
-          <div style={{ fontSize: 13.5, color: 'var(--text-3)', padding: '8px 0' }}>No plans yet.</div>
+          <div style={{ fontSize: 13.5, color: 'var(--text-3)', padding: '8px 0' }}>{t('admin.noPlansYet')}</div>
         ) : plans.map((p) => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -1344,7 +1344,7 @@ function Plans({ plans, methods, reload, showToast }) {
           </Button>
         </div>
         {methods.length === 0 ? (
-          <Alert tone="warn">No deposit methods yet — investors can’t deposit until you add one.</Alert>
+          <Alert tone="warn">{t('admin.noMethods')}</Alert>
         ) : methods.map((m) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>

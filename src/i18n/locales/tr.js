@@ -444,6 +444,10 @@ export default {
     addressHint: '0x ile başlayan BEP-20 (BNB Smart Chain) adresi.',
     invalidAddress: '0x ile başlayan geçerli bir USDT BEP-20 (BSC) cüzdan adresi girin.',
     reviewNotice: 'Para çekme talepleri ekibimizce incelenir ve genellikle 2–5 iş günü içinde ödenir.',
+    availableToWithdraw: 'Çekilebilir tutar',
+    reviewNoticeShort: 'Talepler ekibimizce incelenir ve genellikle 2–5 iş günü içinde ödenir.',
+    exceedsCash:
+      'Bu tutar, {amount} olan yatırılmamış bakiyenizi aşıyor; bu nedenle tutarı serbest bırakmak için planlarınızdan birini kapatmamız veya azaltmamız gerekecek. Herhangi bir satış yapılmadan önce danışmanınız sizinle teyit edecek.',
     request: 'Para çekme talebi oluştur',
     failed: 'Talebiniz iletilemedi. Lütfen tekrar deneyin.',
     submitted: 'Para çekme talebi iletildi.',
@@ -680,6 +684,16 @@ export default {
     adminsOnlyBody: '{email} için yönetici erişimi yok.',
     backToDashboard: 'Panelime dön',
     verifyingAccess: 'Yönetici erişimi doğrulanıyor',
+    creditInvestor: 'Bu yatırımcıya bakiye yükle',
+    availableNoPlan: 'Kullanılabilir bakiye (plansız)',
+    creditCta: 'Bakiye yükle',
+    noneOnFile: 'Kayıt yok.',
+    adminHistory: 'Yönetici geçmişi',
+    saveProfile: 'Profili kaydet',
+    identityVerification: 'Kimlik doğrulama',
+    dangerZone: 'Tehlikeli işlemler',
+    noPlansYet: 'Henüz plan yok.',
+    needHelp: 'Yardıma mı ihtiyacınız var? Ekibimiz yanınızda.',
   },
 
   /* ── hukuki ── */

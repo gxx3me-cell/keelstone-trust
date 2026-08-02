@@ -444,6 +444,10 @@ export default {
     addressHint: '0x로 시작하는 BEP-20(BNB Smart Chain) 주소.',
     invalidAddress: '0x로 시작하는 유효한 USDT BEP-20(BSC) 지갑 주소를 입력하십시오.',
     reviewNotice: '출금 신청은 저희 팀의 검토를 거치며 보통 영업일 기준 2~5일 이내에 지급됩니다.',
+    availableToWithdraw: '출금 가능액',
+    reviewNoticeShort: '신청 건은 저희 팀의 검토를 거치며 보통 영업일 기준 2~5일 이내에 지급됩니다.',
+    exceedsCash:
+      '이 금액은 미투자 잔액 {amount}을(를) 초과하므로, 자금을 확보하려면 플랜 중 하나를 해지하거나 축소해야 합니다. 자산을 매도하기 전에 담당 어드바이저가 먼저 확인해 드립니다.',
     request: '출금 신청하기',
     failed: '신청을 제출하지 못했습니다. 다시 시도해 주십시오.',
     submitted: '출금 신청이 접수되었습니다.',
@@ -680,6 +684,16 @@ export default {
     adminsOnlyBody: '{email} 계정에는 관리자 권한이 없습니다.',
     backToDashboard: '내 대시보드로 돌아가기',
     verifyingAccess: '관리자 권한을 확인하는 중',
+    creditInvestor: '이 투자자에게 입금',
+    availableNoPlan: '사용 가능 잔액 (플랜 미배정)',
+    creditCta: '입금하기',
+    noneOnFile: '기록이 없습니다.',
+    adminHistory: '관리자 작업 이력',
+    saveProfile: '프로필 저장',
+    identityVerification: '신원 확인',
+    dangerZone: '위험 영역',
+    noPlansYet: '아직 플랜이 없습니다.',
+    needHelp: '도움이 필요하십니까? 저희 팀이 도와드리겠습니다.',
   },
 
   /* ── 법적 고지 ── */

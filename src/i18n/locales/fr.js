@@ -445,6 +445,10 @@ export default {
     addressHint: 'Adresse BEP-20 (BNB Smart Chain) commençant par 0x.',
     invalidAddress: 'Saisissez une adresse de portefeuille USDT BEP-20 (BSC) valide commençant par 0x.',
     reviewNotice: 'Les retraits sont examinés par notre équipe et généralement versés sous 2 à 5 jours ouvrés.',
+    availableToWithdraw: 'Disponible au retrait',
+    reviewNoticeShort: 'Les demandes sont examinées par notre équipe et généralement versées sous 2 à 5 jours ouvrés.',
+    exceedsCash:
+      'Ce montant dépasse votre solde non investi de {amount} ; nous devrons donc clôturer ou réduire l’une de vos formules pour le libérer. Votre conseiller vous confirmera cela avant toute vente.',
     request: 'Demander un retrait',
     failed: 'Impossible d’envoyer votre demande. Veuillez réessayer.',
     submitted: 'Demande de retrait envoyée.',
@@ -681,6 +685,16 @@ export default {
     adminsOnlyBody: '{email} ne dispose pas d’un accès administrateur.',
     backToDashboard: 'Retour à mon tableau de bord',
     verifyingAccess: 'Vérification de l’accès administrateur',
+    creditInvestor: 'Créditer cet investisseur',
+    availableNoPlan: 'Solde disponible (hors formule)',
+    creditCta: 'Créditer l’investisseur',
+    noneOnFile: 'Aucun élément au dossier.',
+    adminHistory: 'Historique administrateur',
+    saveProfile: 'Enregistrer le profil',
+    identityVerification: 'Vérification d’identité',
+    dangerZone: 'Zone sensible',
+    noPlansYet: 'Aucune formule pour l’instant.',
+    needHelp: 'Besoin d’aide ? Notre équipe est à votre écoute.',
   },
 
   /* ── mentions légales ── */

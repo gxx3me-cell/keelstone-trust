@@ -91,3 +91,36 @@ canvas { display: block; }
   [data-modal] > div:last-child { width: calc(100vw - 20px) !important; max-width: none !important; }
   [data-grid4] { grid-template-columns: 1fr !important; }
 }
+
+
+/* ===== RTL (Arabic) — landing page =====
+   The landing page uses inline styles with physical properties. Flexbox and
+   text alignment mirror themselves from <html dir="rtl">; these are the few
+   fixed-position pieces that don't. */
+
+/* Mobile menu panel: docks to the right in LTR, so it must dock left and
+   slide from the left in RTL — otherwise it animates off-screen. */
+[dir="rtl"] [data-mobilemenu] {
+  right: auto !important;
+  left: 0 !important;
+  border-left: none !important;
+  border-right: 1px solid #e8e3f0;
+}
+[dir="rtl"] [data-mobilemenu][data-closed] {
+  transform: translateX(-100%) !important;
+}
+
+/* Floating hero stat card, pinned to a corner. */
+[dir="rtl"] [data-statcard] {
+  right: auto !important;
+  left: -14px !important;
+}
+
+/* Arrow glyphs encode direction and must mirror; logos must not. */
+[dir="rtl"] [data-flip] { transform: scaleX(-1); }
+
+/* Latin runs (amounts, addresses, tickers) stay LTR inside Arabic text. */
+[dir="rtl"] [data-ltr] {
+  direction: ltr;
+  unicode-bidi: embed;
+}

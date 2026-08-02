@@ -212,7 +212,7 @@ export default function LandingPage() {
       {/* MOBILE MENU */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 119, pointerEvents: menuOpen ? 'auto' : 'none' }}>
         <div onClick={() => setMenuOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(17,16,24,.4)', opacity: menuOpen ? 1 : 0, transition: 'opacity .35s ease', backdropFilter: 'blur(4px)' }} />
-        <div style={{ position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(86vw,320px)', background: '#fff', borderLeft: `1px solid ${C.line}`, transform: menuOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform .45s cubic-bezier(.16,1,.3,1)', display: 'flex', flexDirection: 'column', padding: '22px 22px 30px' }}>
+        <div data-mobilemenu {...(menuOpen ? {} : { 'data-closed': '' })} style={{ position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(86vw,320px)', background: '#fff', borderLeft: `1px solid ${C.line}`, transform: menuOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform .45s cubic-bezier(.16,1,.3,1)', display: 'flex', flexDirection: 'column', padding: '22px 22px 30px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 34 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 30, height: 30, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
@@ -296,7 +296,7 @@ export default function LandingPage() {
               </div>
             </div>
             {/* Floating stat card */}
-            <div style={{ position: 'absolute', top: -14, right: -14, zIndex: 3, background: '#fff', border: `1px solid ${C.line}`, padding: '14px 20px', boxShadow: '0 12px 36px rgba(109,40,217,.14)', borderRadius: RAD }}>
+            <div data-statcard style={{ position: 'absolute', top: -14, right: -14, zIndex: 3, background: '#fff', border: `1px solid ${C.line}`, padding: '14px 20px', boxShadow: '0 12px 36px rgba(109,40,217,.14)', borderRadius: RAD }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, marginBottom: 3 }}>{t('hero.annualReturn')}</div>
               <div style={{ fontFamily: serif, fontSize: 26, color: C.primary }}>+22%</div>
               <div style={{ fontSize: 11, color: C.muted }}>Growth Strategy</div>
@@ -605,7 +605,7 @@ export default function LandingPage() {
           <div data-reveal style={{ border: `1px solid ${C.line}`, background: C.white, padding: 'clamp(32px,5vw,56px)', display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 40, alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 11.5, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 700, color: C.primary, marginBottom: 16 }}>Support</div>
-              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(30px,4vw,50px)', lineHeight: 1.08, margin: '0 0 16px', color: C.ink }}>Need help? Our team is here for you.</h2>
+              <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 'clamp(30px,4vw,50px)', lineHeight: 1.08, margin: '0 0 16px', color: C.ink }}>{t('admin.needHelp')}</h2>
               <p style={{ fontSize: 16.5, lineHeight: 1.7, color: C.body, margin: 0, maxWidth: 480 }}>Have a question about your account, an investment plan, or a withdrawal? Reach out to our support team and we'll get back to you promptly.</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 16 }}>
@@ -627,7 +627,7 @@ export default function LandingPage() {
           <p data-reveal data-delay="120" style={{ fontSize: 17, lineHeight: 1.7, color: 'rgba(255,255,255,.6)', margin: '0 auto 36px', maxWidth: 500 }}>{t('finalCta.body')}</p>
           <div data-reveal data-delay="180" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/signup" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15, fontWeight: 700, color: '#fff', padding: '15px 30px', background: C.primary, borderRadius: RAD }}>Open Your Account <ArrowRight size={16} weight="bold" /></Link>
-            <Link to="/login" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.75)', padding: '15px 28px', border: '1px solid rgba(255,255,255,.18)', borderRadius: RAD }}>Sign in</Link>
+            <Link to="/login" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.75)', padding: '15px 28px', border: '1px solid rgba(255,255,255,.18)', borderRadius: RAD }}>{t('common.signIn')}</Link>
           </div>
         </div>
       </section>

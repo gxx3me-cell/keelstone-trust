@@ -684,6 +684,16 @@ export default {
     adminsOnlyBody: '{email} doesn’t have admin access.',
     backToDashboard: 'Back to my dashboard',
     verifyingAccess: 'Verifying admin access',
+    creditInvestor: 'Credit this investor',
+    availableNoPlan: 'Available balance (no plan)',
+    creditCta: 'Credit investor',
+    noneOnFile: 'None on file.',
+    adminHistory: 'Admin history',
+    saveProfile: 'Save profile',
+    identityVerification: 'Identity verification',
+    dangerZone: 'Danger zone',
+    noPlansYet: 'No plans yet.',
+    needHelp: 'Need help? Our team is here for you.',
   },
 
   /* ── legal ── */

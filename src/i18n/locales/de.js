@@ -447,6 +447,10 @@ export default {
     addressHint: 'BEP-20-Adresse (BNB Smart Chain), beginnend mit 0x.',
     invalidAddress: 'Bitte geben Sie eine gültige USDT-BEP-20-Wallet-Adresse (BSC) ein, die mit 0x beginnt.',
     reviewNotice: 'Auszahlungen werden von unserem Team geprüft und in der Regel innerhalb von 2 bis 5 Werktagen ausgezahlt.',
+    availableToWithdraw: 'Zur Auszahlung verfügbar',
+    reviewNoticeShort: 'Aufträge werden von unserem Team geprüft und in der Regel innerhalb von 2 bis 5 Werktagen ausgezahlt.',
+    exceedsCash:
+      'Dieser Betrag übersteigt Ihr nicht investiertes Guthaben von {amount}. Daher müssen wir einen Ihrer Pläne schließen oder reduzieren, um ihn freizugeben. Ihr Berater bestätigt dies, bevor etwas verkauft wird.',
     request: 'Auszahlung beantragen',
     failed: 'Ihr Auftrag konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.',
     submitted: 'Auszahlungsauftrag übermittelt.',
@@ -683,6 +687,16 @@ export default {
     adminsOnlyBody: '{email} hat keinen Administratorzugriff.',
     backToDashboard: 'Zurück zu meinem Dashboard',
     verifyingAccess: 'Administratorzugriff wird geprüft',
+    creditInvestor: 'Diesem Anleger gutschreiben',
+    availableNoPlan: 'Verfügbares Guthaben (ohne Plan)',
+    creditCta: 'Anleger gutschreiben',
+    noneOnFile: 'Keine Einträge vorhanden.',
+    adminHistory: 'Admin-Verlauf',
+    saveProfile: 'Profil speichern',
+    identityVerification: 'Identitätsprüfung',
+    dangerZone: 'Gefahrenbereich',
+    noPlansYet: 'Noch keine Pläne.',
+    needHelp: 'Brauchen Sie Hilfe? Unser Team ist für Sie da.',
   },
 
   /* ── Rechtliches ── */

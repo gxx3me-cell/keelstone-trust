@@ -445,6 +445,10 @@ export default {
     addressHint: 'Endereço BEP-20 (BNB Smart Chain) começado por 0x.',
     invalidAddress: 'Introduza um endereço de carteira USDT BEP-20 (BSC) válido, começado por 0x.',
     reviewNotice: 'Os levantamentos são analisados pela nossa equipa e habitualmente pagos no prazo de 2 a 5 dias úteis.',
+    availableToWithdraw: 'Disponível para levantamento',
+    reviewNoticeShort: 'Os pedidos são analisados pela nossa equipa e habitualmente pagos no prazo de 2 a 5 dias úteis.',
+    exceedsCash:
+      'Este valor excede o seu saldo não investido de {amount}, pelo que teremos de encerrar ou reduzir um dos seus planos para o libertar. O seu consultor confirmará antes de vender seja o que for.',
     request: 'Pedir levantamento',
     failed: 'Não foi possível submeter o seu pedido. Tente novamente.',
     submitted: 'Pedido de levantamento submetido.',
@@ -681,6 +685,16 @@ export default {
     adminsOnlyBody: '{email} não tem acesso de administrador.',
     backToDashboard: 'Voltar ao meu painel',
     verifyingAccess: 'A verificar o acesso de administrador',
+    creditInvestor: 'Creditar este investidor',
+    availableNoPlan: 'Saldo disponível (sem plano)',
+    creditCta: 'Creditar investidor',
+    noneOnFile: 'Sem registos.',
+    adminHistory: 'Histórico de administração',
+    saveProfile: 'Guardar perfil',
+    identityVerification: 'Verificação de identidade',
+    dangerZone: 'Zona de risco',
+    noPlansYet: 'Ainda sem planos.',
+    needHelp: 'Precisa de ajuda? A nossa equipa está ao seu dispor.',
   },
 
   /* ── informação legal ── */

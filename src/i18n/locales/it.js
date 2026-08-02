@@ -445,6 +445,10 @@ export default {
     addressHint: 'Indirizzo BEP-20 (BNB Smart Chain) che inizia con 0x.',
     invalidAddress: 'Inserisci un indirizzo wallet USDT BEP-20 (BSC) valido, che inizi con 0x.',
     reviewNotice: 'I prelievi vengono verificati dal nostro team e di norma pagati entro 2–5 giorni lavorativi.',
+    availableToWithdraw: 'Disponibile al prelievo',
+    reviewNoticeShort: 'Le richieste vengono verificate dal nostro team e di norma pagate entro 2–5 giorni lavorativi.',
+    exceedsCash:
+      'L’importo supera il tuo saldo non investito di {amount}, quindi dovremo chiudere o ridurre uno dei tuoi piani per liberarlo. Il tuo consulente ti contatterà per conferma prima di vendere qualsiasi cosa.',
     request: 'Richiedi il prelievo',
     failed: 'Non è stato possibile inviare la richiesta. Riprova.',
     submitted: 'Richiesta di prelievo inviata.',
@@ -681,6 +685,16 @@ export default {
     adminsOnlyBody: '{email} non dispone dell’accesso amministratore.',
     backToDashboard: 'Torna alla mia dashboard',
     verifyingAccess: 'Verifica dell’accesso amministratore',
+    creditInvestor: 'Accredita questo investitore',
+    availableNoPlan: 'Saldo disponibile (senza piano)',
+    creditCta: 'Accredita investitore',
+    noneOnFile: 'Nessun dato registrato.',
+    adminHistory: 'Cronologia amministratore',
+    saveProfile: 'Salva profilo',
+    identityVerification: 'Verifica dell’identità',
+    dangerZone: 'Area a rischio',
+    noPlansYet: 'Ancora nessun piano.',
+    needHelp: 'Ti serve aiuto? Il nostro team è a tua disposizione.',
   },
 
   /* ── note legali ── */

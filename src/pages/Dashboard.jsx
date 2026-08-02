@@ -809,7 +809,7 @@ function AccountScreen({ user, profile, fullName, userEmail, initials, portfolio
 
       {!emailVerified && (
         <Alert tone="warn" style={{ marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 170 }}>Confirm your email to secure your account.</div>
+          <div style={{ flex: 1, minWidth: 170 }}>{t('dash.verifyEmailPrompt')}</div>
           <Button
             size="sm" variant="secondary" onClick={handleResend}
             disabled={resend === 'sending' || resend === 'sent'}
@@ -1024,7 +1024,7 @@ function DepositSheet({ plans, methods, onClose, onDone }) {
       {step === 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {plans.length === 0 && (
-            <Alert tone="info">No plans are available right now. Please check back shortly.</Alert>
+            <Alert tone="info">{t('deposit.noPlans')}</Alert>
           )}
           {plans.map((p) => {
             const on = plan?.id === p.id
@@ -1213,7 +1213,7 @@ function WithdrawSheet({ portfolio, onClose, onDone }) {
         }}
       >
         <div>
-          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600, display: 'block' }}>Available to withdraw</span>
+          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600, display: 'block' }}>{t('withdraw.availableToWithdraw')}</span>
           <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
             {heldForPending > 0
               ? `$${money(heldForPending)} held for a pending request`

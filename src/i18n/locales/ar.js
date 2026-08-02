@@ -446,6 +446,10 @@ export default {
     addressHint: 'عنوان BEP-20 (BNB Smart Chain) يبدأ بـ 0x.',
     invalidAddress: 'أدخل عنوان محفظة USDT صالحًا على شبكة BEP-20 (BSC) يبدأ بـ 0x.',
     reviewNotice: 'تخضع عمليات السحب لمراجعة فريقنا وتُدفع عادةً خلال 2–5 أيام عمل.',
+    availableToWithdraw: 'المتاح للسحب',
+    reviewNoticeShort: 'تخضع الطلبات لمراجعة فريقنا وتُدفع عادةً خلال 2–5 أيام عمل.',
+    exceedsCash:
+      'هذا المبلغ يتجاوز رصيدك غير المستثمر البالغ {amount}، لذا سنحتاج إلى إغلاق إحدى خططك أو تقليصها لتحريره. وسيؤكد لك مستشارك ذلك قبل بيع أي شيء.',
     request: 'طلب السحب',
     failed: 'تعذّر إرسال طلبك. يرجى المحاولة مرة أخرى.',
     submitted: 'تم إرسال طلب السحب.',
@@ -682,6 +686,16 @@ export default {
     adminsOnlyBody: '{email} لا يملك صلاحية الوصول الإداري.',
     backToDashboard: 'العودة إلى لوحتي',
     verifyingAccess: 'جارٍ التحقق من صلاحية الإدارة',
+    creditInvestor: 'إضافة رصيد لهذا المستثمر',
+    availableNoPlan: 'الرصيد المتاح (بدون خطة)',
+    creditCta: 'إضافة الرصيد',
+    noneOnFile: 'لا توجد سجلات.',
+    adminHistory: 'سجل إجراءات الإدارة',
+    saveProfile: 'حفظ الملف الشخصي',
+    identityVerification: 'التحقق من الهوية',
+    dangerZone: 'منطقة الخطر',
+    noPlansYet: 'لا توجد خطط بعد.',
+    needHelp: 'هل تحتاج إلى مساعدة؟ فريقنا في خدمتك.',
   },
 
   /* ── الشؤون القانونية ── */

@@ -116,6 +116,18 @@ export default function Login() {
       {/* RIGHT: form */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '46px clamp(22px,5vw,72px)' }}>
         <div data-anim data-delay="80" style={{ width: '100%', maxWidth: 408 }}>
+          {/* The brand panel is hidden below 820px, so without this the page
+              carries no branding at all on a phone. Mirrors the Signup lockup. */}
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 11, textDecoration: 'none', marginBottom: 30 }}>
+            <div style={{ width: 34, height: 34, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/uploads/kneelstone-logo.png" alt="Keelstone Trust" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            </div>
+            <div>
+              <span style={{ fontFamily: serif, fontSize: 18, color: C.ink, display: 'block', lineHeight: 1.2 }}>Keelstone Trust</span>
+              <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' }}>Investor Portal</span>
+            </div>
+          </Link>
+
           <div style={{ fontSize: 12.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.primary, fontWeight: 800, marginBottom: 10 }}>{t('auth.clientLogin')}</div>
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 33, margin: '0 0 8px', color: C.ink }}>{t('auth.signInTitle')}</h2>
           <p style={{ fontSize: 14.5, color: C.muted, margin: '0 0 30px' }}>{t('auth.newHere')} <Link to="/signup" style={{ color: C.ink, fontWeight: 700, textDecoration: 'none' }}>{t('auth.openOne')}</Link></p>

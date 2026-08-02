@@ -16,17 +16,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import en from './locales/en'
-import es from './locales/es'
-import fr from './locales/fr'
-import de from './locales/de'
-import pt from './locales/pt'
-import it from './locales/it'
-import ar from './locales/ar'
-import zh from './locales/zh'
-import ja from './locales/ja'
-import ko from './locales/ko'
-import tr from './locales/tr'
-import ru from './locales/ru'
 
 export const LOCALES = {
   en: { name: 'English',    native: 'English',   flag: '🇬🇧', dir: 'ltr' },
@@ -43,7 +32,41 @@ export const LOCALES = {
   ru: { name: 'Russian',    native: 'Русский',   flag: '🇷🇺', dir: 'ltr' },
 }
 
-const CATALOGUES = { en, es, fr, de, pt, it, ar, zh, ja, ko, tr, ru }
+// English is bundled — it is the fallback and must always be available
+// synchronously. The other 11 are code-split and fetched on demand, so a
+// visitor downloads one language, not twelve (~365KB of source saved).
+const LOADERS = {
+  es: () => import('./locales/es'),
+  fr: () => import('./locales/fr'),
+  de: () => import('./locales/de'),
+  pt: () => import('./locales/pt'),
+  it: () => import('./locales/it'),
+  ar: () => import('./locales/ar'),
+  zh: () => import('./locales/zh'),
+  ja: () => import('./locales/ja'),
+  ko: () => import('./locales/ko'),
+  tr: () => import('./locales/tr'),
+  ru: () => import('./locales/ru'),
+}
+
+// Catalogues resolved so far. English is always present.
+const CATALOGUES = { en }
+
+const isSupported = (code) => code === 'en' || code in LOADERS
+
+/** Fetch a catalogue once and memoise it. Failure falls back to English. */
+async function loadCatalogue(code) {
+  if (CATALOGUES[code]) return CATALOGUES[code]
+  const loader = LOADERS[code]
+  if (!loader) return null
+  try {
+    const mod = await loader()
+    CATALOGUES[code] = mod.default
+    return mod.default
+  } catch {
+    return null
+  }
+}
 
 export const LOCALE_CODES = Object.keys(LOCALES)
 const STORAGE_KEY = 'keelstone-locale'
@@ -55,7 +78,7 @@ const DEFAULT_LOCALE = 'en'
 export function detectLocale() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && CATALOGUES[stored]) return stored
+    if (stored && isSupported(stored)) return stored
   } catch { /* storage blocked */ }
 
   try {
@@ -63,7 +86,7 @@ export function detectLocale() {
     for (const tag of navigator.languages || [navigator.language]) {
       if (!tag) continue
       const base = tag.toLowerCase().split('-')[0]
-      if (CATALOGUES[base]) return base
+      if (isSupported(base)) return base
     }
   } catch { /* no navigator */ }
 
@@ -103,9 +126,21 @@ export function translate(locale, key, vars) {
 const I18nContext = createContext(null)
 
 export function I18nProvider({ children }) {
+  // Start on English if the detected locale hasn't loaded yet; `ready` flips
+  // once its catalogue arrives, which re-renders the tree in that language.
   const [locale, setLocaleState] = useState(detectLocale)
+  const [, setReady] = useState(0)
 
   const dir = LOCALES[locale]?.dir || 'ltr'
+
+  // Fetch the active catalogue if it isn't in memory yet. Until it lands,
+  // `translate` falls back to English rather than showing raw keys.
+  useEffect(() => {
+    if (CATALOGUES[locale]) return
+    let active = true
+    loadCatalogue(locale).then(() => { if (active) setReady((n) => n + 1) })
+    return () => { active = false }
+  }, [locale])
 
   // Keep <html lang/dir> correct: screen readers, hyphenation, and the CSS
   // logical properties all key off these.
@@ -125,7 +160,7 @@ export function I18nProvider({ children }) {
       if (explicit) return
       const { data } = await supabase
         .from('profiles').select('locale').eq('id', session.user.id).maybeSingle()
-      if (active && data?.locale && CATALOGUES[data.locale]) setLocaleState(data.locale)
+      if (active && data?.locale && isSupported(data.locale)) setLocaleState(data.locale)
     }
     supabase.auth.getSession().then(({ data }) => sync(data.session))
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => sync(session))
@@ -133,7 +168,10 @@ export function I18nProvider({ children }) {
   }, [])
 
   const setLocale = useCallback(async (next) => {
-    if (!CATALOGUES[next]) return
+    if (!isSupported(next)) return
+    // Load before switching so the UI changes in one step instead of
+    // flashing English while the chunk downloads.
+    await loadCatalogue(next)
     setLocaleState(next)
     try { localStorage.setItem(STORAGE_KEY, next) } catch {}
 

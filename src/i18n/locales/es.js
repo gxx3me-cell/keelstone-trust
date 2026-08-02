@@ -445,6 +445,10 @@ export default {
     addressHint: 'Dirección BEP-20 (BNB Smart Chain) que empieza por 0x.',
     invalidAddress: 'Introduzca una dirección de monedero USDT BEP-20 (BSC) válida que empiece por 0x.',
     reviewNotice: 'Nuestro equipo revisa las retiradas y suelen abonarse en un plazo de 2 a 5 días hábiles.',
+    availableToWithdraw: 'Disponible para retirar',
+    reviewNoticeShort: 'Nuestro equipo revisa las solicitudes y suelen abonarse en un plazo de 2 a 5 días hábiles.',
+    exceedsCash:
+      'Esto supera su saldo no invertido de {amount}, por lo que tendremos que cerrar o reducir uno de sus planes para liberarlo. Su asesor lo confirmará antes de vender nada.',
     request: 'Solicitar retirada',
     failed: 'No se ha podido enviar su solicitud. Inténtelo de nuevo.',
     submitted: 'Solicitud de retirada enviada.',
@@ -681,6 +685,16 @@ export default {
     adminsOnlyBody: '{email} no tiene acceso de administrador.',
     backToDashboard: 'Volver a mi panel',
     verifyingAccess: 'Verificando el acceso de administrador',
+    creditInvestor: 'Abonar a este inversor',
+    availableNoPlan: 'Saldo disponible (sin plan)',
+    creditCta: 'Abonar al inversor',
+    noneOnFile: 'No hay registros.',
+    adminHistory: 'Historial de administración',
+    saveProfile: 'Guardar perfil',
+    identityVerification: 'Verificación de identidad',
+    dangerZone: 'Zona de riesgo',
+    noPlansYet: 'Todavía no hay planes.',
+    needHelp: '¿Necesita ayuda? Nuestro equipo está a su disposición.',
   },
 
   /* ── legal ── */

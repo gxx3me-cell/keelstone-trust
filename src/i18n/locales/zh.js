@@ -443,6 +443,10 @@ export default {
     addressHint: '以 0x 开头的 BEP-20（BNB Smart Chain）地址。',
     invalidAddress: '请输入以 0x 开头的有效 USDT BEP-20（BSC）钱包地址。',
     reviewNotice: '提现将由我们的团队审核，通常在 2–5 个工作日内支付。',
+    availableToWithdraw: '可提现金额',
+    reviewNoticeShort: '申请将由我们的团队审核，通常在 2–5 个工作日内支付。',
+    exceedsCash:
+      '该金额超出您 {amount} 的未投资余额，因此我们需要结束或减少您的某个方案才能释放资金。在出售任何资产之前，您的顾问会先与您确认。',
     request: '申请提现',
     failed: '申请提交失败，请重试。',
     submitted: '提现申请已提交。',
@@ -679,6 +683,16 @@ export default {
     adminsOnlyBody: '{email} 没有管理员权限。',
     backToDashboard: '返回我的后台',
     verifyingAccess: '正在验证管理员权限',
+    creditInvestor: '为该投资者入账',
+    availableNoPlan: '可用余额（未投入方案）',
+    creditCta: '确认入账',
+    noneOnFile: '暂无记录。',
+    adminHistory: '管理操作记录',
+    saveProfile: '保存资料',
+    identityVerification: '身份验证',
+    dangerZone: '危险操作',
+    noPlansYet: '暂无方案。',
+    needHelp: '需要帮助吗？我们的团队随时为您服务。',
   },
 
   /* ── 法律条款 ── */
