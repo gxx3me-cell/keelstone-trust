@@ -1,84 +1,52 @@
 # Resend + Edge Functions — setup walkthrough
 
-## Status — 2026-08-01
+## Status
 
 | | |
 |---|---|
-| Migrations | ✅ all 5 applied and verified |
-| RLS | ✅ 16/16 checks |
-| KYC | ✅ 7/7 — guard-conflict bug fixed |
-| Notifications | ✅ 12/12 including live realtime |
-| Edge Functions | ✅ all 5 deployed, ACTIVE, `verify_jwt: true` |
-| End-to-end deposit | ✅ 26/26 |
-| Resend | ⚠️ works, but **domain still `pending`** — sandbox only |
-| Deposit method | ⛔ still the `0x0000…` placeholder, inactive |
+| Migrations | ✅ all 7 applied and verified |
+| RLS | ✅ 16/16 |
+| KYC | ✅ 7/7 |
+| Notifications | ✅ 12/12 incl. live realtime |
+| Newsletter | ✅ 12/12 |
+| Deposit end-to-end | ✅ 26/26 |
+| Admin CRUD + audit | ✅ 18/18 |
+| Edge Functions | ✅ 6 deployed, ACTIVE, `verify_jwt: true` |
+| Resend domain | ✅ `keelstone-trust.com` verified (DKIM + SPF) |
+| Transactional email | ✅ delivering from `noreply@keelstone-trust.com` |
+| Auth email (SMTP) | ✅ routed through Resend, limit 2/hr → 100/hr |
+| Deposit method | ⛔ **still the `0x0000…` placeholder, inactive** |
 
-**Two things left before real investors can use this** — steps 2 and 6 below.
-
-Everything else in this document is done. It's kept as a record of what was
-configured and why.
-
----
-
-## Step 1 — Resend account and API key
-
-✅ **Done.** Key supplied and tested against the Resend API — it authenticates.
-
-Two things I found while testing:
-
-- The account is registered to **`gxx3me@gmail.com`**, not
-  `ejikemebright661@gmail.com`. Until the domain verifies, Resend refuses to
-  send anywhere except that address. Worth confirming it's the account you meant.
-- `keelstone-trust.com` is added and showing **pending** — DNS still propagating.
+**One thing left before real investors can deposit** — step 6.
 
 ---
 
-## Step 2 — Verify your sending domain
+Everything below is a record of what was configured and why.
 
-This is the step people skip, and it's why their email lands in spam. Resend
-will not let you send from `@keelstone-trust.com` until you prove you own it.
+---
 
-1. Resend → **Domains → Add Domain** → enter `keelstone-trust.com`
-2. Resend shows you 3 DNS records. Add all of them wherever your DNS lives
-   (Vercel, Cloudflare, Namecheap, wherever the domain is registered):
+## Steps 1 & 2 — Resend ✅ done
 
-   | Type | Purpose |
-   |---|---|
-   | `MX` + `TXT` (SPF) | authorises Resend's servers to send as you |
-   | `TXT` (DKIM) | cryptographically signs your mail |
-   | `TXT` (DMARC) | tells inboxes what to do with mail that fails the above |
+`keelstone-trust.com` is **verified** — DKIM and both SPF records green.
+Transactional email sends from `noreply@keelstone-trust.com` and delivers to any
+address (the sandbox restriction is gone).
 
-   Copy the values exactly. A trailing dot or a wrong subdomain silently breaks
-   verification.
-3. Click **Verify**. Usually a few minutes; DNS can take up to 48 hours.
+DNS records in place:
 
-### The records for keelstone-trust.com
+| Type | Name | Purpose |
+|---|---|---|
+| TXT | `resend._domainkey` | DKIM signature |
+| MX | `send` | SPF return path |
+| TXT | `send` | SPF authorisation |
+| TXT | `_dmarc` | `p=none` — monitor only |
 
-Add these **four**:
+The optional `MX` on `@` was deliberately **not** added: it would redirect all
+inbound mail for the domain and break `contact@keelstone-trust.com`, which is
+published on the landing page. Nothing in the app needs inbound mail.
 
-| Type | Name | Value | Priority |
-|---|---|---|---|
-| TXT | `resend._domainkey` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZX2cLXtVUAxgcmUqVWViAiHOHgpALbMSXHAPO7X7ZWeNHELTBjFlzRUuJpd8MNzLVzuQBYf33zyowqyonL0jlZMZk16ZixPhzBeihw0BxK1N/m2w2aDG+ZdAInNcxFbuM9JBs0l0DyTbOI4sxKRuqt/vBWdNjkWjFUQFQHEh0QQIDAQAB` | — |
-| MX | `send` | `feedback-smtp.eu-west-1.amazonses.com` | 10 |
-| TXT | `send` | `v=spf1 include:amazonses.com ~all` | — |
-| TXT | `_dmarc` | `v=DMARC1; p=none;` | — |
+Tighten DMARC to `p=quarantine` after a few weeks of clean sending.
 
-**Skip the fifth record** Resend offers — `MX` on `@` pointing to
-`inbound-smtp.eu-west-1.amazonaws.com`. That is for *receiving* mail and would
-redirect **all** inbound email for the domain. `contact@keelstone-trust.com` is
-published three times on the landing page and referenced in the KYC flow, so
-adding it would silently stop those messages reaching wherever they go now.
-Nothing in the app needs inbound mail — the support inbox is written by the
-admin console, not by receiving email. Verification passes without it.
-
-`p=none` on DMARC means monitor-only; tighten to `p=quarantine` after a few
-weeks of clean sending.
-
-**Don't have the domain ready?** You can test with Resend's sandbox sender
-`onboarding@resend.dev`, but it will *only* deliver to the account owner's
-address (`gxx3me@gmail.com`). Fine for a smoke test, useless for real investors.
-
-**How to tell it worked:** the domain shows **Verified** with a green tick.
+The Resend account is registered to `gxx3me@gmail.com`.
 
 ---
 
@@ -125,18 +93,15 @@ All four create throwaway users and clean up after themselves.
 
 ## Step 4 — Deploy the Edge Functions ✅ done
 
-All five are deployed and ACTIVE with `verify_jwt: true`. Secrets set:
+All six are deployed and ACTIVE with `verify_jwt: true`. Secrets set:
 `RESEND_API_KEY`, `SITE_URL`, `EMAIL_FROM`.
 
-`EMAIL_FROM` is currently the **sandbox sender** `onboarding@resend.dev`,
-because the domain hasn't verified yet. Once it does, update it — no redeploy
-needed, secrets are read at invocation:
+`EMAIL_FROM` is `Keelstone Trust <noreply@keelstone-trust.com>` — the verified
+domain. Secrets are read at invocation, so changing one needs no redeploy:
 
 ```powershell
 npx supabase secrets set "EMAIL_FROM=Keelstone Trust <noreply@keelstone-trust.com>"
 ```
-
-Or ask me and I'll do it through the Management API.
 
 To redeploy after changing function code:
 
@@ -148,28 +113,26 @@ Verified end to end with `node supabase/verify-functions.mjs` — 26/26, coverin
 the happy path and the attacks: forged `status: 'approved'` ignored, forged
 `user_id` ignored, non-admin approval refused, double-approval refused.
 
-## Step 5 — Auth email templates
+## Step 5 — Auth email ✅ done
 
-Supabase's own auth emails (confirm signup, password reset) do **not** go through
-Resend by default — they use Supabase's built-in sender, which is rate-limited
-and generic-looking.
+Supabase's own auth emails (confirm signup, password reset) now route through
+Resend over SMTP, so they come from your verified domain rather than Supabase's
+shared sender.
 
-**Minimum:** Dashboard → **Authentication → Email Templates** → reword *Confirm
-signup* and *Reset password* to sound like Keelstone.
+- Host `smtp.resend.com`, port `465`, user `resend`
+- Sender `Keelstone Trust <noreply@keelstone-trust.com>`
+- **Rate limit raised from 2/hour to 100/hour** — the default would have
+  throttled signups the moment more than two people registered in an hour
 
-**Better (later):** Authentication → **SMTP Settings** → point Supabase at Resend
-so every email, including auth, comes from your verified domain:
+URL configuration:
+- Site URL: `https://keelstone-trust.com`
+- Redirect allow-list: `https://keelstone-trust.com/**`, `http://localhost:5173/**`
 
-- Host `smtp.resend.com`, Port `465`
-- Username `resend`
-- Password: your `re_` API key
-- Sender: `noreply@keelstone-trust.com`
+Without the allow-list, password-reset and confirmation links bounce.
 
-Also set **Authentication → URL Configuration**:
-- Site URL: your deployed URL
-- Redirect URLs: add `http://localhost:5173/**` for local dev
-
-Password reset and email confirmation both break without these.
+Still worth doing by hand: Dashboard → **Authentication → Email Templates** →
+reword *Confirm signup* and *Reset password*. They currently use Supabase's
+default copy, which reads generically next to the branded transactional mail.
 
 ---
 
@@ -192,6 +155,7 @@ tick Active. Add one per coin you accept.
 | `send-welcome-email` | signup | Welcome email: verify → KYC → fund. Idempotent |
 | `support-email` | admin inbox | Sends a reply or a fresh email, logs it to `messages` |
 | `admin-fund` | admin investor manager | Credits an investor directly, or closes an investment |
+| `admin-delete-user` | admin investor manager | Deletes an investor and all their records, after snapshotting them to the audit log |
 
 ### Why these run server-side
 
@@ -355,3 +319,86 @@ source .supabase-secrets.local.sh && node supabase/verify-admin-crud.mjs
 ```
 
 18 checks: editing, auditing, cascade deletion, and every guardrail above.
+
+---
+
+## Email design
+
+All templates live in `supabase/functions/_shared/email.ts` — one `layout()`
+shell, so every email looks the same and a change lands everywhere at once.
+
+### The logo
+
+Hosted in a public Supabase Storage bucket:
+
+```
+https://ieimrautxzihehjooqks.supabase.co/storage/v1/object/public/brand/keelstone-mark.png
+```
+
+Not inlined as base64 — Gmail clips messages over ~102KB and both Gmail and
+Outlook block `data:` URIs outright. Not hotlinked from `keelstone-trust.com`
+either: the domain's DNS is configured for mail but isn't serving static files.
+
+The logo sits beside a text wordmark, so when a client blocks images (Outlook's
+default) the email still reads as Keelstone rather than showing a broken icon.
+
+To replace it, upload over the same path:
+
+```bash
+source .supabase-secrets.local.sh
+node -e "const fs=require('fs');fetch(process.env.SUPABASE_URL+'/storage/v1/object/brand/keelstone-mark.png',{method:'POST',headers:{apikey:process.env.SUPABASE_SECRET_KEY,Authorization:'Bearer '+process.env.SUPABASE_SECRET_KEY,'Content-Type':'image/png','x-upsert':'true'},body:fs.readFileSync('public/uploads/kneelstone-mark.png')}).then(r=>console.log(r.status))"
+```
+
+### Palette
+
+Taken from the logo — a green shield. The previous templates were purple
+(`#6d28d9`), left over from the old Lumen branding, which clashed with it.
+
+| | |
+|---|---|
+| `#137045` | brand green — passes AA on white at body size |
+| `#0f1b16` | headings |
+| `#3d4c45` | body text |
+| `#6b7d73` | secondary |
+| `#f4f7f5` | canvas behind the card |
+
+### Why the markup looks dated
+
+Email HTML is not web HTML:
+
+- **Tables, not flexbox or grid.** Outlook renders through Word and ignores
+  modern layout CSS entirely.
+- **Inline styles only.** `<style>` blocks get stripped by webmail sanitisers.
+- **A plain-text part on every send.** Without one, spam filters score you
+  worse and text-only clients show nothing. `sendMail()` derives it from the
+  HTML when a caller doesn't supply one.
+- **An explicit preheader** — the grey preview line after the subject. Left
+  unset, clients scrape the first visible text, which is usually alt text.
+
+### Building blocks
+
+`layout()` takes a `preheader`, `heading`, `body`, optional `cta` and
+`footnote`. Compose the body from:
+
+| Helper | Use |
+|---|---|
+| `p(html)` | paragraph |
+| `greet(firstName)` | "Hello X," with a sensible fallback |
+| `statement(label, value)` | pulls an amount out of the prose |
+| `details([[k, v, mono?]])` | key/value rows |
+| `steps([[title, text]])` | numbered actions |
+| `callout(text, tone)` | warning or error inline |
+
+### Previewing a change
+
+```bash
+cd supabase/functions
+npx deno@2 run --allow-env --allow-write - <<'EOF'
+import { welcomeEmail } from './_shared/email.ts'
+await Deno.writeTextFile('preview.html', welcomeEmail('Bright'))
+EOF
+```
+
+Then open `preview.html`. Redeploy with `npx supabase functions deploy` — the
+templates are bundled into every function, so all six need redeploying when
+`email.ts` changes.
