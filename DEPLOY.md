@@ -12,7 +12,8 @@ detects this correctly — verify it says **Vite** on the import screen. good
 ## Step 1 — Push to your own GitHubV
 
 The repo currently points at **`github.com/lordace-coder/lumen`**, which is not
-your account. Repoint it:
+your account. Repoint it:\
+
 
 1. Create a new **private** repo on your GitHub — e.g. `keelstone-trust`.
    Don't add a README or .gitignore; the repo already has both.
